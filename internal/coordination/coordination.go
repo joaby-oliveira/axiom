@@ -2,6 +2,7 @@
 package coordination
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -200,12 +201,15 @@ func ValidRecord(record Record) bool {
 	return err == nil && digest == record.Digest
 }
 
-// AcceptanceEvidence projects a digest-verified record into the execution
-// graph acceptance boundary, carrying the correlation fields that let
-// BuildEvidence derive a question/answer or proposal/acceptance exchange.
-func AcceptanceEvidence(record Record) (executiongraph.CoordinationEvidence, error) {
-	if !ValidRecord(record) {
-		return executiongraph.CoordinationEvidence{}, ErrInvalidRecord
+// AcceptanceVerifier is the production executiongraph.CoordinationVerifier.
+// It derives acceptance facts only from a canonical encoded record whose digest
+// is recomputed from its content.
+type AcceptanceVerifier struct{}
+
+func (AcceptanceVerifier) VerifyCoordination(wire []byte) (executiongraph.CoordinationEvidence, error) {
+	record, err := Decode(wire)
+	if err != nil {
+		return executiongraph.CoordinationEvidence{}, err
 	}
 	evidence := executiongraph.CoordinationEvidence{RecordID: record.RecordID, Kind: string(record.Kind), ParentID: record.ParentID, GraphRevision: record.GraphRevision, ChildID: record.ChildID, AttemptID: record.AttemptID, Digest: record.Digest}
 	for _, field := range record.Fields {
@@ -228,6 +232,29 @@ func Encode(record Record) ([]byte, error) {
 		return nil, ErrInvalidRecord
 	}
 	return append(wire, '\n'), nil
+}
+
+// Decode accepts exactly the canonical encoding produced by Encode: the record
+// must decode strictly, pass ValidRecord (which recomputes the digest from the
+// content) and re-encode to the same bytes.
+func Decode(wire []byte) (Record, error) {
+	if len(wire) == 0 || len(wire) > MaxRecordBytes {
+		return Record{}, ErrInvalidRecord
+	}
+	decoder := json.NewDecoder(bytes.NewReader(wire))
+	decoder.DisallowUnknownFields()
+	var record Record
+	if err := decoder.Decode(&record); err != nil {
+		return Record{}, ErrInvalidRecord
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return Record{}, ErrInvalidRecord
+	}
+	canonical, err := Encode(record)
+	if err != nil || !bytes.Equal(canonical, wire) {
+		return Record{}, ErrInvalidRecord
+	}
+	return record, nil
 }
 
 func ValidStream(stream Stream) bool {

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -139,14 +140,27 @@ func TestAcceptanceEvidenceProjectsVerifiedCorrelation(t *testing.T) {
 			t.Fatalf("kind %q diverges from acceptance boundary %q", kind, boundary)
 		}
 	}
-	evidence, err := AcceptanceEvidence(acceptance)
+	wire, err := Encode(acceptance)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidence, err := AcceptanceVerifier{}.VerifyCoordination(wire)
 	if err != nil || evidence.Kind != executiongraph.CoordinationContractAcceptance || evidence.Reference != proposal.RecordID || evidence.Decision != executiongraph.CoordinationAccepted || evidence.Digest != acceptance.Digest || evidence.ParentID != graph.Parent.ExecutionID || evidence.ChildID != child.ExecutionID || evidence.GraphRevision != graph.Parent.GraphRevision {
 		t.Fatalf("evidence=%+v err=%v", evidence, err)
 	}
 	forged := acceptance
 	forged.Fields = []Field{{Name: "contract_reference", Value: "00000000-0000-4000-8000-000000000999"}, {Name: "decision", Value: "accepted"}}
-	if _, err := AcceptanceEvidence(forged); err == nil {
+	forgedWire, err := json.Marshal(forged)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (AcceptanceVerifier{}).VerifyCoordination(append(forgedWire, '\n')); err == nil {
 		t.Fatal("record with stale digest projected")
+	}
+	for _, wire := range [][]byte{nil, wire[:len(wire)-1], append(append([]byte(nil), wire...), wire...), []byte(strings.Replace(string(wire), `"formatVersion"`, `"extra":1,"formatVersion"`, 1))} {
+		if _, err := Decode(wire); err == nil {
+			t.Fatalf("non-canonical record decoded: %q", wire)
+		}
 	}
 }
 

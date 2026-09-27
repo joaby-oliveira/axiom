@@ -66,8 +66,8 @@ record:
 | `internal/executiongraph/graph.go` | `7381f570a8c52b140de93c3402b1d79f16869c67635cab9d2f610254442041a2` |
 | `internal/executiongraph/scheduler.go` | `4cc4c9915e1e1b51cdb769419e0e6727e58a7d9a09aa4a1d2f91f2e83369f793` |
 | `internal/executiongraph/integration.go` | `b5dc296f9985fcf1795a06ecae51d522b64d1f2aa077db3ce587fd76eb173950` |
-| `internal/executiongraph/acceptance.go` | `864a3c9400dd3b9846ac21f15bd0ac7eee8a41fee48587494e2b26ea9af86b11` |
-| `internal/coordination/coordination.go` | `285f34b9467e7d06e02993c72bb83dda6061dd53fef61b45556ae875d696136e` |
+| `internal/executiongraph/acceptance.go` | `d8e4ff97259d441d0f49bbf0abf6d1e3c4e276a715e0266c89cfaf59d6a18a23` |
+| `internal/coordination/coordination.go` | `fe4c401dfc36e2f375b5342592c554f3adb04bf398b730ba76bc99e9f778daf0` |
 
 ## Implemented deterministic contracts
 
@@ -177,21 +177,32 @@ command execution remain ports exercised with fakes. T35 is therefore partial.
   dispatch records (`codex.StartedAt < claude.EndedAt` and
   `claude.StartedAt < codex.EndedAt`); touching windows (`EndedAt == StartedAt`)
   and sequential or dependent children do not qualify.
-- Coordination is structured Evidence, not bare digests. Each
-  `CoordinationEvidence` item carries record ID, kind, parent, graph revision,
-  child, optional attempt, digest, reference and decision; the coordination
-  package produces it only from a digest-verified record
-  (`coordination.AcceptanceEvidence`). The journey requires a `question_request`
-  answered by a correlated `answer`, or a `contract_proposal` followed by a
-  correlated `contract_acceptance` with decision `accepted`, exchanged between
-  two distinct children during Runtime-executed attempts.
+- Coordination is structured Evidence derived from canonical records, not
+  caller-asserted facts. Callers supply canonical encoded coordination records
+  (`Evidence.CoordinationRecords`); `BuildEvidence` rejects any caller-populated
+  `Coordination` and derives each `CoordinationEvidence` (record ID, kind,
+  parent, graph revision, child, optional attempt, digest, reference, decision)
+  only through the acceptance-owned `CoordinationVerifier` port. The production
+  implementation, `coordination.AcceptanceVerifier`, accepts only bytes that
+  decode strictly, pass `ValidRecord` (digest recomputed from content) and
+  re-encode to the identical canonical form; content altered after digesting,
+  an arbitrary SHA-256 digest and non-canonical encodings are rejected. Lineage
+  is then validated against the graph, so a resealed record with foreign parent,
+  graph revision, child or attempt is still rejected. The verifier is chosen by
+  the composition root; it is not proof against arbitrary in-process code. The
+  journey requires a `question_request` answered by a correlated `answer`, or a
+  `contract_proposal` followed by a correlated `contract_acceptance` with
+  decision `accepted`, exchanged between two distinct children during
+  Runtime-executed attempts.
 - Successful Integration/Reconciliation roll-up, a digested result tree,
   successful combined validation linked to declared validation references and
   integration references are also mandatory.
 - Missing journey facts remain `deterministic_preparation_only`; foreign
   Runtime/Profile/attempt claims and coordination records with foreign parent,
-  graph revision, child or attempt, missing kind, invalid digest/reference or
-  duplicate identity are rejected.
+  graph revision, child or attempt (including an attempt of another child),
+  tampered or non-canonical content, arbitrary digests, caller-asserted facts
+  or duplicate identity are rejected. Journey tests publish records through
+  `coordination.Service` and verify them through `coordination.AcceptanceVerifier`.
 
 These are deterministic contract tests only. No real Codex + Claude Runtime
 journey was executed, and no `real_run_recorded` Evidence exists.

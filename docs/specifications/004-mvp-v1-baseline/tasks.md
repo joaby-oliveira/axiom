@@ -1099,7 +1099,7 @@ not completion Evidence.
 | ADR-0006 | T02, T03, T09–T13, T15, T18, T19, T21, T24–T29 |
 | ADR-0007 | T02–T05, T07, T09–T13, T17–T24, T26–T29 |
 | ADR-0008 | T10–T15, T18, T19, T21, T24–T27, T29 |
-| ADR-0009 (Accepted 2026-09-26; implementation separately gated) | T30–T36, T24, T25 |
+| ADR-0009 (Accepted 2026-09-26; T30–T36 implementation authorized 2026-09-27; real T36 run separately gated) | T30–T36, T24, T25 |
 
 No approved FR/AC, approved security/NFR clause, inherited SEC requirement, HD
 decision, or Accepted ADR is silently deferred. ADR-0009 acceptance is recorded

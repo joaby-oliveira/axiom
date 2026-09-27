@@ -86,6 +86,7 @@ type Evidence struct {
 	GraphDigest          string
 	Dispatch             []DispatchRecord
 	RuntimeExecutions    []RuntimeExecutionEvidence
+	CoordinationRecords  [][]byte
 	Coordination         []CoordinationEvidence
 	Rollup               ParentRollup
 	ValidationReferences []string
@@ -113,10 +114,12 @@ const (
 	CoordinationAccepted           = "accepted"
 )
 
-// CoordinationEvidence projects one digest-verified coordination record into
-// the acceptance boundary. The coordination package owns record verification;
-// BuildEvidence validates lineage against the graph and derives the T36
-// exchange from Kind, Reference and Decision rather than from bare digests.
+// CoordinationEvidence is one coordination fact derived by BuildEvidence
+// through a CoordinationVerifier from a canonical coordination record. Callers
+// supply canonical records in Evidence.CoordinationRecords; BuildEvidence
+// rejects caller-populated Coordination so projected fields are never
+// self-asserted. Lineage is then validated against the graph and the T36
+// exchange is derived from Kind, Reference and Decision.
 type CoordinationEvidence struct {
 	RecordID      string
 	Kind          string
@@ -129,7 +132,24 @@ type CoordinationEvidence struct {
 	Decision      string
 }
 
-func BuildEvidence(graph Graph, evidence Evidence) (Evidence, error) {
+// CoordinationVerifier is the acceptance-owned port through which
+// BuildEvidence derives coordination facts. An implementation decodes one
+// canonical coordination record, recomputes its digest from that content and
+// projects it. The coordination package owns the canonical format and provides
+// the production implementation.
+type CoordinationVerifier interface {
+	VerifyCoordination(record []byte) (CoordinationEvidence, error)
+}
+
+func BuildEvidence(graph Graph, evidence Evidence, verifier CoordinationVerifier) (Evidence, error) {
+	if len(evidence.Coordination) != 0 {
+		return Evidence{}, ErrInvalidRunEnvelope
+	}
+	records, facts, ok := verifiedCoordination(evidence.CoordinationRecords, verifier)
+	if !ok {
+		return Evidence{}, ErrInvalidRunEnvelope
+	}
+	evidence.CoordinationRecords, evidence.Coordination = records, facts
 	if !ValidGraph(graph) || evidence.FormatVersion != 1 || !validSourceRevision(evidence.BaseRevision) || !validDigest(evidence.ConfigurationDigest) || evidence.ParentID != graph.Parent.ExecutionID || evidence.GraphRevision != graph.Parent.GraphRevision || !validCoordinationEvidence(graph, evidence.Coordination) || !boundedReferences(evidence.ValidationReferences) || len(evidence.Limitations) == 0 || !boundedReferences(evidence.Limitations) || !validEvidenceRollup(graph, evidence.Rollup) || !validDispatchEvidence(graph, evidence.Dispatch) || !validRuntimeExecutionEvidence(graph, evidence.RuntimeExecutions) {
 		return Evidence{}, ErrInvalidRunEnvelope
 	}
@@ -150,7 +170,6 @@ func BuildEvidence(graph Graph, evidence Evidence) (Evidence, error) {
 	sort.Slice(evidence.RuntimeExecutions, func(i, j int) bool {
 		return evidence.RuntimeExecutions[i].ChildID+"\x00"+evidence.RuntimeExecutions[i].AttemptID < evidence.RuntimeExecutions[j].ChildID+"\x00"+evidence.RuntimeExecutions[j].AttemptID
 	})
-	sort.Slice(evidence.Coordination, func(i, j int) bool { return evidence.Coordination[i].RecordID < evidence.Coordination[j].RecordID })
 	sort.Strings(evidence.ValidationReferences)
 	sort.Strings(evidence.Limitations)
 	evidence.Digest = ""
@@ -285,6 +304,37 @@ func completeRealRuntimeJourney(graph Graph, evidence Evidence) bool {
 		}
 	}
 	return false
+}
+
+// verifiedCoordination derives coordination facts only through the verifier
+// and returns records and facts in the same RecordID order.
+func verifiedCoordination(wires [][]byte, verifier CoordinationVerifier) ([][]byte, []CoordinationEvidence, bool) {
+	if len(wires) == 0 {
+		return nil, nil, true
+	}
+	if verifier == nil || len(wires) > maxListItems {
+		return nil, nil, false
+	}
+	type verified struct {
+		wire []byte
+		fact CoordinationEvidence
+	}
+	items := make([]verified, 0, len(wires))
+	for _, wire := range wires {
+		fact, err := verifier.VerifyCoordination(wire)
+		if err != nil {
+			return nil, nil, false
+		}
+		items = append(items, verified{wire: append([]byte(nil), wire...), fact: fact})
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].fact.RecordID < items[j].fact.RecordID })
+	records := make([][]byte, 0, len(items))
+	facts := make([]CoordinationEvidence, 0, len(items))
+	for _, item := range items {
+		records = append(records, item.wire)
+		facts = append(facts, item.fact)
+	}
+	return records, facts, true
 }
 
 func validCoordinationEvidence(graph Graph, records []CoordinationEvidence) bool {

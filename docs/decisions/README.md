@@ -12,7 +12,7 @@ Este diretório registra decisões técnicas duráveis e difíceis de reverter.
 - [ADR-0006 — Machine-local detail artifacts](0006-machine-local-detail-artifacts.md) — Accepted, 2026-09-20; central local ownership, Execution-first correlation, Evidence references, retention and safe cleanup from HD-2.
 - [ADR-0007 — Local publication and recovery protocol](0007-local-publication-and-recovery-protocol.md) — **Accepted, 2026-09-20**; shared logical publication states, coordination, commit truth, prior/new generations and fail-closed recovery under ADR-0005.
 - [ADR-0008 — Minimal machine-local Execution record](0008-minimal-machine-local-execution-record.md) — **Accepted, 2026-09-20**; bounded sequential workflow authority, revisioned transitions, resume and cross-boundary correlation without defining a general Execution graph.
-- [ADR-0009 — Parent/child Execution Graph](0009-parent-child-execution-graph.md) — **Accepted, 2026-09-26**; revisioned DAG, lineage, authority, isolation, integration, structured coordination and cross-Runtime Evidence. Implementation remains separately gated.
+- [ADR-0009 — Parent/child Execution Graph](0009-parent-child-execution-graph.md) — **Accepted, 2026-09-26**; revisioned DAG, lineage, authority, isolation, integration, structured coordination and cross-Runtime Evidence. S8/T30–T36 implementation was authorized on 2026-09-27 (Issue #97 comment #5852650410); the real T36 Runtime run remains separately gated.
 
 ## Candidate assessment
 
