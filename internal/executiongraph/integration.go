@@ -107,7 +107,7 @@ func NewIntegrationService(integrator Integrator, validator CombinedValidator) I
 }
 
 func (s IntegrationService) Preview(graph Graph, observation IntegrationObservation, results []ChildResult) (IntegrationPreview, error) {
-	if !ValidGraph(graph) || !validDigest(observation.TargetRevision) || !validDigest(observation.TargetTree) || len(observation.ForeignChanges) > 0 || len(observation.Conflicts) > 0 {
+	if !ValidGraph(graph) || !validSourceRevision(observation.TargetRevision) || !validSourceRevision(observation.TargetTree) || len(observation.ForeignChanges) > 0 || len(observation.Conflicts) > 0 {
 		return IntegrationPreview{}, ErrIntegrationBlocked
 	}
 	integration, ok := integrationChild(graph)
@@ -174,7 +174,7 @@ func (s IntegrationService) Execute(ctx context.Context, graph Graph, preview In
 		return rollup, ErrIntegrationBlocked
 	}
 	applied, err := s.integrator.Apply(ctx, integration, preview)
-	if err != nil || !applied.Confirmed || !validDigest(applied.ResultTree) || !sameEffects(applied.AppliedEffects, preview.Effects) {
+	if err != nil || !applied.Confirmed || !validSourceRevision(applied.ResultTree) || !sameEffects(applied.AppliedEffects, preview.Effects) {
 		rollup.Status = "partial"
 		setIntegrationOutcome(&rollup, AttemptUnknown)
 		rollup.References = append(rollup.References, applied.References...)
@@ -195,7 +195,7 @@ func (s IntegrationService) Execute(ctx context.Context, graph Graph, preview In
 }
 
 func validChildResult(graph Graph, result ChildResult) bool {
-	if result.ParentID != graph.Parent.ExecutionID || result.GraphRevision != graph.Parent.GraphRevision || !validOpaqueID(result.ChildID) || !validOpaqueID(result.AttemptID) || !validDigest(result.EnvelopeDigest) || !validDigest(result.BaseRevision) || !validDigest(result.ResultTree) || len(result.Artifacts) > maxListItems {
+	if result.ParentID != graph.Parent.ExecutionID || result.GraphRevision != graph.Parent.GraphRevision || !validOpaqueID(result.ChildID) || !validOpaqueID(result.AttemptID) || !validDigest(result.EnvelopeDigest) || !validSourceRevision(result.BaseRevision) || !validSourceRevision(result.ResultTree) || len(result.Artifacts) > maxListItems {
 		return false
 	}
 	for _, child := range graph.Children {

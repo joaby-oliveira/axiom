@@ -189,7 +189,7 @@ func validEvidenceRollup(graph Graph, rollup ParentRollup) bool {
 	if rollup.Status != "partial" && rollup.Status != "success" && rollup.Status != "failure" && rollup.Status != "recovery_required" {
 		return false
 	}
-	if rollup.IntegrationResultTree != "" && !validDigest(rollup.IntegrationResultTree) {
+	if rollup.IntegrationResultTree != "" && !validSourceRevision(rollup.IntegrationResultTree) {
 		return false
 	}
 	if len(rollup.ValidationResults) > 0 && !validValidationResults(rollup.ValidationResults) {
@@ -250,7 +250,7 @@ func validRuntimeExecutionEvidence(graph Graph, records []RuntimeExecutionEviden
 }
 
 func completeRealRuntimeJourney(graph Graph, evidence Evidence) bool {
-	if evidence.Rollup.Status != "success" || !validDigest(evidence.Rollup.IntegrationResultTree) || !validValidationResults(evidence.Rollup.ValidationResults) || len(evidence.Rollup.References) == 0 {
+	if evidence.Rollup.Status != "success" || !validSourceRevision(evidence.Rollup.IntegrationResultTree) || !validValidationResults(evidence.Rollup.ValidationResults) || len(evidence.Rollup.References) == 0 {
 		return false
 	}
 	validationReferences := map[string]bool{}
