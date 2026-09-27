@@ -9,6 +9,7 @@ import (
 	"github.com/rgomids/axiom/internal/coordination"
 	"github.com/rgomids/axiom/internal/executiongraph"
 	"github.com/rgomids/axiom/internal/gitworkspace"
+	"github.com/rgomids/axiom/internal/runtimeadapter"
 )
 
 var ErrInvalidComposition = errors.New("invalid local graph execution composition")
@@ -16,8 +17,9 @@ var ErrInvalidComposition = errors.New("invalid local graph execution compositio
 type LocalConfiguration struct {
 	Repository, WorkspaceRoot, BaseRevision string
 	Graph                                   executiongraph.Graph
-	Invocations                             executiongraph.InvocationResolver
 	GraphStore                              executiongraph.GraphAttemptStore
+	RuntimeProfiles                         []runtimeadapter.CommandProfile
+	Credentials                             runtimeadapter.CredentialResolver
 	Validators                              []gitworkspace.ValidationCommand
 	AllocateAttemptID                       func() (string, error)
 }
@@ -35,7 +37,15 @@ type LocalService struct {
 }
 
 func NewLocalService(ctx context.Context, configuration LocalConfiguration) (*LocalService, error) {
-	if configuration.Invocations == nil || len(configuration.Validators) == 0 || !executiongraph.ValidGraph(configuration.Graph) {
+	invocations, err := runtimeadapter.NewInvocationResolver(configuration.RuntimeProfiles, configuration.Credentials)
+	if err != nil {
+		return nil, err
+	}
+	return newLocalService(ctx, configuration, invocations)
+}
+
+func newLocalService(ctx context.Context, configuration LocalConfiguration, invocations executiongraph.InvocationResolver) (*LocalService, error) {
+	if invocations == nil || configuration.GraphStore == nil || len(configuration.Validators) == 0 || !executiongraph.ValidGraph(configuration.Graph) {
 		return nil, ErrInvalidComposition
 	}
 	workspaces, err := gitworkspace.NewManager(ctx, configuration.Repository, configuration.WorkspaceRoot, configuration.BaseRevision, configuration.Graph)
@@ -49,7 +59,7 @@ func NewLocalService(ctx context.Context, configuration LocalConfiguration) (*Lo
 	return &LocalService{
 		graph:        configuration.Graph,
 		workspaces:   workspaces,
-		scheduler:    executiongraph.NewScheduler(configuration.Invocations, executiongraph.OSProcessRunner{}, workspaces, configuration.GraphStore, configuration.AllocateAttemptID, nil),
+		scheduler:    executiongraph.NewScheduler(invocations, executiongraph.OSProcessRunner{}, workspaces, configuration.GraphStore, configuration.AllocateAttemptID, nil),
 		integration:  executiongraph.NewIntegrationService(workspaces, validator),
 		coordination: coordination.AcceptanceVerifier{},
 	}, nil

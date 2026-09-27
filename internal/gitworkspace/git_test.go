@@ -112,6 +112,21 @@ func TestManagerRejectsDirtyWrongHeadWrongRepositoryAndCollision(t *testing.T) {
 }
 
 func TestManagerRejectsOutsideRootAndSymlinkEscape(t *testing.T) {
+	t.Run("traversal", func(t *testing.T) {
+		root := canonicalTempDir(t)
+		repository := initRepository(t, filepath.Join(root, "repository"))
+		workspaceRoot := filepath.Join(root, "workspaces")
+		traversal := workspaceRoot + string(filepath.Separator) + ".." + string(filepath.Separator) + "escape"
+		graph := buildGraph(t, workspaceRoot, graphOptions{workspaceOverride: map[string]string{"a": traversal}})
+		manager, err := gitworkspace.NewManager(context.Background(), repository.repository, workspaceRoot, repository.revision, graph)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := manager.Prepare(context.Background()); !errors.Is(err, gitworkspace.ErrWorkspaceInvalid) {
+			t.Fatalf("err=%v", err)
+		}
+	})
+
 	t.Run("outside root", func(t *testing.T) {
 		root := canonicalTempDir(t)
 		repository := initRepository(t, filepath.Join(root, "repository"))

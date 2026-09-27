@@ -1,4 +1,4 @@
-package graphapplication_test
+package graphapplication
 
 import (
 	"context"
@@ -15,8 +15,31 @@ import (
 
 	"github.com/rgomids/axiom/internal/executiongraph"
 	"github.com/rgomids/axiom/internal/gitworkspace"
-	"github.com/rgomids/axiom/internal/graphapplication"
+	"github.com/rgomids/axiom/internal/runtimeadapter"
 )
+
+func TestNewLocalServiceWiresConcreteRuntimeAdapter(t *testing.T) {
+	root := canonicalTempDir(t)
+	repository, revision := initRepository(t, filepath.Join(root, "repository"))
+	graph := buildGraph(t, filepath.Join(root, "workspaces"))
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	profiles := make([]runtimeadapter.CommandProfile, 0, len(graph.Children))
+	for _, child := range graph.Children {
+		profiles = append(profiles, runtimeadapter.CommandProfile{RuntimeID: "codex", ModelProfileID: child.Envelope.Resolution.ModelProfileID, Executable: filepath.Join(root, "codex"), Model: "local-test-profile", OutputMax: 4096})
+	}
+	store := &memoryGraphStore{wire: mustEncodeGraph(t, graph)}
+	service, err := NewLocalService(context.Background(), LocalConfiguration{
+		Repository: repository, WorkspaceRoot: filepath.Join(root, "workspaces"), BaseRevision: revision,
+		Graph: graph, GraphStore: store, RuntimeProfiles: profiles,
+		Validators: []gitworkspace.ValidationCommand{{Reference: "git-diff-check", Argv: []string{gitPath, "diff", "--check"}, Env: []string{"LC_ALL=C"}, OutputMax: 4096}},
+	})
+	if err != nil || service == nil {
+		t.Fatalf("service=%v err=%v", service, err)
+	}
+}
 
 func TestLocalServiceRunsConcurrentChildrenAndConcreteIntegration(t *testing.T) {
 	root := canonicalTempDir(t)
@@ -31,12 +54,14 @@ func TestLocalServiceRunsConcurrentChildrenAndConcreteIntegration(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	service, err := graphapplication.NewLocalService(context.Background(), graphapplication.LocalConfiguration{
+	store := &memoryGraphStore{wire: mustEncodeGraph(t, graph)}
+	service, err := newLocalService(context.Background(), LocalConfiguration{
 		Repository: repository, WorkspaceRoot: workspaceRoot, BaseRevision: revision,
-		Graph: graph, Invocations: helperInvocations{executable: executable},
+		Graph:             graph,
+		GraphStore:        store,
 		Validators:        []gitworkspace.ValidationCommand{{Reference: "git-diff-check", Argv: []string{gitPath, "diff", "--check"}, Env: []string{"LC_ALL=C"}, OutputMax: 4096}},
 		AllocateAttemptID: sequenceAllocator(100),
-	})
+	}, helperInvocations{executable: executable})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,6 +179,24 @@ func (s *memoryGraphStore) Create(_ context.Context, graph executiongraph.Graph)
 
 func (s *memoryGraphStore) Load(context.Context, string, string) (executiongraph.Graph, error) {
 	return executiongraph.DecodeGraph(s.wire)
+}
+
+func (s *memoryGraphStore) Save(_ context.Context, graph executiongraph.Graph) (executiongraph.Graph, error) {
+	wire, err := executiongraph.EncodeGraph(graph)
+	if err != nil {
+		return executiongraph.Graph{}, err
+	}
+	s.wire = wire
+	return executiongraph.DecodeGraph(wire)
+}
+
+func mustEncodeGraph(t *testing.T, graph executiongraph.Graph) []byte {
+	t.Helper()
+	wire, err := executiongraph.EncodeGraph(graph)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return wire
 }
 
 func sequenceAllocator(start uint64) func() (string, error) {
