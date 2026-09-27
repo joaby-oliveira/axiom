@@ -75,10 +75,13 @@ Slice trackers are #75–#80, with #94 owning S6.
 Issue [#97](https://github.com/rgomids/axiom/issues/97) records the 2026-09-26
 product-scope decision to add `S8 — Multi-runtime agent planning and multi-agent
 execution` after delivered S7 and move release-candidate acceptance to S9 while
-preserving T23–T25. Specification FR-045–FR-061, AC-32–AC-43, proposed
-[ADR-0009](../decisions/0009-parent-child-execution-graph.md), Plan and T30–T36
-Tasks are prepared for human review; none is approved or implementation-authorized
-by repository validation or merge.
+preserving T23–T25 IDs and historical RC objective while expanding T24/T25 for S8
+validation/Evidence. Human review on 2026-09-26 approved Specification
+FR-045–FR-061, AC-32–AC-43,
+[ADR-0009](../decisions/0009-parent-child-execution-graph.md), the Plan amendment
+and T30–T36 Tasks. Codex and Claude are the two concrete S8 acceptance Runtime
+paths; token/cost budget governance remains future work. This approval does not
+authorize S8 implementation, Runtime dispatch or external effects.
 
 ## Complete Specification 002
 
@@ -112,6 +115,7 @@ what must be understood first.
 | Runtime/model ecosystem beyond S8 | Adapter lifecycle and capability reporting beyond the two bounded acceptance Runtime paths |
 | Dynamic or distributed orchestration | Portable/shared authority, remote scheduling, graph expansion and multi-machine recovery |
 | Additional Runtime skills and adapters | Validate each additional Runtime without generalizing the bounded S8 allowlist into an arbitrary plugin ecosystem |
+| Runtime budget governance | Define provider-neutral token/cost/aggregate-parent semantics before any enforcement; observational telemetry remains non-equivalent and may be unavailable |
 | Richer Project wizard | Runtime/Integration discovery and setup contracts beyond the minimal guided flow already specified |
 | Portable distribution and synchronization | Independent local/remote Git authority, conflict handling, recovery and explicit compatibility policy |
 

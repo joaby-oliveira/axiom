@@ -142,13 +142,14 @@ clean-environment RC acceptance matrix, where they remain mandatory.
 
 Issue [#97](https://github.com/rgomids/axiom/issues/97) records the product-scope
 decision to add `S8 — Multi-runtime agent planning and multi-agent execution` and
-move unchanged T23–T25 release-candidate acceptance to S9. Proposed
-FR-045–FR-061, AC-32–AC-43,
+move T23–T25 release-candidate acceptance to S9. T23–T25 retain their IDs and
+historical RC objective; T24/T25 are expanded to validate and reconcile S8.
+Human review on 2026-09-26 approved FR-045–FR-061, AC-32–AC-43,
 [ADR-0009](../decisions/0009-parent-child-execution-graph.md), the amended Plan and
-T30–T36 decomposition are ready for human review, not approved. S8 implementation
-and S9 release work remain unauthorized. If approved, the amended DAG contains 36
-Tasks across S1–S9; that count is proposal status, not a replacement for the
-approved historical 29-Task baseline until human decision.
+T30–T36 decomposition. Codex and Claude are the concrete S8 acceptance Runtime
+paths; concrete models remain local Model Profiles, and token/cost budget governance
+is future work. The amended DAG contains 36 Tasks across S1–S9. S8 implementation
+and S9 release work remain separately unauthorized.
 
 Issue [#62](https://github.com/rgomids/axiom/issues/62) originally authorized
 Specification and reconciliation only. After PR #70 resolved that gate, the
@@ -201,5 +202,5 @@ Ubuntu 26.04 native Evidence deferred to T24, now S9,
 Provider mutation outside an exact authorized run, prerelease/release publication,
 and final MVP acceptance remain separately gated. Accepted operational Slice
 trackers are #75–#79 for S1–S5, #94 for S6, and #80 for S7. Issue #97 is the
-proposed S8 tracker; #81 becomes S9 only through separately authorized Provider
+approved S8 scope tracker; #81 becomes S9 only through separately authorized Provider
 reconciliation.

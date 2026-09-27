@@ -18,19 +18,22 @@ any successor Slice.
 
 **S7 (T16–T22): explicitly authorized on 2026-09-25. Technical implementation is recorded at `11f2b7decbe4ddef428d4cb3b7e962680100e1db` and `408a2b51f20e797744f9f6ba6eaa00e0061582f9` with [S7 Evidence](evidence-s7.md); T22 Ubuntu native rows remain unexecuted; human acceptance is not inferred.**
 
-### Issue #97 S8 amendment proposal — 2026-09-26
+### Issue #97 S8 amendment approval — 2026-09-26
 
-The original Plan and delivered S1–S7 remain historical. This amendment proposes
-S8 multi-runtime Agent Planning/Execution Graph delivery and renumbers the former
-RC slice to S9 without changing T23–T25. Proposed ADR-0009, this Plan amendment
-and the amended Tasks require explicit human approval. S8 implementation remains
+The original Plan and delivered S1–S7 remain historical. Human review on
+2026-09-26 approved this amendment for S8 multi-runtime Agent Planning/Execution
+Graph delivery, accepted ADR-0009, and renumbered the former RC slice to S9. T23–
+T25 keep their IDs and historical release-candidate objective; T24/T25 are expanded
+to validate and reconcile the new S8 product state. S8 implementation remains
 unauthorized.
 
 This Plan describes how to realize the behavior approved in
 [Specification 004](spec.md). It was explicitly approved by the human reviewer in
-PR #71 on 2026-09-20 together with ADR-0007 and ADR-0008. The next authorized SDD
-phase is Tasks only. Implementation, migration, Provider mutation, release, and
-final MVP acceptance remain unauthorized. No `tasks.md` is created by this change.
+PR #71 on 2026-09-20 together with ADR-0007 and ADR-0008. That original decision
+authorized only the Tasks phase at that time and created no `tasks.md`. The later
+Issue #94 and #97 amendments preserve the same gate: approved Plan/Tasks do not
+authorize implementation, migration, Provider mutation, release, or final MVP
+acceptance.
 
 Planning baseline: `main` at `9537cdca08686c45a8dc32f292e571e08be78031`,
 including merged PR #70 and explicit human acceptance of
@@ -53,8 +56,8 @@ Canonical inputs:
 - the conceptual model, Provider boundaries, Constitution, roadmap, and current
   repository implementation/Evidence.
 
-Plan review identified two durable cross-cutting choices that are not already
-accepted:
+The original Plan review identified two durable cross-cutting choices that were not
+already accepted at that time:
 
 - [ADR-0007](../../decisions/0007-local-publication-and-recovery-protocol.md)
   proposes the shared local publication/recovery protocol;
@@ -67,7 +70,7 @@ Their acceptance clears the architecture gate for the authorized Tasks phase.
 
 The accepted POC is historical Evidence and an implementation baseline. Its
 commands, status values, schemas, storage layouts, and adapters are not v1
-contracts unless this Plan selects them. Future traceability is:
+contracts unless this Plan selects them. The original traceability flow was:
 
 ```text
 Specification 004 + accepted Decisions
@@ -87,7 +90,7 @@ Evidence, task identities, and historical stage observations remain unchanged.
 
 ### Goals
 
-- deliver one installable local MVP for Codex, Lingo, and GitHub Issues;
+- deliver one installable local MVP for Lingo, Codex, Claude, and GitHub Issues;
 - preserve one deterministic application contract across CLI and Runtime skills;
 - make Project setup, Work Item intent, workflow state, Provider projection,
   completion, artifacts, provenance, recovery, and upgrade observable end to end;
@@ -102,8 +105,9 @@ Evidence, task identities, and historical stage observations remain unchanged.
 - plan one bounded parent/child Execution DAG from approved work, resolve children
   only through operator-allowed Runtime/Model Profiles, coordinate independent
   work safely, and reconcile isolated results into one truthful parent result;
-- prove at least two real Runtime paths, structured cross-Runtime coordination,
-  enforced budgets and per-child/parent Evidence before RC acceptance.
+- prove Codex and Claude as real Runtime paths, structured cross-Runtime
+  coordination, enforced timeout/maximum-attempt controls and per-child/parent
+  Evidence before RC acceptance.
 
 ### Non-goals
 
@@ -129,11 +133,11 @@ The following are explicitly unsupported, not solved risks:
 The executable direction remains:
 
 ```text
-CLI / Codex Runtime skill
+CLI / Codex or Claude Runtime adapter
 -> application use cases
 -> domain values and contracts
 -> consumer-owned ports
--> local, GitHub, Codex, filesystem, and release adapters
+-> local, GitHub, Runtime, filesystem, and release adapters
 ```
 
 This C4 component view is sufficient because it exposes the relevant ownership
@@ -142,14 +146,16 @@ and dependency boundaries without fixing code-level trivia:
 ```mermaid
 flowchart LR
     H["Developer / reviewer"] --> CLI["Lingo CLI\npresentation"]
-    C["Codex"] --> SK["Thin Axiom skills\nruntime adapter"]
-    SK --> CLI
+    C["Codex"] --> CRA["Codex runtime adapter"]
+    CL["Claude"] --> CLR["Claude runtime adapter"]
+    CRA --> CLI
+    CLR --> CLI
     CLI --> APP["Application use cases"]
     APP --> DOM["Axiom domain/contracts"]
     APP --> PORTS["Consumer-owned ports"]
     PORTS --> LOCAL["Local state, artifacts,\npublication and recovery adapters"]
     PORTS --> GH["GitHub Issues capability adapter"]
-    PORTS --> CODEX["Codex install/compatibility adapter"]
+    PORTS --> RUNTIME["Runtime install/compatibility adapters"]
     GH --> GITHUB["GitHub Issues"]
     LOCAL --> FS["Authorized local filesystem"]
 ```
@@ -175,12 +181,12 @@ Planned cohesive package evolution:
 | execution coordination boundary (exact package deferred) | Child envelopes, dispatch/cancellation/retry, structured coordination and Integration/Reconciliation ownership | No raw chat authority or silent repository integration |
 | `internal/detailartifact` | Metadata, retention/reference rules, lookup and cleanup use cases | No portable publication |
 | `internal/local` | Versioned stores, anchored filesystem protocol, locks, recovery and OS roots | No domain policy invention |
-| `internal/codexruntime` | Thin skill content, installation ownership and compatibility | No duplicated application behavior |
+| `internal/codexruntime` plus the smallest Claude Runtime adapter boundary | Runtime-specific entry content, installation/availability observation and compatibility | No duplicated application behavior or domain-owned model names |
 | `internal/install` | Release receipt, binary/skill upgrade plan and compatibility inspection | No automatic network/update authority |
 | `internal/cli`, `cmd/lingo` | Strict selectors, guided input, human/JSON rendering, composition | No parallel business contract |
 
 Existing packages should be evolved, not wrapped by a universal framework. S8
-must add the smallest ports needed for two proven Runtime paths; it does not create
+must add the smallest ports needed for the Codex and Claude Runtime paths; it does not create
 a universal plugin registry or hardcoded vendor/model ranking.
 
 Under accepted
@@ -193,9 +199,8 @@ and terminal state. The ADR owns identity, authority, lifecycle, and cross-bound
 meaning. Exact field names, encoding, path, indexes, and package types remain
 implementation details. This remains the compatibility contract for existing
 sequential records and does not create an `operation-attempt` domain entity.
-Proposed ADR-0009 owns new graph, parent/child, attempt and coordination semantics
-if accepted. Pre-Execution commands continue using ADR-0006's opaque local
-correlation ID.
+Accepted ADR-0009 owns new graph, parent/child, attempt and coordination semantics.
+Pre-Execution commands continue using ADR-0006's opaque local correlation ID.
 
 ## 4. Delivery slices and dependency ordering
 
@@ -212,7 +217,7 @@ behavior; Tasks must not be split merely by layer.
 | S5 — Codex selector path and completion convergence | Fully specified skill runs without avoidable questions; CLI/skill meanings and all terminal statuses match | S4 | Host-contract tests and CLI/Runtime semantic-equivalence matrix |
 | S6 — Durable Work Item lifecycle and metadata governance | One Work Item exposes a provider-neutral lifecycle projection derived from canonical gates/facts, orthogonal flags, bounded history, safe recovery signals, and resolved Work Item/PR metadata | S5 | Gate/fact derivation and flag matrix, exactly-one-stage projection, history replay, recovery inspection, metadata-resolution matrix |
 | S7 — Recovery, cleanup and upgrade | Operator can inspect/recover recognized interrupted state, safely clean eligible artifacts, detect POC state, and perform supported owned upgrade | S1–S6 | Fault matrix, cleanup/reference tests, compatibility and upgrade black-box |
-| S8 — Multi-runtime agent planning and multi-agent execution | One approved Plan becomes a validated parent/child DAG; dependency-ready isolated children use only operator-allowed Runtime/Model Profiles, coordinate structurally, and integrate into one truthful parent result | S7; proposed ADR-0009 | Graph/authority/budget matrix; two-runtime real journey; concurrency, coordination, integration and parent Evidence |
+| S8 — Multi-runtime agent planning and multi-agent execution | One approved Plan becomes a validated parent/child DAG; dependency-ready isolated children use only operator-allowed Runtime/Model Profiles, coordinate structurally, and integrate into one truthful parent result | S7; accepted ADR-0009 | Graph/authority/execution-control matrix; real Codex + Claude journey; concurrency, coordination, integration and parent Evidence |
 | S9 — Release candidate acceptance | Isolated clean environments complete install through multi-runtime Evidence/completion and representative failure/upgrade paths | all prior | Versioned RC report; human decision remains pending |
 
 S1 selects shared semantics early because every later surface consumes them. S2–S5
@@ -226,7 +231,8 @@ With human approval recorded on 2026-09-24, tracker reconciliation is required:
 
 - Issue #94 becomes the S6 Slice tracker for T26–T29;
 - Issue #80 is retitled/relabelled from S6 to S7 without changing T16–T22 scope;
-- Issue #81 is retitled/relabelled from S7 to S8 without changing T23–T25 scope;
+- Issue #81 is retitled/relabelled from S7 to S8 while preserving the historical
+  RC objective and recording the T24/T25 expansion for S8 validation/Evidence;
 - tracker #15 changes its roadmap and sequence to S1–S8 while preserving delivered
   S4/S5 history and keeping final acceptance human-only.
 
@@ -234,9 +240,11 @@ Approval records the S6/S7/S8 placement only. Tracker reconciliation after merge
 did not authorize T26–T29 implementation; the later explicit S6 authorization
 did. S7 was separately authorized on 2026-09-25; S8 remains separately gated.
 
-Issue #97 proposes the next reconciliation: #97 becomes S8, #81 becomes S9, and
-tracker #15 moves to S1–S9. T23–T25 keep exact scope. This repository proposal
-does not perform or authorize those Provider mutations.
+The approved Issue #97 amendment requires the next reconciliation: #97 becomes S8,
+#81 becomes S9, and tracker #15 moves to S1–S9. T23–T25 keep their IDs and
+historical RC objective; T24/T25 add validation/Evidence obligations for S8. This
+repository documentation change does not perform or authorize those Provider
+mutations.
 
 ## 5. Project setup strategy
 
@@ -499,7 +507,7 @@ The S8 application flow is:
 approved Plan + operator Runtime/Model configuration
 -> normalized capability/work proposal
 -> validated parent/child DAG preview
--> explicit material decisions and bounded authority/budgets
+-> explicit material decisions and bounded authority/execution controls
 -> dependency-ready isolated child dispatch
 -> bounded structured coordination and result publication
 -> Integration/Reconciliation child
@@ -509,20 +517,21 @@ approved Plan + operator Runtime/Model configuration
 The Agent Planner is a proposal producer, not an authority source or scheduler. It
 derives the smallest useful topology from work, capability, dependency and risk.
 Deterministic validation rejects cycles, unresolved dependencies, incompatible
-scope, overlapping unsafe effects, missing integration ownership, invalid budgets
+scope, overlapping unsafe effects, missing integration ownership, invalid execution controls
 and unresolvable capability requests before graph publication or dispatch.
 
 Operator configuration is machine-local and versioned. It identifies installed and
-enabled Runtime adapters, allowed Model Profiles, capability observations, optional
-role/complexity preferences and enforceable budget dimensions. Resolution returns
-one exact allowed choice or a blocker. It never selects an unconfigured Runtime,
-uses a vendor/model ranking as domain truth, or falls back implicitly. Credential
-references remain adapter-owned and never enter portable configuration or graph
-content.
+enabled Runtime adapters, allowed Model Profiles, capability observations and
+optional role/complexity preferences. Codex and Claude are the concrete S8
+acceptance Runtime paths; concrete model names remain local Model Profile data and
+never enter the domain. Resolution returns one exact allowed choice or a blocker.
+It never selects an unconfigured Runtime, uses a vendor/model ranking as domain
+truth, or falls back implicitly. Credential references remain adapter-owned and
+never enter portable configuration or graph content.
 
 The scheduler consumes only committed graph/envelope revisions. A child becomes
 ready after declared dependencies satisfy their contracts and scope, authority,
-workspace, Runtime availability and budget remain current. It may dispatch ready
+workspace, Runtime availability, timeout and maximum-attempt policy remain current. It may dispatch ready
 non-conflicting children concurrently. Repository-mutating children receive
 isolated workspaces/worktrees; shared targets, stale bases or overlapping effects
 serialize or block. Child commands use explicit argv, bounded environment/output,
@@ -532,22 +541,24 @@ Coordination is an Axiom-owned bounded record stream: question/request, answer,
 contract proposal/acceptance, blocker, dependency resolution, artifact publication,
 progress and result. Agents may see conversational projections, but raw chat and
 hidden reasoning are neither retained workflow state nor Evidence. A child cannot
-use coordination content to expand scope, authority, allowlist or budget.
+use coordination content to expand scope, authority, allowlist or execution controls.
 
 Cancellation stops new dispatch and requests cancellation without erasing
 confirmed effects. Retry creates a correlated attempt and requires remaining
-authority/budget; ambiguous effects reconcile first. Parent roll-up preserves every
+authority plus an available attempt; ambiguous effects reconcile first. Parent roll-up preserves every
 required/optional child outcome and succeeds only after the declared
 Integration/Reconciliation child validates inputs, integrates authorized isolated
 changes, runs combined validation and publishes its result.
 
 Testing uses deterministic fake Runtime/process/worktree ports for graph,
 resolution, scheduling, failure, cancellation, retry, injection and roll-up cases.
-Acceptance adds bounded real observations through at least two operator-authorized
-Runtime paths. Evidence captures graph revision, lineage, envelopes, resolution,
-authority, budgets, coordination references, attempts, artifacts, validation,
-usage/cost source/unit/status and final parent result; it excludes credentials and
-raw chat.
+Acceptance adds one bounded real Axiom engineering activity in which at least two
+independent children run through Codex and Claude. Evidence captures graph revision,
+lineage, envelopes, resolution, authority, timeout/attempt controls, coordination
+references, attempts, artifacts, validation, and any Runtime-provided usage/cost
+source/unit/status plus final parent result; it excludes credentials and raw chat.
+Missing usage/cost is `unavailable`; S8 neither estimates nor normalizes it and
+defines no token/cost budget enforcement.
 
 ## 9. Canonical completion result and detail artifacts
 
@@ -901,22 +912,22 @@ declared support matrix. For each OS/architecture row, an isolated account or VM
 with no Axiom roots executes published instructions only:
 
 ```text
-install -> version/provenance -> Codex compatibility -> first run
+install -> version/provenance -> Codex + Claude compatibility -> first run
 -> Project setup -> Intent draft -> authorized GitHub Work Item
 -> workflow + projection -> Evidence/details -> completion
--> approved parent/child graph -> two authorized Runtime paths
+-> approved parent/child graph -> authorized Codex + Claude Runtime paths
 -> isolated parallel children -> structured coordination -> integration
 -> parent Evidence/completion
 -> reinstall/upgrade -> recovery/cleanup checks
 ```
 
-The run exercises direct CLI and Codex entrypoints, all terminal statuses,
+The run exercises direct CLI, Codex and Claude entrypoints, all terminal statuses,
 authority denial, invalid selectors, interruption/resume, retryable Provider
 failure, confirmed Provider effect plus local failure, filesystem
 `recovery_required`, POC detection/export-reconfigure guidance, and upgrade.
 
 Controlled fakes prove deterministic failure and non-effects. At least one bounded
-real journey using two operator-authorized Runtime paths and one explicitly
+real journey using Codex and Claude and one explicitly
 authorized real GitHub journey are required before final acceptance. Evidence
 records candidate identity,
 environment, commands, exit codes, hashes/references, side effects, exclusions,
@@ -960,7 +971,7 @@ All Evidence below is planned, not executed by this Plan.
 | Concurrency | two independent processes, stale authority, create/update/rename/recovery/cleanup races, one winning revision, no mixed reader |
 | Functional black-box | CLI and installed Codex skills from unrelated CWD; guided and complete inputs; human/JSON semantic equivalence; side-effect ledger |
 | Security | sentinel non-leak checks, denied process/network/secret reads, unsafe ownership/link/ACL cases, bounded input/output, public-sensitive-file scan |
-| Clean dogfood | native release archive on every support row plus bounded real Codex/GitHub observation |
+| Clean dogfood | native release archive on every support row plus bounded real Codex/Claude/GitHub observation |
 | Work Item lifecycle | ten-stage gate/fact derivation matrix, orthogonal-flag matrix, exactly-one-stage drift cases, bounded-comment replay, missing-local-state reconciliation, and Work Item/PR metadata policy resolution |
 
 Retained Evidence maps claim -> source version -> command/test -> exit/result ->
@@ -1032,8 +1043,8 @@ inherited Specification 002 SEC-001–SEC-005 boundary used by Project persisten
 | FR-051 | §8A dependency-ready isolated concurrency and conflict serialization |
 | FR-052 | §8A bounded Axiom-owned structured coordination |
 | FR-053 | §8A Integration/Reconciliation ownership and combined validation |
-| FR-054 | §8A parent/child timeout/token/cost ceilings |
-| FR-055 | §8A source/unit/status-preserving usage and cost reporting |
+| FR-054 | §8A parent/child timeout and maximum-attempt controls |
+| FR-055 | §8A observational source/unit/status-preserving usage and cost telemetry |
 | FR-056 | §8A cancellation truth and confirmed-effect preservation |
 | FR-057 | §8A correlated retry attempts and ambiguous-effect reconciliation |
 | FR-058 | §8A deterministic child/parent partial outcome roll-up |
@@ -1091,10 +1102,10 @@ inherited Specification 002 SEC-001–SEC-005 boundary used by Project persisten
 | AC-33 | S8/§8A graph/scope/effect/stale-authority denial with zero unauthorized dispatch |
 | AC-34 | S8/§8A exact allowlisted Runtime/Model resolution and no-match blocker |
 | AC-35 | S8/§8A isolated parallel readiness plus dependency/conflict serialization |
-| AC-36 | S8/§8A two real Runtime paths with per-child provenance |
+| AC-36 | S8/§8A real Codex + Claude paths with per-child provenance |
 | AC-37 | S8/§8A structured coordination and bounded artifact/result publication |
 | AC-38 | S8/§8A exclusive Integration/Reconciliation boundary and combined validation |
-| AC-39 | S8/§8A enforced ceilings and truthful usage/cost availability |
+| AC-39 | S8/§8A enforced timeout/attempt controls and truthful observational usage/cost availability |
 | AC-40 | S8/§8A cancellation and correlated non-duplicating retry |
 | AC-41 | S8/§8A deterministic partial/non-success parent roll-up |
 | AC-42 | S8/§8A parent/child Evidence without secrets or raw chat |
@@ -1125,9 +1136,10 @@ and reconfiguration instead.
 | Concurrent children corrupt shared Repository state | dependency/effect validation, isolated workspaces/worktrees, conflict serialization and one integration owner |
 | Child output or coordination injects authority | treat all content as untrusted data; only validated structured records and explicit operator decisions change control state |
 | Cancellation/retry duplicates confirmed or ambiguous effects | stop new dispatch, preserve effect truth, reconcile ambiguity before a correlated retry |
-| Cross-Runtime usage appears comparable when it is not | retain source/unit/status; report unavailable/partial rather than inferred totals |
+| Cross-Runtime usage appears comparable when it is not | treat it as observational telemetry; retain source/unit/status; report unavailable/partial rather than inferred totals |
 
-Deferred without blocking this Plan: arbitrary additional Runtimes/Providers,
+Deferred without blocking this Plan: token/cost/aggregate-parent budget governance,
+arbitrary additional Runtimes/Providers,
 portable graph/artifact publication, dynamic graph expansion, multi-machine
 execution, provider-neutral monetary accounting, package managers, automatic
 update, signing/notarization, remote collaboration, Git synchronization, and
@@ -1145,7 +1157,7 @@ Architecture assessment found two new durable choices:
 | Package/component map | Planning decomposition with inward dependencies and consumer-owned ports, not a published API or permanent module topology; no ADR. |
 | GitHub label/comment spelling and GitHub Releases adapter | First-adapter conventions within the approved MVP, replaceable behind Provider/distribution boundaries and carrying no broad compatibility/authenticity promise; no ADR at this stage. |
 | Work Item lifecycle projection, flags, bounded history and metadata policy | Extends the already approved local-authority/Provider-projection contract. Lifecycle is derived from the existing gates/facts, so Execution identity, gate semantics, source-of-truth ownership, data ownership and recovery semantics do not change; ADR-0008 remains valid without alteration and no new ADR is needed. Reassess if implementation requires another workflow authority, an independently persisted lifecycle, portable Execution, Provider-owned gates, or a generic custom-field schema. |
-| Parent/child Execution Graph | Changes durable identity/lineage, dependency, authority, retry/cancellation, integration and Evidence semantics. Proposed in ADR-0009; human acceptance required before S8 implementation. ADR-0008 remains historical and sequentially compatible. |
+| Parent/child Execution Graph | Changes durable identity/lineage, dependency, authority, retry/cancellation, integration and Evidence semantics. Accepted in ADR-0009 by explicit human decision on 2026-09-26; S8 implementation remains separately gated. ADR-0008 remains historical and sequentially compatible. |
 
 If implementation or Plan review requires a different release trust topology,
 storage engine, broad Execution schema, automatic cleanup, portable artifact
@@ -1172,8 +1184,8 @@ Do not accept an ADR automatically.
   and cleanup without an operation-attempt entity.
 - ADR-0007 and ADR-0008 are Accepted by explicit human decision in PR #71 and
   form part of this approved Plan's architectural baseline.
-- ADR-0009 is Proposed only. It must be explicitly accepted, revised or rejected
-  before S8 implementation; this Plan amendment does not accept it.
+- ADR-0009 is Accepted by explicit human decision on 2026-09-26. Its acceptance
+  does not authorize S8 implementation.
 - Role != Model, Execution != Agent, Provider != Transport, Integration != MCP,
   Skill != workflow truth, Evidence != chat, and Provider projection != workflow
   truth remain intact.
@@ -1205,9 +1217,10 @@ The explicit auditable human decision is recorded in PR #71 on 2026-09-20.
 
 **Plan: Approved — human approval recorded on 2026-09-20.**
 
-### Issue #97 amendment review gate
+### Issue #97 amendment approval and implementation gate
 
-**Proposed — human decision required.** Review must approve, revise or reject the
-S8 Specification changes, ADR-0009, S8/S9 Plan topology and T30–T36 Tasks. Approval
-of these artifacts would still not authorize implementation, Runtime dispatch,
-external mutation, prerelease publication or final acceptance.
+**Approved by explicit human decision on 2026-09-26.** Review approved the S8
+Specification changes, ADR-0009, S8/S9 Plan topology, T30–T36 Tasks, Codex plus
+Claude acceptance paths, observational-only usage/cost telemetry, and local T36
+authority boundary. T30–T36 implementation, Runtime dispatch, external mutation,
+prerelease publication and final acceptance remain separately unauthorized.
