@@ -152,7 +152,8 @@ func localGraphFixture(t *testing.T) executiongraph.Graph {
 		request.Resolutions[node.Key] = executiongraph.Resolution{RuntimeID: "codex", ModelProfileID: "profile-1", ConfigurationRevision: 1, ObservationRevision: 1}
 	}
 	next := 0
-	graph, err := executiongraph.NewGraphService(noopGraphStore{}, func() (string, error) { next++; return opaqueID(next), nil }, func() time.Time { return time.Unix(1, 0).UTC() }).Publish(context.Background(), request)
+	memory := &noopGraphStore{}
+	graph, err := executiongraph.NewGraphService(memory, func() (string, error) { next++; return opaqueID(next), nil }, func() time.Time { return time.Unix(1, 0).UTC() }).Publish(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,11 +166,14 @@ func (allCapabilities) ValidateCapability(context.Context, executiongraph.Capabi
 	return nil
 }
 
-type noopGraphStore struct{}
+type noopGraphStore struct{ graph executiongraph.Graph }
 
-func (noopGraphStore) Create(context.Context, executiongraph.Graph) error { return nil }
-func (noopGraphStore) Load(context.Context, string, string) (executiongraph.Graph, error) {
-	return executiongraph.Graph{}, nil
+func (s *noopGraphStore) Create(_ context.Context, graph executiongraph.Graph) error {
+	s.graph = graph
+	return nil
+}
+func (s *noopGraphStore) Load(context.Context, string, string) (executiongraph.Graph, error) {
+	return s.graph, nil
 }
 
 func opaqueID(value int) string { return fmt.Sprintf("00000000-0000-4000-8000-%012d", value) }

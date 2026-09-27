@@ -181,7 +181,12 @@ func (s GraphService) Publish(ctx context.Context, request PublicationRequest) (
 	if err := s.store.Create(ctx, graph); err != nil {
 		return Graph{}, err
 	}
-	return graph, nil
+	projectID := graph.Children[0].Envelope.Scope.ProjectID
+	persisted, err := s.store.Load(ctx, projectID, graph.Parent.ExecutionID)
+	if err != nil || !ValidGraph(persisted) || persisted.Parent.ExecutionID != graph.Parent.ExecutionID || persisted.Parent.GraphRevision != graph.Parent.GraphRevision {
+		return Graph{}, ErrInvalidGraph
+	}
+	return persisted, nil
 }
 
 func validatePublicationRequest(request PublicationRequest) error {
