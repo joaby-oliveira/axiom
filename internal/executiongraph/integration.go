@@ -220,16 +220,33 @@ func (s IntegrationService) Execute(ctx context.Context, graph Graph, preview In
 	result = IntegrationResult{Graph: persisted, Rollup: rollupGraph(persisted)}
 	integration := persisted.Children[index]
 
+	// The attempt is bounded by the integration child's own explicit timeout
+	// and by caller cancellation; it is never extended or retried here.
+	attemptCtx, cancel := context.WithTimeout(ctx, integration.Envelope.Controls.Timeout)
+	defer cancel()
 	final := running
-	applied, err := s.integrator.Apply(ctx, integration, preview)
+	applied, err := s.integrator.Apply(attemptCtx, integration, preview)
 	result.Rollup.References = append(result.Rollup.References, applied.References...)
 	var executeErr error
 	status := "partial"
 	if err != nil || !applied.Confirmed || !validSourceRevision(applied.ResultTree) || !sameEffects(applied.AppliedEffects, preview.Effects) {
+		// Interrupted or unconfirmed apply: the effect may be partial.
 		final.Status, final.AmbiguousEffect = AttemptUnknown, true
 		executeErr = ErrIntegrationFailed
+		if attemptCtx.Err() != nil {
+			final.CancellationSeen = true
+			executeErr = fmt.Errorf("%w: %w", ErrIntegrationFailed, attemptCtx.Err())
+		}
+	} else if attemptCtx.Err() != nil {
+		// Apply returned and confirmed its effect, but the attempt was cancelled
+		// or timed out before combined validation could start. The confirmed
+		// effect is preserved; nothing is rolled back and nothing else runs.
+		result.Rollup.IntegrationResultTree = applied.ResultTree
+		final.ResultReference = IntegrationResultReference(applied.ResultTree)
+		final.Status, final.CancellationSeen = AttemptCancelled, true
+		executeErr = fmt.Errorf("%w: %w", ErrIntegrationFailed, attemptCtx.Err())
 	} else {
-		validations, err := s.validator.ValidateCombined(ctx, integration, applied.ResultTree)
+		validations, err := s.validator.ValidateCombined(attemptCtx, integration, applied.ResultTree)
 		result.Rollup.IntegrationResultTree = applied.ResultTree
 		result.Rollup.ValidationResults = validations
 		final.ResultReference = IntegrationResultReference(applied.ResultTree)
@@ -237,10 +254,18 @@ func (s IntegrationService) Execute(ctx context.Context, graph Graph, preview In
 			outputDigest := sha256.Sum256(wire)
 			final.OutputDigest = hex.EncodeToString(outputDigest[:])
 		}
-		if err != nil || !validValidationResults(validations) {
+		switch {
+		case attemptCtx.Err() != nil:
+			// Validation commands were interrupted and the workspace could not be
+			// re-inspected, so their stop and side effects are unobservable. The
+			// confirmed integration stays referenced; the attempt stays unknown
+			// and blocks new attempts until reconciliation.
+			final.Status, final.AmbiguousEffect, final.CancellationSeen = AttemptUnknown, true, true
+			executeErr = fmt.Errorf("%w: %w", ErrIntegrationFailed, attemptCtx.Err())
+		case err != nil || !validValidationResults(validations):
 			final.Status = AttemptFailed
 			executeErr = ErrIntegrationFailed
-		} else {
+		default:
 			final.Status = AttemptSucceeded
 			status = "success"
 		}
@@ -250,7 +275,9 @@ func (s IntegrationService) Execute(ctx context.Context, graph Graph, preview In
 		finished = started
 	}
 	final.FinishedAt = &finished
-	saved, err := s.persistIntegrationAttempt(ctx, persisted, index, final)
+	// The terminal outcome is recorded even after cancellation; cancellation
+	// stops the attempt's effects, not the record of what happened.
+	saved, err := s.persistIntegrationAttempt(context.WithoutCancel(ctx), persisted, index, final)
 	if err != nil {
 		// Effects may be confirmed, but the canonical attempt is still running.
 		result.Rollup.Status = "recovery_required"

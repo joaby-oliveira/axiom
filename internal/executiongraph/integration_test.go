@@ -226,7 +226,7 @@ func TestIntegrationPersistsOwnSucceededAttemptAndBlocksReplay(t *testing.T) {
 		t.Fatalf("saves=%+v", store.saves)
 	}
 	attempts := integrationAttempts(result.Graph)
-	if len(attempts) != 1 || attempts[0].AttemptID != "00000000-0000-4000-8000-000000000901" || attempts[0].Status != AttemptSucceeded || attempts[0].FinishedAt == nil || attempts[0].ResultReference != IntegrationResultReference(tree) || attempts[0].AmbiguousEffect {
+	if len(attempts) != 1 || attempts[0].AttemptID != "00000000-0000-4000-8000-000000000901" || attempts[0].Status != AttemptSucceeded || attempts[0].FinishedAt == nil || attempts[0].ResultReference != IntegrationResultReference(tree) || attempts[0].AmbiguousEffect || attempts[0].CancellationSeen {
 		t.Fatalf("attempts=%+v", attempts)
 	}
 	for _, child := range result.Graph.Children {

@@ -17,7 +17,8 @@ PR #102. Concrete T33/T35 delivery is commits
 `7bfadc3c47dcb453a97efc5b77aab0ef1824d3bc`, based on merged `main` at
 `5dd9660411daadc100d5260e5ff54a9f9d11f945`. The PR #103 technical-review
 remediation (persisted Integration/Reconciliation attempt, fail-closed Git
-filter/diff-driver guard, private WorkspaceRoot/control paths) is recorded in
+filter/diff-driver guard, private WorkspaceRoot/control paths, Integration child
+timeout/cancellation) is recorded in
 the T33/T35 sections below and in the digest table.
 
 The real T36 Codex + Claude acceptance graph was **not executed**. No Codex or
@@ -69,7 +70,7 @@ record:
 | `internal/executiongraph/planner.go` | `5cf86aea3701ac6752d13ae886996b9fbc05a9eeb0482e0c4b5317ccac66212a` |
 | `internal/executiongraph/graph.go` | `7381f570a8c52b140de93c3402b1d79f16869c67635cab9d2f610254442041a2` |
 | `internal/executiongraph/scheduler.go` | `74f86a010f9a4cd88c3f2dadf298c78dea64783ec6a44a658db593f0f5200229` |
-| `internal/executiongraph/integration.go` | `fa739395154fb2fd07a4e6a08f0a4ec077795b7b298d24a8f5571c0a580ea62a` |
+| `internal/executiongraph/integration.go` | `cdc858e2497da6c23fbb7abd19200d1b226ff741b6b0965ec3c219470290c224` |
 | `internal/executiongraph/acceptance.go` | `9af29ae129f93c72fef2b060ba02e198b7338e2da690d7afb2d3064aed963871` |
 | `internal/coordination/coordination.go` | `fe4c401dfc36e2f375b5342592c554f3adb04bf398b730ba76bc99e9f778daf0` |
 | `internal/gitworkspace/git.go` | `f72b3febf2a0a2ba4bca72edadcf00a0e608f836ecf9d1c18fb5a6be0e20f8ac` |
@@ -247,6 +248,20 @@ Concrete worktree observation:
   `running`, never success. The preview binds the integration attempt count, so
   one authority cannot start a second attempt, and a `running`, `unknown`,
   ambiguous or `succeeded` integration attempt blocks new previews.
+- The Integration/Reconciliation attempt is bounded by its own
+  `Envelope.Controls.Timeout` (FR-054) and by caller cancellation (FR-056): apply
+  and combined validation run under one attempt context derived from both. The
+  timeout is never extended and no attempt is retried automatically. Timeout or
+  cancellation never yields `succeeded` and always records `CancellationSeen`:
+  interrupted or unconfirmed apply persists `unknown` with ambiguous effect;
+  confirmed apply followed by cancellation before validation persists
+  `cancelled` with the confirmed result reference and no validation; interrupted
+  combined validation persists `unknown` with ambiguous effect while keeping the
+  confirmed result reference and result tree, because the validator port cannot
+  prove its commands stopped or re-inspect the workspace. Nothing is rolled back.
+  The terminal attempt is persisted with a non-cancelled derivative of the
+  caller context so the cancellation outcome is recorded rather than left
+  `running`.
 
 Concrete vertical observation:
 
@@ -259,7 +274,7 @@ Concrete vertical observation:
 | Applied ledger | exact ordered child `repository-write` effects; references `git-workspace:<child-id>` and `git-tree:<tree>` |
 | Combined validator | `git diff --check`; exit `0`; output digest `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
 | Parent roll-up | `success` only after confirmed apply, validator pass and a persisted `succeeded` Integration attempt bound to the result tree |
-| Negative matrix | missing child, forged lineage, stale base, foreign target/child change, real conflict, effect mismatch, authority/preview tamper, missing/matched waiver, validator failure (`failed` attempt), apply failure (`unknown` attempt), persistence failure before/after effects and authority replay |
+| Negative matrix | missing child, forged lineage, stale base, foreign target/child change, real conflict, effect mismatch, authority/preview tamper, missing/matched waiver, validator failure (`failed` attempt), apply failure (`unknown` attempt), persistence failure before/after effects, authority replay, and child timeout/external cancellation during apply, after confirmed apply and during combined validation (never `succeeded`, `CancellationSeen`, forged success rejected by Evidence) |
 | Shared checkout | `HEAD`, tree and porcelain status identical before/after |
 
 ### T36 — Evidence status derivation
