@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-09-27]
+
+- docs: expand MVP S9 from release-candidate validation alone into productization,
+  distribution, Runtime bootstrap and final acceptance. Record the public
+  `axiom` CLI contract, automated supported-platform release artifacts, stable
+  idempotent remote installation with protected owned upgrade, Codex + Claude
+  first-run bootstrap, and Axiom self-dogfooding before historical T23–T25.
+- docs: propose T37–T40 ahead of T23–T25 while preserving historical Task IDs and
+  keeping S9 implementation, Runtime/Provider effects, release publication and
+  final MVP acceptance separately gated.
+
 ## [2026-09-26]
 
 - implementation: explicit Evidence retirement (HD-S7-T18). `lingo artifact
