@@ -86,7 +86,7 @@ type Evidence struct {
 	GraphDigest          string
 	Dispatch             []DispatchRecord
 	RuntimeExecutions    []RuntimeExecutionEvidence
-	CoordinationDigests  []string
+	Coordination         []CoordinationEvidence
 	Rollup               ParentRollup
 	ValidationReferences []string
 	Limitations          []string
@@ -105,8 +105,32 @@ type RuntimeExecutionEvidence struct {
 	ResultReference       string
 }
 
+const (
+	CoordinationQuestionRequest    = "question_request"
+	CoordinationAnswer             = "answer"
+	CoordinationContractProposal   = "contract_proposal"
+	CoordinationContractAcceptance = "contract_acceptance"
+	CoordinationAccepted           = "accepted"
+)
+
+// CoordinationEvidence projects one digest-verified coordination record into
+// the acceptance boundary. The coordination package owns record verification;
+// BuildEvidence validates lineage against the graph and derives the T36
+// exchange from Kind, Reference and Decision rather than from bare digests.
+type CoordinationEvidence struct {
+	RecordID      string
+	Kind          string
+	ParentID      string
+	GraphRevision uint64
+	ChildID       string
+	AttemptID     string
+	Digest        string
+	Reference     string
+	Decision      string
+}
+
 func BuildEvidence(graph Graph, evidence Evidence) (Evidence, error) {
-	if !ValidGraph(graph) || evidence.FormatVersion != 1 || !validSourceRevision(evidence.BaseRevision) || !validDigest(evidence.ConfigurationDigest) || evidence.ParentID != graph.Parent.ExecutionID || evidence.GraphRevision != graph.Parent.GraphRevision || !boundedDigests(evidence.CoordinationDigests) || !boundedReferences(evidence.ValidationReferences) || len(evidence.Limitations) == 0 || !boundedReferences(evidence.Limitations) || !validEvidenceRollup(graph, evidence.Rollup) || !validDispatchEvidence(graph, evidence.Dispatch) || !validRuntimeExecutionEvidence(graph, evidence.RuntimeExecutions) {
+	if !ValidGraph(graph) || evidence.FormatVersion != 1 || !validSourceRevision(evidence.BaseRevision) || !validDigest(evidence.ConfigurationDigest) || evidence.ParentID != graph.Parent.ExecutionID || evidence.GraphRevision != graph.Parent.GraphRevision || !validCoordinationEvidence(graph, evidence.Coordination) || !boundedReferences(evidence.ValidationReferences) || len(evidence.Limitations) == 0 || !boundedReferences(evidence.Limitations) || !validEvidenceRollup(graph, evidence.Rollup) || !validDispatchEvidence(graph, evidence.Dispatch) || !validRuntimeExecutionEvidence(graph, evidence.RuntimeExecutions) {
 		return Evidence{}, ErrInvalidRunEnvelope
 	}
 	if completeRealRuntimeJourney(graph, evidence) {
@@ -126,7 +150,7 @@ func BuildEvidence(graph Graph, evidence Evidence) (Evidence, error) {
 	sort.Slice(evidence.RuntimeExecutions, func(i, j int) bool {
 		return evidence.RuntimeExecutions[i].ChildID+"\x00"+evidence.RuntimeExecutions[i].AttemptID < evidence.RuntimeExecutions[j].ChildID+"\x00"+evidence.RuntimeExecutions[j].AttemptID
 	})
-	sort.Strings(evidence.CoordinationDigests)
+	sort.Slice(evidence.Coordination, func(i, j int) bool { return evidence.Coordination[i].RecordID < evidence.Coordination[j].RecordID })
 	sort.Strings(evidence.ValidationReferences)
 	sort.Strings(evidence.Limitations)
 	evidence.Digest = ""
@@ -224,33 +248,100 @@ func completeRealRuntimeJourney(graph Graph, evidence Evidence) bool {
 			return false
 		}
 	}
-	dispatched := map[string]bool{}
+	dispatched := map[string]DispatchRecord{}
 	for _, record := range evidence.Dispatch {
 		if record.Status == AttemptSucceeded {
-			dispatched[record.ChildID+"\x00"+record.AttemptID] = true
+			dispatched[record.ChildID+"\x00"+record.AttemptID] = record
 		}
 	}
 	children := make(map[string]ChildExecution, len(graph.Children))
 	for _, child := range graph.Children {
 		children[child.ExecutionID] = child
 	}
-	var codexChildren, claudeChildren []string
+	executed := map[string]bool{}
+	var codexRuns, claudeRuns []DispatchRecord
 	for _, record := range evidence.RuntimeExecutions {
-		if !dispatched[record.ChildID+"\x00"+record.AttemptID] {
+		key := record.ChildID + "\x00" + record.AttemptID
+		dispatch, ok := dispatched[key]
+		if !ok {
 			return false
 		}
+		executed[key] = true
 		switch record.RuntimeID {
 		case "codex":
-			codexChildren = append(codexChildren, record.ChildID)
+			codexRuns = append(codexRuns, dispatch)
 		case "claude":
-			claudeChildren = append(claudeChildren, record.ChildID)
+			claudeRuns = append(claudeRuns, dispatch)
 		}
 	}
-	for _, codexChild := range codexChildren {
-		for _, claudeChild := range claudeChildren {
-			if codexChild != claudeChild && !childDependsTransitively(children, codexChild, claudeChild) && !childDependsTransitively(children, claudeChild, codexChild) {
+	if !coordinatedExchange(evidence.Coordination, executed) {
+		return false
+	}
+	for _, codex := range codexRuns {
+		for _, claude := range claudeRuns {
+			if codex.ChildID != claude.ChildID && !childDependsTransitively(children, codex.ChildID, claude.ChildID) && !childDependsTransitively(children, claude.ChildID, codex.ChildID) && codex.StartedAt.Before(claude.EndedAt) && claude.StartedAt.Before(codex.EndedAt) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+func validCoordinationEvidence(graph Graph, records []CoordinationEvidence) bool {
+	if len(records) > maxListItems {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, record := range records {
+		if !validOpaqueID(record.RecordID) || !validToken(record.Kind) || record.ParentID != graph.Parent.ExecutionID || record.GraphRevision != graph.Parent.GraphRevision || !validDigest(record.Digest) || seen[record.RecordID] || seen[record.Digest] {
+			return false
+		}
+		if record.Reference != "" && !validOpaqueID(record.Reference) || record.Decision != "" && !validToken(record.Decision) {
+			return false
+		}
+		if record.AttemptID == "" {
+			if !graphChild(graph, record.ChildID) {
+				return false
+			}
+		} else if _, _, ok := graphAttempt(graph, record.ChildID, record.AttemptID); !ok {
+			return false
+		}
+		seen[record.RecordID] = true
+		seen[record.Digest] = true
+	}
+	return true
+}
+
+// coordinatedExchange reports whether two distinct children exchanged a
+// question/answer or contract proposal/acceptance while running executed
+// Runtime attempts.
+func coordinatedExchange(records []CoordinationEvidence, executed map[string]bool) bool {
+	byID := make(map[string]CoordinationEvidence, len(records))
+	for _, record := range records {
+		byID[record.RecordID] = record
+	}
+	for _, response := range records {
+		requestKind := ""
+		switch {
+		case response.Kind == CoordinationAnswer:
+			requestKind = CoordinationQuestionRequest
+		case response.Kind == CoordinationContractAcceptance && response.Decision == CoordinationAccepted:
+			requestKind = CoordinationContractProposal
+		default:
+			continue
+		}
+		request, ok := byID[response.Reference]
+		if ok && request.Kind == requestKind && request.ChildID != response.ChildID && executed[request.ChildID+"\x00"+request.AttemptID] && executed[response.ChildID+"\x00"+response.AttemptID] {
+			return true
+		}
+	}
+	return false
+}
+
+func graphChild(graph Graph, childID string) bool {
+	for _, child := range graph.Children {
+		if child.ExecutionID == childID {
+			return true
 		}
 	}
 	return false
@@ -295,18 +386,6 @@ func boundedReferences(values []string) bool {
 			return false
 		}
 		seen[value] = true
-	}
-	return true
-}
-
-func boundedDigests(values []string) bool {
-	if len(values) == 0 || len(values) > maxListItems {
-		return false
-	}
-	for _, value := range values {
-		if !validDigest(value) {
-			return false
-		}
 	}
 	return true
 }

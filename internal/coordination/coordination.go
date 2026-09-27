@@ -200,6 +200,25 @@ func ValidRecord(record Record) bool {
 	return err == nil && digest == record.Digest
 }
 
+// AcceptanceEvidence projects a digest-verified record into the execution
+// graph acceptance boundary, carrying the correlation fields that let
+// BuildEvidence derive a question/answer or proposal/acceptance exchange.
+func AcceptanceEvidence(record Record) (executiongraph.CoordinationEvidence, error) {
+	if !ValidRecord(record) {
+		return executiongraph.CoordinationEvidence{}, ErrInvalidRecord
+	}
+	evidence := executiongraph.CoordinationEvidence{RecordID: record.RecordID, Kind: string(record.Kind), ParentID: record.ParentID, GraphRevision: record.GraphRevision, ChildID: record.ChildID, AttemptID: record.AttemptID, Digest: record.Digest}
+	for _, field := range record.Fields {
+		switch {
+		case record.Kind == Answer && field.Name == "question_reference", record.Kind == ContractAcceptance && field.Name == "contract_reference":
+			evidence.Reference = field.Value
+		case record.Kind == ContractAcceptance && field.Name == "decision":
+			evidence.Decision = field.Value
+		}
+	}
+	return evidence, nil
+}
+
 func Encode(record Record) ([]byte, error) {
 	if !ValidRecord(record) {
 		return nil, ErrInvalidRecord

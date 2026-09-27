@@ -24,8 +24,9 @@ The original Plan and delivered S1–S7 remain historical. Human review on
 2026-09-26 approved this amendment for S8 multi-runtime Agent Planning/Execution
 Graph delivery, accepted ADR-0009, and renumbered the former RC slice to S9. T23–
 T25 keep their IDs and historical release-candidate objective; T24/T25 are expanded
-to validate and reconcile the new S8 product state. S8 implementation remains
-unauthorized.
+to validate and reconcile the new S8 product state. S8/T30–T36 implementation was
+later authorized on 2026-09-27 (Issue #97 comment #5852650410); the real T36
+Runtime run, S9 and human acceptance remain separately gated.
 
 This Plan describes how to realize the behavior approved in
 [Specification 004](spec.md). It was explicitly approved by the human reviewer in

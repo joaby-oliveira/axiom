@@ -3,10 +3,15 @@
 ## Claim and authority boundary
 
 This record describes existing implementation work for Specification 004 Slice
-S8, tracked by [Issue #97](https://github.com/rgomids/axiom/issues/97). Issue #97
-still says S8/T30–T36 implementation is not authorized, and no linked human
-comment or other verifiable authority record has been identified. The code does
-not create or retroactively imply that authority. The implementation foundation
+S8, tracked by [Issue #97](https://github.com/rgomids/axiom/issues/97). S8/T30–T36
+implementation was authorized by explicit human decision on 2026-09-27 in
+[Issue #97 comment #5852650410](https://github.com/rgomids/axiom/issues/97#issuecomment-5852650410).
+That authority covers local code, tests, documentation, deterministic validation
+and corresponding Evidence within the approved Specification 004, ADR-0009, Plan
+and Tasks. It explicitly does not authorize the real T36 Codex + Claude run beyond
+its own gate, push, merge, PR/Issue closure, Provider mutation, release, deploy,
+credential provisioning or secret mutation, Runtime installation, S9/T23–T25 or
+human acceptance of S8 or the MVP. The implementation foundation
 is commit `21f4f7c365c89f48dbfe641beb765a14903a69ad`, with publication read-back
 correction `e654f833d1786fef89dcd619533c8d36bc63c5e0`, based on `main` at
 `8a9ca19fd260bc19f5bb288b449e8dc6df618194`; the review remediation described
@@ -29,7 +34,7 @@ Current result:
 | T33 | deterministic scheduler/process-control foundation implemented; concrete Git worktree creation/inspection and a real Runtime attempt remain incomplete |
 | T34 | structured coordination contracts and protected stream store implemented and tested |
 | T35 | preview/authority/roll-up foundation implemented with fake integration and combined-validation ports; concrete Git integration/reconciliation remains incomplete |
-| T36 | envelope and Evidence schemas prepared; real run forbidden by current authority and not attempted |
+| T36 | envelope and Evidence schemas prepared; the real run remains separately gated and was not attempted |
 
 Therefore S8 is **not technically complete** and is not ready for human
 acceptance. T33 and T35 concrete Git boundaries, application/CLI composition,
@@ -167,11 +172,26 @@ command execution remain ports exercised with fakes. T35 is therefore partial.
   records correlated to independent graph children, successful persisted
   attempts, exact dispatch timestamps, Runtime/Model Profile resolutions and
   result references.
+- Independence is not treated as concurrency: at least one Codex/Claude pair of
+  independent children must show strict temporal overlap derived from their
+  dispatch records (`codex.StartedAt < claude.EndedAt` and
+  `claude.StartedAt < codex.EndedAt`); touching windows (`EndedAt == StartedAt`)
+  and sequential or dependent children do not qualify.
+- Coordination is structured Evidence, not bare digests. Each
+  `CoordinationEvidence` item carries record ID, kind, parent, graph revision,
+  child, optional attempt, digest, reference and decision; the coordination
+  package produces it only from a digest-verified record
+  (`coordination.AcceptanceEvidence`). The journey requires a `question_request`
+  answered by a correlated `answer`, or a `contract_proposal` followed by a
+  correlated `contract_acceptance` with decision `accepted`, exchanged between
+  two distinct children during Runtime-executed attempts.
 - Successful Integration/Reconciliation roll-up, a digested result tree,
-  successful combined validation linked to declared validation references,
-  coordination digests and integration references are also mandatory.
+  successful combined validation linked to declared validation references and
+  integration references are also mandatory.
 - Missing journey facts remain `deterministic_preparation_only`; foreign
-  Runtime/Profile/attempt claims are rejected.
+  Runtime/Profile/attempt claims and coordination records with foreign parent,
+  graph revision, child or attempt, missing kind, invalid digest/reference or
+  duplicate identity are rejected.
 
 These are deterministic contract tests only. No real Codex + Claude Runtime
 journey was executed, and no `real_run_recorded` Evidence exists.
@@ -191,8 +211,8 @@ journey was executed, and no `real_run_recorded` Evidence exists.
 | `git diff --check` | exit 0 |
 
 These validations cover the review-remediated source represented by this record.
-They prove deterministic checks only; they do not supply missing S8 implementation
-authority, real Runtime Evidence or human acceptance.
+They prove deterministic checks only; they do not supply real Runtime Evidence,
+T36 real-run authority or human acceptance.
 
 ## Proposed T36 real-run envelope — draft, not authorized
 
@@ -217,7 +237,7 @@ concrete Git worktree/integration adapters are unresolved.
 | Maximum attempts | 1 initial + at most 1 explicitly reviewed retry per child; no retry after ambiguous effect |
 | Commands | exact Codex/Claude argv rendered from the reviewed local Model Profiles; no shell; exact `cwd`; bounded environment/output |
 | Combined validators | `go test ./... -count=1`; targeted race tests; `go vet ./...`; `./scripts/validate-repository.sh .`; `./scripts/check-sensitive-files.sh .`; `git diff --check`; Gitleaks |
-| Expected Evidence | config/graph/envelope digests; Runtime/Profile/version observations; overlap timing; worktree/base/tree hashes; coordination digests; child results; integration preview/effects; validator exits; parent roll-up; usage status; limitations |
+| Expected Evidence | config/graph/envelope digests; Runtime/Profile/version observations; overlap timing; worktree/base/tree hashes; structured coordination exchange records; child results; integration preview/effects; validator exits; parent roll-up; usage status; limitations |
 | Cleanup disposition | preserve all three worktrees and graph/Evidence pending human review; cleanup requires a later exact decision |
 
 Before this envelope can be approved, implementation must add the concrete Git

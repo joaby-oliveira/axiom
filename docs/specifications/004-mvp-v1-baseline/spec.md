@@ -1241,8 +1241,9 @@ T24/T25 are expanded to validate and reconcile the product state added by S8.
 This approval does not authorize S8 implementation, Runtime execution, external
 mutation, release publication or final acceptance.
 
-**Next gate: explicit S8 implementation authorization for the approved T30–T36
-boundary.**
+**S8/T30–T36 implementation authorized on 2026-09-27 (Issue #97 comment
+#5852650410). Next gates: the separate real T36 Runtime run authority and, after
+technical completion, human acceptance.**
 
 The concrete T36 activity may be selected during preparation, but it MUST be a
 small real Axiom engineering change and satisfy AC-32–AC-43. Model Profile values

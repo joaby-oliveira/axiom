@@ -121,6 +121,35 @@ func TestUsageObservationIsTruthful(t *testing.T) {
 	}
 }
 
+func TestAcceptanceEvidenceProjectsVerifiedCorrelation(t *testing.T) {
+	graph := coordinationGraph(t)
+	child := graph.Children[0]
+	next := 200
+	service := New(&memoryStore{}, func() (string, error) { next++; return fmt.Sprintf("00000000-0000-4000-8000-%012d", next), nil }, func() time.Time { return time.Unix(20, 0).UTC() })
+	proposal, err := service.Publish(context.Background(), graph, Input{Kind: ContractProposal, ParentID: graph.Parent.ExecutionID, ChildID: child.ExecutionID, GraphRevision: graph.Parent.GraphRevision, Provenance: testProvenance(), Fields: []Field{{Name: "contract", Value: "v1"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	acceptance, err := service.Publish(context.Background(), graph, Input{Kind: ContractAcceptance, ParentID: graph.Parent.ExecutionID, ChildID: child.ExecutionID, GraphRevision: graph.Parent.GraphRevision, ExpectedRevision: 1, PreviousDigest: proposal.Digest, Provenance: testProvenance(), Fields: []Field{{Name: "contract_reference", Value: proposal.RecordID}, {Name: "decision", Value: "accepted"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for kind, boundary := range map[Kind]string{QuestionRequest: executiongraph.CoordinationQuestionRequest, Answer: executiongraph.CoordinationAnswer, ContractProposal: executiongraph.CoordinationContractProposal, ContractAcceptance: executiongraph.CoordinationContractAcceptance} {
+		if string(kind) != boundary {
+			t.Fatalf("kind %q diverges from acceptance boundary %q", kind, boundary)
+		}
+	}
+	evidence, err := AcceptanceEvidence(acceptance)
+	if err != nil || evidence.Kind != executiongraph.CoordinationContractAcceptance || evidence.Reference != proposal.RecordID || evidence.Decision != executiongraph.CoordinationAccepted || evidence.Digest != acceptance.Digest || evidence.ParentID != graph.Parent.ExecutionID || evidence.ChildID != child.ExecutionID || evidence.GraphRevision != graph.Parent.GraphRevision {
+		t.Fatalf("evidence=%+v err=%v", evidence, err)
+	}
+	forged := acceptance
+	forged.Fields = []Field{{Name: "contract_reference", Value: "00000000-0000-4000-8000-000000000999"}, {Name: "decision", Value: "accepted"}}
+	if _, err := AcceptanceEvidence(forged); err == nil {
+		t.Fatal("record with stale digest projected")
+	}
+}
+
 func kindField(kind Kind) Field {
 	switch kind {
 	case QuestionRequest:
