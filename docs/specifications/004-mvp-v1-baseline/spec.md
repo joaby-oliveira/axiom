@@ -1056,8 +1056,10 @@ Issue #97 adds S8 after delivered S7. The former release-candidate S8 becomes S9
 T23–T25 keep their IDs and historical release-candidate objective; T24/T25 are
 reconciled and expanded to validate and close Evidence for the new S8 product state.
 The S8 graph behavior, ADR-0009, amended Plan and Tasks were explicitly approved on
-2026-09-26. T30–T36 implementation still requires separate explicit authority; no
-approval, validation, commit or merge supplies that gate.
+2026-09-26. T30–T36 implementation was explicitly authorized on 2026-09-27 through
+Issue #97 comment #5852650410. That authority covers implementation only.
+The real T36 Runtime run remains separately gated; validation, commit or merge
+do not supply that separate authority.
 
 ## Requirements, details, and open questions
 
