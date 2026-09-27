@@ -189,7 +189,7 @@ func validEvidenceRollup(graph Graph, rollup ParentRollup) bool {
 	if rollup.Status != "partial" && rollup.Status != "success" && rollup.Status != "failure" && rollup.Status != "recovery_required" {
 		return false
 	}
-	if rollup.IntegrationResultTree != "" && !validDigest(rollup.IntegrationResultTree) {
+	if rollup.IntegrationResultTree != "" && !validSourceRevision(rollup.IntegrationResultTree) {
 		return false
 	}
 	if len(rollup.ValidationResults) > 0 && !validValidationResults(rollup.ValidationResults) {
@@ -202,22 +202,35 @@ func validEvidenceRollup(graph Graph, rollup ParentRollup) bool {
 	for _, child := range graph.Children {
 		children[child.ExecutionID] = child
 	}
+	// Every outcome, including Integration/Reconciliation, must equal the last
+	// persisted attempt; a roll-up cannot assert an outcome the graph lacks.
 	seen := map[string]bool{}
 	for _, outcome := range rollup.ChildOutcomes {
 		child, ok := children[outcome.ChildID]
 		if !ok || seen[outcome.ChildID] || outcome.Required != !child.Envelope.Optional || !validAttemptStatus(outcome.Status) {
 			return false
 		}
-		if !child.Envelope.IntegrationOwner {
-			expected := AttemptNotStarted
-			if len(child.Attempts) > 0 {
-				expected = child.Attempts[len(child.Attempts)-1].Status
-			}
-			if outcome.Status != expected {
-				return false
-			}
+		expected := AttemptNotStarted
+		if len(child.Attempts) > 0 {
+			expected = child.Attempts[len(child.Attempts)-1].Status
+		}
+		if outcome.Status != expected {
+			return false
+		}
+		if rollup.Status == "success" && outcome.Required && outcome.Status != AttemptSucceeded {
+			return false
 		}
 		seen[outcome.ChildID] = true
+	}
+	if rollup.Status == "success" {
+		integration, ok := integrationChild(graph)
+		if !ok || len(integration.Attempts) == 0 || !validSourceRevision(rollup.IntegrationResultTree) || !validValidationResults(rollup.ValidationResults) {
+			return false
+		}
+		last := integration.Attempts[len(integration.Attempts)-1]
+		if last.Status != AttemptSucceeded || last.ResultReference != IntegrationResultReference(rollup.IntegrationResultTree) {
+			return false
+		}
 	}
 	return true
 }
@@ -250,7 +263,7 @@ func validRuntimeExecutionEvidence(graph Graph, records []RuntimeExecutionEviden
 }
 
 func completeRealRuntimeJourney(graph Graph, evidence Evidence) bool {
-	if evidence.Rollup.Status != "success" || !validDigest(evidence.Rollup.IntegrationResultTree) || !validValidationResults(evidence.Rollup.ValidationResults) || len(evidence.Rollup.References) == 0 {
+	if evidence.Rollup.Status != "success" || !validSourceRevision(evidence.Rollup.IntegrationResultTree) || !validValidationResults(evidence.Rollup.ValidationResults) || len(evidence.Rollup.References) == 0 {
 		return false
 	}
 	validationReferences := map[string]bool{}

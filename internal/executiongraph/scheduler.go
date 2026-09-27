@@ -334,7 +334,9 @@ func (OSProcessRunner) Run(ctx context.Context, invocation Invocation) ProcessRe
 	}
 	// CommandContext observes its direct child. Descendant processes or external
 	// effects can remain uncertain, so timeout/cancellation is not called stopped.
-	return ProcessResult{ExitCode: exitCode, Output: output.Bytes(), Stopped: false}
+	captured := output.Bytes()
+	digest := sha256.Sum256(captured)
+	return ProcessResult{ExitCode: exitCode, Output: captured, ResultReference: "process-output:" + hex.EncodeToString(digest[:]), Stopped: false}
 }
 
 type limitedBuffer struct {

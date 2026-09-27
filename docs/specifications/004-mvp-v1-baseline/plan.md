@@ -1225,3 +1225,8 @@ Specification changes, ADR-0009, S8/S9 Plan topology, T30–T36 Tasks, Codex plu
 Claude acceptance paths, observational-only usage/cost telemetry, and local T36
 authority boundary. T30–T36 implementation, Runtime dispatch, external mutation,
 prerelease publication and final acceptance remain separately unauthorized.
+
+The later explicit S8 implementation authority recorded on 2026-09-27 supersedes
+only that implementation gate. T30–T35 are now technically complete; the exact
+real T36 Codex + Claude run, S9, external effects and human acceptance remain
+separately gated.

@@ -1141,8 +1141,9 @@ Task-specific external gates remain explicit:
   and separate Provider authority.
 - T29 mutating local recovery requires fresh exact ADR-0007 recovery authority;
   its ordinary reconciliation inspection remains read-only.
-- T30–T35 have approved amended Specification/Plan/Tasks and accepted ADR-0009 but
-  still require explicit S8 implementation authority before any implementation.
+- T30–T35 were implemented under the explicit 2026-09-27 S8 authority. T33/T35
+  concrete Git delivery is recorded in S8 Evidence; T36 remains the sole technical
+  S8 step and retains its separate exact real-run gate.
 - T36 uses the approved local-only real-run boundary and still requires a separate
   reviewed run envelope naming Model Profiles, repositories/worktrees, commands,
   timeout/maximum attempts, exact local effects and cleanup. External effects need
@@ -1218,9 +1219,10 @@ decision (Issue #97 comment #5852650410); that authority excludes the real T36
 Runtime run beyond its own gate, push, merge, Provider mutation, release, deploy,
 credential provisioning, S9 and human acceptance. T30–T32 and the deterministic
 T34 foundation exist at `21f4f7c` plus the publication read-back correction
-`e654f83`; T33 and T35
-remain partial because concrete Git workspace/integration adapters and application
-composition are not delivered. T36 has schema and a draft envelope only; the
+`e654f83`; T33 and T35 are technically complete at `e884a46` plus composition
+fix `7bfadc3`, with concrete Git workspace/integration adapters, combined
+validation and application composition.
+T36 has schema and a draft envelope; the
 separately gated real Codex + Claude run was not executed. See
 [S8 Evidence](evidence-s8.md). S8 is not technically complete, and human
 acceptance is not inferred.**
