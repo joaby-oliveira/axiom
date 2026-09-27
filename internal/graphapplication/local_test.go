@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -97,6 +98,103 @@ func TestLocalServiceRunsConcurrentChildrenAndConcreteIntegration(t *testing.T) 
 	if readFile(t, filepath.Join(integration.Envelope.Workspace, "a.txt")) != "a\n" || readFile(t, filepath.Join(integration.Envelope.Workspace, "b.txt")) != "b\n" {
 		t.Fatal("integrated content mismatch")
 	}
+	persisted, err := store.Load(context.Background(), "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, graph := range []executiongraph.Graph{service.Graph(), persisted} {
+		attempts := childByKey(graph, "integrate").Attempts
+		if len(attempts) != 1 || attempts[0].Status != executiongraph.AttemptSucceeded || attempts[0].ResultReference != executiongraph.IntegrationResultReference(rollup.IntegrationResultTree) {
+			t.Fatalf("integration attempts=%+v", attempts)
+		}
+	}
+	evidence, err := service.BuildEvidence(executiongraph.Evidence{FormatVersion: 1, BaseRevision: revision, ConfigurationDigest: digest("config"), ParentID: persisted.Parent.ExecutionID, GraphRevision: persisted.Parent.GraphRevision, Dispatch: dispatch.Records, Rollup: rollup, ValidationReferences: []string{"git-diff-check"}, Limitations: []string{"real Codex plus Claude run not executed"}})
+	if err != nil || evidence.Status != "deterministic_preparation_only" {
+		t.Fatalf("evidence=%+v err=%v", evidence, err)
+	}
+}
+
+func TestLocalServiceIntegrationPersistenceFailureAfterEffectsStaysRecoveryRequired(t *testing.T) {
+	root := canonicalTempDir(t)
+	repository, revision := initRepository(t, filepath.Join(root, "repository"))
+	workspaceRoot := filepath.Join(root, "workspaces")
+	graph := buildGraph(t, workspaceRoot)
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Two dispatch saves plus the running integration save succeed; the
+	// terminal integration save fails after confirmed apply and validation.
+	store := &failingGraphStore{memoryGraphStore: memoryGraphStore{wire: mustEncodeGraph(t, graph)}, failOn: 4}
+	service, err := newLocalService(context.Background(), LocalConfiguration{
+		Repository: repository, WorkspaceRoot: workspaceRoot, BaseRevision: revision,
+		Graph: graph, GraphStore: store,
+		Validators:        []gitworkspace.ValidationCommand{{Reference: "git-diff-check", Argv: []string{gitPath, "diff", "--check"}, Env: []string{"LC_ALL=C"}, OutputMax: 4096}},
+		AllocateAttemptID: sequenceAllocator(100),
+	}, helperInvocations{executable: executable})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.PrepareWorkspaces(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.DispatchReady(context.Background(), nil, false); err != nil {
+		t.Fatal(err)
+	}
+	preview, _, err := service.PreviewIntegration(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authority := executiongraph.IntegrationAuthority{PreviewDigest: preview.Digest, TargetRevision: preview.TargetRevision, Effects: preview.Effects, Reference: "authority:integration"}
+	rollup, err := service.ExecuteIntegration(context.Background(), preview, authority)
+	if !errors.Is(err, executiongraph.ErrIntegrationRecoveryRequired) || rollup.Status != "recovery_required" {
+		t.Fatalf("rollup=%+v err=%v", rollup, err)
+	}
+	integration := childByKey(service.Graph(), "integrate")
+	if len(integration.Attempts) != 1 || integration.Attempts[0].Status != executiongraph.AttemptRunning {
+		t.Fatalf("integration attempts=%+v", integration.Attempts)
+	}
+	if readFile(t, filepath.Join(integration.Envelope.Workspace, "a.txt")) != "a\n" {
+		t.Fatal("confirmed integration effect missing")
+	}
+	persisted, err := store.Load(context.Background(), "", "")
+	if err != nil || childByKey(persisted, "integrate").Attempts[0].Status != executiongraph.AttemptRunning {
+		t.Fatalf("persisted=%+v err=%v", persisted, err)
+	}
+	if _, err := service.BuildEvidence(executiongraph.Evidence{FormatVersion: 1, BaseRevision: revision, ConfigurationDigest: digest("config"), ParentID: persisted.Parent.ExecutionID, GraphRevision: persisted.Parent.GraphRevision, Rollup: rollup, ValidationReferences: []string{"git-diff-check"}, Limitations: []string{"integration attempt persistence failed"}}); err != nil {
+		t.Fatalf("truthful recovery roll-up rejected: %v", err)
+	}
+	fabricated := rollup
+	fabricated.Status = "success"
+	fabricated.ChildOutcomes = append([]executiongraph.ChildOutcome(nil), rollup.ChildOutcomes...)
+	for index := range fabricated.ChildOutcomes {
+		if fabricated.ChildOutcomes[index].ChildID == fabricated.IntegrationChildID {
+			fabricated.ChildOutcomes[index].Status = executiongraph.AttemptSucceeded
+		}
+	}
+	if _, err := service.BuildEvidence(executiongraph.Evidence{FormatVersion: 1, BaseRevision: revision, ConfigurationDigest: digest("config"), ParentID: persisted.Parent.ExecutionID, GraphRevision: persisted.Parent.GraphRevision, Rollup: fabricated, ValidationReferences: []string{"git-diff-check"}, Limitations: []string{"integration attempt persistence failed"}}); err == nil {
+		t.Fatal("fabricated success accepted over running integration attempt")
+	}
+	if _, err := service.ExecuteIntegration(context.Background(), preview, authority); !errors.Is(err, executiongraph.ErrIntegrationStale) {
+		t.Fatalf("replay err=%v", err)
+	}
+}
+
+type failingGraphStore struct {
+	memoryGraphStore
+	failOn, calls int
+}
+
+func (s *failingGraphStore) Save(ctx context.Context, graph executiongraph.Graph) (executiongraph.Graph, error) {
+	s.calls++
+	if s.calls == s.failOn {
+		return executiongraph.Graph{}, errors.New("store unavailable")
+	}
+	return s.memoryGraphStore.Save(ctx, graph)
 }
 
 func TestGraphApplicationHelperProcess(t *testing.T) {

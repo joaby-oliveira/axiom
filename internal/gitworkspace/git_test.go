@@ -181,14 +181,18 @@ func TestConcreteIntegrationAppliesTwoResultsValidatesAndLeavesSharedCheckoutUnt
 		t.Fatal(err)
 	}
 	validator := fixture.validator(t, "/usr/bin/git", "diff", "--check")
-	service := executiongraph.NewIntegrationService(fixture.manager, validator)
+	service := executiongraph.NewIntegrationService(fixture.manager, validator, fixture.store(), nil, nil)
 	preview, err := service.Preview(graph, observation, results)
 	if err != nil {
 		t.Fatal(err)
 	}
-	rollup, err := service.Execute(context.Background(), graph, preview, executiongraph.IntegrationAuthority{PreviewDigest: preview.Digest, TargetRevision: preview.TargetRevision, Effects: preview.Effects, Reference: "authority:integration"})
+	executed, err := service.Execute(context.Background(), graph, preview, executiongraph.IntegrationAuthority{PreviewDigest: preview.Digest, TargetRevision: preview.TargetRevision, Effects: preview.Effects, Reference: "authority:integration"})
+	rollup := executed.Rollup
 	if err != nil || rollup.Status != "success" || len(rollup.ValidationResults) != 1 || rollup.ValidationResults[0].ExitCode != 0 {
 		t.Fatalf("rollup=%+v err=%v", rollup, err)
+	}
+	if attempts := fixture.childFrom(executed.Graph, "integrate").Attempts; len(attempts) != 1 || attempts[0].Status != executiongraph.AttemptSucceeded {
+		t.Fatalf("integration attempts=%+v", attempts)
 	}
 	integration := fixture.childFrom(graph, "integrate")
 	if got := readFile(t, filepath.Join(integration.Envelope.Workspace, "a.txt")); got != "child-a\n" {
@@ -212,7 +216,7 @@ func TestConcreteIntegrationBlocksMissingStaleForeignConflictAndEffectMismatch(t
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := executiongraph.NewIntegrationService(fixture.manager, fixture.validator(t, "/usr/bin/git", "diff", "--check")).Preview(graph, observation, results); !errors.Is(err, executiongraph.ErrIntegrationBlocked) {
+		if _, err := executiongraph.NewIntegrationService(fixture.manager, fixture.validator(t, "/usr/bin/git", "diff", "--check"), fixture.store(), nil, nil).Preview(graph, observation, results); !errors.Is(err, executiongraph.ErrIntegrationBlocked) {
 			t.Fatalf("err=%v", err)
 		}
 	})
@@ -265,7 +269,7 @@ func TestConcreteIntegrationWaiverAuthorityTamperAndValidationFailure(t *testing
 		fixture.prepare(t)
 		graph := fixture.succeed(t, "a")
 		writeFile(t, filepath.Join(fixture.childFrom(graph, "a").Envelope.Workspace, "a.txt"), "a\n")
-		service := executiongraph.NewIntegrationService(fixture.manager, fixture.validator(t, "/usr/bin/git", "diff", "--check"))
+		service := executiongraph.NewIntegrationService(fixture.manager, fixture.validator(t, "/usr/bin/git", "diff", "--check"), fixture.store(), nil, nil)
 		observation, results, _, err := fixture.manager.ObserveIntegration(context.Background(), nil)
 		if err != nil {
 			t.Fatal(err)
@@ -283,9 +287,9 @@ func TestConcreteIntegrationWaiverAuthorityTamperAndValidationFailure(t *testing
 		}
 		tampered := preview
 		tampered.OptionalWaivers[0].Reference = "waiver:tampered"
-		rollup, err := service.Execute(context.Background(), graph, tampered, executiongraph.IntegrationAuthority{PreviewDigest: preview.Digest, TargetRevision: preview.TargetRevision, Effects: preview.Effects, Reference: "authority:integration"})
-		if !errors.Is(err, executiongraph.ErrIntegrationStale) || rollup.Status != "recovery_required" {
-			t.Fatalf("rollup=%+v err=%v", rollup, err)
+		executed, err := service.Execute(context.Background(), graph, tampered, executiongraph.IntegrationAuthority{PreviewDigest: preview.Digest, TargetRevision: preview.TargetRevision, Effects: preview.Effects, Reference: "authority:integration"})
+		if !errors.Is(err, executiongraph.ErrIntegrationStale) || executed.Rollup.Status != "recovery_required" || len(fixture.childFrom(executed.Graph, "integrate").Attempts) != 0 {
+			t.Fatalf("executed=%+v err=%v", executed, err)
 		}
 	})
 
@@ -303,14 +307,18 @@ func TestConcreteIntegrationWaiverAuthorityTamperAndValidationFailure(t *testing
 		if err != nil {
 			t.Fatal(err)
 		}
-		service := executiongraph.NewIntegrationService(fixture.manager, fixture.validator(t, falsePath))
+		service := executiongraph.NewIntegrationService(fixture.manager, fixture.validator(t, falsePath), fixture.store(), nil, nil)
 		preview, err := service.Preview(graph, observation, results)
 		if err != nil {
 			t.Fatal(err)
 		}
-		rollup, err := service.Execute(context.Background(), graph, preview, executiongraph.IntegrationAuthority{PreviewDigest: preview.Digest, TargetRevision: preview.TargetRevision, Effects: preview.Effects, Reference: "authority:integration"})
+		executed, err := service.Execute(context.Background(), graph, preview, executiongraph.IntegrationAuthority{PreviewDigest: preview.Digest, TargetRevision: preview.TargetRevision, Effects: preview.Effects, Reference: "authority:integration"})
+		rollup := executed.Rollup
 		if !errors.Is(err, executiongraph.ErrIntegrationFailed) || rollup.Status == "success" || len(rollup.ValidationResults) != 1 || rollup.ValidationResults[0].ExitCode == 0 {
 			t.Fatalf("rollup=%+v err=%v", rollup, err)
+		}
+		if attempts := fixture.childFrom(executed.Graph, "integrate").Attempts; len(attempts) != 1 || attempts[0].Status != executiongraph.AttemptFailed {
+			t.Fatalf("integration attempts=%+v", attempts)
 		}
 	})
 }
@@ -379,6 +387,10 @@ func (f *gitFixture) succeed(t *testing.T, keys ...string) executiongraph.Graph 
 	}
 	f.graph = graph
 	return graph
+}
+
+func (f *gitFixture) store() *memoryGraphStore {
+	return &memoryGraphStore{}
 }
 
 func (f *gitFixture) validator(t *testing.T, argv ...string) *gitworkspace.CombinedValidator {
@@ -478,6 +490,15 @@ func (s *memoryGraphStore) Load(context.Context, string, string) (executiongraph
 	return executiongraph.DecodeGraph(s.wire)
 }
 
+func (s *memoryGraphStore) Save(_ context.Context, graph executiongraph.Graph) (executiongraph.Graph, error) {
+	wire, err := executiongraph.EncodeGraph(graph)
+	if err != nil {
+		return executiongraph.Graph{}, err
+	}
+	s.wire = wire
+	return executiongraph.DecodeGraph(wire)
+}
+
 func capability(role string) executiongraph.CapabilityRequest {
 	return executiongraph.CapabilityRequest{Role: role, Complexity: "low", Capabilities: []string{"go"}}
 }
@@ -507,6 +528,20 @@ func git(t *testing.T, directory string, args ...string) string {
 		t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, output)
 	}
 	return strings.TrimSpace(string(output))
+}
+
+// gitAllowFailure runs Git with the test environment and returns its result
+// without failing; control cases use it where a live filter makes Git fail.
+func gitAllowFailure(directory string, args ...string) (string, error) {
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		return "", err
+	}
+	command := exec.Command(gitPath, args...)
+	command.Dir = directory
+	command.Env = []string{"LC_ALL=C", "LANG=C", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_TERMINAL_PROMPT=0", "PATH=/usr/bin:/bin"}
+	output, err := command.CombinedOutput()
+	return string(output), err
 }
 
 func writeFile(t *testing.T, name, content string) {

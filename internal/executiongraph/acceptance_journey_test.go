@@ -29,13 +29,11 @@ func TestBuildEvidenceDerivesRealRuntimeStatusFromCompleteJourney(t *testing.T) 
 		{"incomplete rollup", func(evidence *Evidence) {
 			evidence.Rollup.Status = "partial"
 			evidence.Rollup.IntegrationResultTree = ""
-			for index := range evidence.Rollup.ChildOutcomes {
-				if evidence.Rollup.ChildOutcomes[index].ChildID == evidence.Rollup.IntegrationChildID {
-					evidence.Rollup.ChildOutcomes[index].Status = AttemptUnknown
-				}
-			}
 		}},
-		{"missing combined validation", func(evidence *Evidence) { evidence.Rollup.ValidationResults = nil }},
+		{"missing combined validation", func(evidence *Evidence) {
+			evidence.Rollup.Status = "partial"
+			evidence.Rollup.ValidationResults = nil
+		}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -403,16 +401,17 @@ func completeRuntimeEvidenceFixture(t *testing.T) (Graph, Evidence, []coordinati
 	if !ValidGraph(graph) || runtimeIndex < 2 {
 		t.Fatal("invalid complete runtime graph")
 	}
+	integratedAt := time.Unix(50, 0).UTC()
+	for index := range graph.Children {
+		if graph.Children[index].Envelope.IntegrationOwner {
+			graph.Children[index].Attempts = []Attempt{{AttemptID: "00000000-0000-4000-8000-000000000599", Number: 1, Status: AttemptSucceeded, StartedAt: &integratedAt, FinishedAt: &integratedAt, ResultReference: IntegrationResultReference(DigestOf("integrated")), OutputDigest: DigestOf("validation")}}
+		}
+	}
 	rollup := RollupGraph(graph)
 	rollup.Status = "success"
 	rollup.IntegrationResultTree = DigestOf("integrated")
 	rollup.ValidationResults = []ValidationResult{{CommandReference: "go-test", ExitCode: 0, OutputDigest: DigestOf("validation")}}
 	rollup.References = []string{"integration:result"}
-	for index := range rollup.ChildOutcomes {
-		if rollup.ChildOutcomes[index].ChildID == rollup.IntegrationChildID {
-			rollup.ChildOutcomes[index].Status = AttemptSucceeded
-		}
-	}
 	evidence := Evidence{FormatVersion: 1, BaseRevision: "8a9ca19fd260bc19f5bb288b449e8dc6df618194", ConfigurationDigest: DigestOf("config"), ParentID: graph.Parent.ExecutionID, GraphRevision: graph.Parent.GraphRevision, Dispatch: dispatch, RuntimeExecutions: runtimeExecutions, Rollup: rollup, ValidationReferences: []string{"go-test"}, Limitations: []string{"usage unavailable"}}
 	j := newJourney(t, graph, evidence)
 	question := j.publish(coordination.QuestionRequest, j.codex, field("question", "Which contract?"))

@@ -17,6 +17,9 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/rgomids/axiom/internal/executiongraph"
 )
@@ -28,7 +31,18 @@ var (
 	ErrForeignMutation      = errors.New("foreign Git workspace mutation")
 	ErrIntegrationConflict  = errors.New("Git integration conflict")
 	ErrNoResult             = errors.New("child has no successful result")
+	// ErrExecutableGitConfiguration reports effective repository configuration
+	// that would let Git start an implicit command during a workspace operation.
+	ErrExecutableGitConfiguration = errors.New("executable Git configuration rejected")
 )
+
+// effectiveUID is the identity that must own every control path.
+var effectiveUID = os.Geteuid
+
+// filterSensitiveCommands are the Git commands this adapter runs that can
+// convert working-tree content (checkout, staging, patch application or
+// working-tree comparison) and therefore consult filter or diff drivers.
+var filterSensitiveCommands = map[string]bool{"worktree": true, "add": true, "apply": true, "diff": true}
 
 const ownershipDirectory = ".axiom-workspace-owners"
 
@@ -85,6 +99,9 @@ func NewManager(ctx context.Context, repository, root, baseRevision string, grap
 		return nil, ErrInvalidConfiguration
 	}
 	m := &Manager{git: git, repository: repository, root: root, baseRevision: strings.ToLower(baseRevision), graph: graph}
+	if err := m.rejectExecutableConfiguration(ctx, repository); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidConfiguration, err)
+	}
 	m.commonDirectory, err = m.gitPath(ctx, repository, "rev-parse", "--path-format=absolute", "--git-common-dir")
 	if err != nil {
 		return nil, ErrInvalidConfiguration
@@ -101,8 +118,12 @@ func NewManager(ctx context.Context, repository, root, baseRevision string, grap
 	if err != nil {
 		return nil, ErrInvalidConfiguration
 	}
-	if err := os.MkdirAll(filepath.Join(root, ownershipDirectory), 0o700); err != nil {
+	owners := filepath.Join(root, ownershipDirectory)
+	if err := os.Mkdir(owners, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 		return nil, err
+	}
+	if !privateDirectory(owners) {
+		return nil, ErrInvalidConfiguration
 	}
 	return m, nil
 }
@@ -302,6 +323,9 @@ func (m *Manager) create(ctx context.Context, child executiongraph.ChildExecutio
 	if _, err := os.Lstat(m.ownerPath(child.ExecutionID)); !errors.Is(err, os.ErrNotExist) {
 		return WorkspaceObservation{}, ErrWorkspaceCollision
 	}
+	if err := m.rejectExecutableConfiguration(ctx, m.repository); err != nil {
+		return WorkspaceObservation{}, err
+	}
 	if _, err := m.gitOutput(ctx, m.repository, nil, nil, "worktree", "add", "--detach", workspace, m.baseRevision); err != nil {
 		return WorkspaceObservation{}, fmt.Errorf("%w: %v", ErrWorkspaceCollision, err)
 	}
@@ -326,6 +350,9 @@ func (m *Manager) inspect(ctx context.Context, child executiongraph.ChildExecuti
 	var owner ownerRecord
 	if err := readStrictJSON(m.ownerPath(child.ExecutionID), &owner); err != nil || owner != (ownerRecord{FormatVersion: 1, Repository: m.repository, CommonDirectory: m.commonDirectory, ParentID: child.ParentID, ChildID: child.ExecutionID, GraphRevision: child.GraphRevision, EnvelopeDigest: executiongraph.EnvelopeDigest(child.Envelope), Workspace: workspace, BaseRevision: m.baseRevision, BaseTree: m.baseTree}) {
 		return WorkspaceObservation{}, ErrWorkspaceInvalid
+	}
+	if err := m.rejectExecutableConfiguration(ctx, workspace); err != nil {
+		return WorkspaceObservation{}, err
 	}
 	top, err := m.gitPath(ctx, workspace, "rev-parse", "--show-toplevel")
 	if err != nil || !samePath(top, workspace) {
@@ -399,19 +426,19 @@ func (m *Manager) confinedWorkspace(value string, mustExist bool) (string, error
 	return value, nil
 }
 
+// validateControlPaths applies the ADR-0005 ownership/permission property to
+// the WorkspaceRoot, the ownership directory and the child's owner record.
 func (m *Manager) validateControlPaths(childID string, ownerMustExist bool) error {
 	for _, directory := range []string{m.root, filepath.Join(m.root, ownershipDirectory)} {
-		info, err := os.Lstat(directory)
-		if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		if !privateDirectory(directory) {
 			return ErrWorkspaceInvalid
 		}
 	}
 	owner := m.ownerPath(childID)
-	info, err := os.Lstat(owner)
-	if !ownerMustExist && errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Lstat(owner); !ownerMustExist && errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
-	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Mode().Perm()&0o077 != 0 {
+	if !privateRegularFile(owner) {
 		return ErrWorkspaceInvalid
 	}
 	return nil
@@ -446,7 +473,7 @@ func (m *Manager) registeredWorktree(ctx context.Context, workspace, head string
 }
 
 func (m *Manager) changedPaths(ctx context.Context, workspace string) ([]string, error) {
-	tracked, err := m.gitOutput(ctx, workspace, nil, nil, "diff", "--name-only", "-z", "HEAD", "--")
+	tracked, err := m.gitOutput(ctx, workspace, nil, nil, "diff", "--no-ext-diff", "--no-textconv", "--name-only", "-z", "HEAD", "--")
 	if err != nil {
 		return nil, err
 	}
@@ -534,7 +561,7 @@ func (m *Manager) diffTrees(ctx context.Context, base, result string) ([]byte, e
 	if !validObjectID(base) || !validObjectID(result) {
 		return nil, ErrWorkspaceInvalid
 	}
-	return m.gitOutput(ctx, m.repository, nil, nil, "diff", "--binary", "--full-index", base, result, "--")
+	return m.gitOutput(ctx, m.repository, nil, nil, "diff", "--no-ext-diff", "--no-textconv", "--binary", "--full-index", base, result, "--")
 }
 
 func (m *Manager) revision(ctx context.Context, cwd, revision string) (string, error) {
@@ -571,6 +598,15 @@ func (m *Manager) gitPath(ctx context.Context, cwd string, args ...string) (stri
 }
 
 func (m *Manager) gitOutput(ctx context.Context, cwd string, stdin []byte, extraEnv []string, args ...string) ([]byte, error) {
+	if filterSensitiveCommands[args[0]] {
+		if err := m.rejectExecutableConfiguration(ctx, cwd); err != nil {
+			return nil, err
+		}
+	}
+	return m.runGit(ctx, cwd, stdin, extraEnv, args...)
+}
+
+func (m *Manager) runGit(ctx context.Context, cwd string, stdin []byte, extraEnv []string, args ...string) ([]byte, error) {
 	baseArgs := []string{"-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "credential.helper="}
 	command := exec.CommandContext(ctx, m.git, append(baseArgs, args...)...)
 	command.Dir = cwd
@@ -586,6 +622,45 @@ func (m *Manager) gitOutput(ctx context.Context, cwd string, stdin []byte, extra
 		return nil, fmt.Errorf("git %s failed: %w: %s", args[0], err, message)
 	}
 	return stdout.Bytes(), nil
+}
+
+// rejectExecutableConfiguration reads the effective configuration Git would
+// use in cwd (repository, worktree and included files; system and global are
+// already excluded) and fails closed when a filter or diff driver could start
+// a command. It never rewrites configuration.
+func (m *Manager) rejectExecutableConfiguration(ctx context.Context, cwd string) error {
+	output, err := m.runGit(ctx, cwd, nil, nil, "config", "--list", "--includes", "-z")
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrExecutableGitConfiguration, err)
+	}
+	for _, entry := range splitNUL(output) {
+		key, value, _ := strings.Cut(entry, "\n")
+		if value != "" && executableConfigurationKey(key) {
+			return ErrExecutableGitConfiguration
+		}
+	}
+	return nil
+}
+
+// executableConfigurationKey matches filter.<driver>.{clean,smudge,process},
+// diff.external and diff.<driver>.{command,textconv}. Section and variable
+// names are case-insensitive; the driver subsection may contain dots.
+func executableConfigurationKey(key string) bool {
+	first := strings.Index(key, ".")
+	last := strings.LastIndex(key, ".")
+	if first < 0 {
+		return false
+	}
+	section, variable := strings.ToLower(key[:first]), strings.ToLower(key[last+1:])
+	switch {
+	case section == "filter" && first != last:
+		return variable == "clean" || variable == "smudge" || variable == "process"
+	case section == "diff" && first == last:
+		return variable == "external"
+	case section == "diff":
+		return variable == "command" || variable == "textconv"
+	}
+	return false
 }
 
 func (m *Manager) ownerPath(childID string) string {
@@ -675,10 +750,55 @@ func cleanAuthorizedRoot(value string) (string, error) {
 		return "", err
 	}
 	resolved, err := filepath.EvalSymlinks(absolute)
-	if err != nil || !samePath(resolved, absolute) {
+	if err != nil || !samePath(resolved, absolute) || !privateDirectory(absolute) {
 		return "", ErrInvalidConfiguration
 	}
 	return absolute, nil
+}
+
+// privateDirectory follows the existing local/codexruntime pattern: a
+// non-symlink directory owned by the effective user, without group/other
+// permission bits or extended ACL entries.
+func privateDirectory(name string) bool {
+	info, err := os.Lstat(name)
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0o077 != 0 {
+		return false
+	}
+	directory, err := os.OpenFile(name, os.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return false
+	}
+	defer directory.Close()
+	opened, err := directory.Stat()
+	if err != nil || !os.SameFile(info, opened) || !ownedByUser(opened) {
+		return false
+	}
+	return checkPrivateACL(directory) == nil
+}
+
+// privateRegularFile requires a single-link, owner-only regular file owned by
+// the effective user without extended ACL entries.
+func privateRegularFile(name string) bool {
+	info, err := os.Lstat(name)
+	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0o077 != 0 {
+		return false
+	}
+	file, err := os.OpenFile(name, os.O_RDONLY|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+	opened, err := file.Stat()
+	if err != nil || !os.SameFile(info, opened) || !ownedByUser(opened) {
+		return false
+	}
+	stat, ok := opened.Sys().(*syscall.Stat_t)
+	return ok && stat.Nlink == 1 && checkPrivateACL(file) == nil
+}
+
+func ownedByUser(info os.FileInfo) bool {
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	return ok && int(stat.Uid) == effectiveUID()
 }
 
 func samePath(left, right string) bool {

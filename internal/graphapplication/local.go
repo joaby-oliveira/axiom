@@ -60,7 +60,7 @@ func newLocalService(ctx context.Context, configuration LocalConfiguration, invo
 		graph:        configuration.Graph,
 		workspaces:   workspaces,
 		scheduler:    executiongraph.NewScheduler(invocations, executiongraph.OSProcessRunner{}, workspaces, configuration.GraphStore, configuration.AllocateAttemptID, nil),
-		integration:  executiongraph.NewIntegrationService(workspaces, validator),
+		integration:  executiongraph.NewIntegrationService(workspaces, validator, configuration.GraphStore, configuration.AllocateAttemptID, nil),
 		coordination: coordination.AcceptanceVerifier{},
 	}, nil
 }
@@ -99,7 +99,15 @@ func (s *LocalService) PreviewIntegration(ctx context.Context, optionalWaivers m
 func (s *LocalService) ExecuteIntegration(ctx context.Context, preview executiongraph.IntegrationPreview, authority executiongraph.IntegrationAuthority) (executiongraph.ParentRollup, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.integration.Execute(ctx, s.graph, preview, authority)
+	// The service always returns the last persisted graph, including a running
+	// or failed Integration attempt, so local state follows canonical state.
+	result, err := s.integration.Execute(ctx, s.graph, preview, authority)
+	if bindErr := s.workspaces.BindGraph(result.Graph); bindErr != nil {
+		result.Rollup.Status = "recovery_required"
+		return result.Rollup, errors.Join(err, bindErr)
+	}
+	s.graph = result.Graph
+	return result.Rollup, err
 }
 
 func (s *LocalService) BuildEvidence(evidence executiongraph.Evidence) (executiongraph.Evidence, error) {
