@@ -148,9 +148,11 @@ Human review on 2026-09-26 approved FR-045–FR-061, AC-32–AC-43,
 [ADR-0009](../decisions/0009-parent-child-execution-graph.md), the amended Plan and
 T30–T36 decomposition. Codex and Claude are the concrete S8 acceptance Runtime
 paths; concrete models remain local Model Profiles, and token/cost budget governance
-is future work. The amended DAG contains 36 Tasks across S1–S9. S8 implementation
-was explicitly authorized on 2026-09-26. Its deterministic foundation and current
-T33/T35/T36 blockers are recorded in
+is future work. The amended DAG contains 36 Tasks across S1–S9. Issue #97 still
+states that S8 implementation is not authorized, and no linked verifiable human
+authority record has been identified for the existing implementation. Code and
+technical validation do not create that authority. The deterministic foundation
+and current T33/T35/T36 blockers are recorded in
 [S8 Evidence](004-mvp-v1-baseline/evidence-s8.md); the real Codex + Claude run was
 not executed. S9 release work remains separately unauthorized.
 

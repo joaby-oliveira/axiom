@@ -178,12 +178,21 @@ func (s GraphService) Publish(ctx context.Context, request PublicationRequest) (
 	if s.store == nil {
 		return Graph{}, ErrInvalidGraph
 	}
+	intendedWire, err := EncodeGraph(graph)
+	if err != nil {
+		return Graph{}, err
+	}
+	intendedDigest := sha256.Sum256(intendedWire)
 	if err := s.store.Create(ctx, graph); err != nil {
 		return Graph{}, err
 	}
 	projectID := graph.Children[0].Envelope.Scope.ProjectID
 	persisted, err := s.store.Load(ctx, projectID, graph.Parent.ExecutionID)
-	if err != nil || !ValidGraph(persisted) || persisted.Parent.ExecutionID != graph.Parent.ExecutionID || persisted.Parent.GraphRevision != graph.Parent.GraphRevision {
+	if err != nil {
+		return Graph{}, ErrInvalidGraph
+	}
+	persistedWire, err := EncodeGraph(persisted)
+	if err != nil || sha256.Sum256(persistedWire) != intendedDigest {
 		return Graph{}, ErrInvalidGraph
 	}
 	return persisted, nil

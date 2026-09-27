@@ -75,6 +75,50 @@ func TestIntegrationBlocksMissingForgedStaleConflictAndForeignDrift(t *testing.T
 	}
 }
 
+func TestIntegrationPreviewBindsOptionalWaiversDeterministically(t *testing.T) {
+	graph, _, revision, tree := integrationFixture(t)
+	optionalIDs := []string{}
+	for index := range graph.Children {
+		if graph.Children[index].Envelope.IntegrationOwner {
+			continue
+		}
+		graph.Children[index].Envelope.Optional = true
+		optionalIDs = append(optionalIDs, graph.Children[index].ExecutionID)
+	}
+	service := NewIntegrationService(&integratorFake{}, validatorFake{})
+	if _, err := service.Preview(graph, IntegrationObservation{TargetRevision: revision, TargetTree: tree}, nil); !errors.Is(err, ErrIntegrationBlocked) {
+		t.Fatalf("missing waiver err=%v", err)
+	}
+	if _, err := service.Preview(graph, IntegrationObservation{TargetRevision: revision, TargetTree: tree, OptionalWaivers: map[string]string{optionalIDs[0]: "waiver:child-a"}}, nil); !errors.Is(err, ErrIntegrationBlocked) {
+		t.Fatalf("child A waiver justified child B: %v", err)
+	}
+	if _, err := service.Preview(graph, IntegrationObservation{TargetRevision: revision, TargetTree: tree, OptionalWaivers: map[string]string{optionalIDs[0]: "", optionalIDs[1]: "waiver:child-b"}}, nil); !errors.Is(err, ErrIntegrationBlocked) {
+		t.Fatalf("invalid waiver err=%v", err)
+	}
+	waivers := map[string]string{optionalIDs[0]: "waiver:child-a", optionalIDs[1]: "waiver:child-b"}
+	preview, err := service.Preview(graph, IntegrationObservation{TargetRevision: revision, TargetTree: tree, OptionalWaivers: waivers}, nil)
+	if err != nil || len(preview.OptionalWaivers) != 2 || preview.OptionalWaivers[0].ChildID > preview.OptionalWaivers[1].ChildID {
+		t.Fatalf("preview=%+v err=%v", preview, err)
+	}
+	changed, err := service.Preview(graph, IntegrationObservation{TargetRevision: revision, TargetTree: tree, OptionalWaivers: map[string]string{optionalIDs[0]: "waiver:child-a-revised", optionalIDs[1]: "waiver:child-b"}}, nil)
+	if err != nil || changed.Digest == preview.Digest {
+		t.Fatalf("changed=%+v err=%v", changed, err)
+	}
+	tampered := preview
+	tampered.OptionalWaivers = append([]OptionalWaiver(nil), preview.OptionalWaivers...)
+	tampered.OptionalWaivers[0].Reference = "waiver:tampered"
+	if _, err := service.Execute(context.Background(), graph, tampered, IntegrationAuthority{PreviewDigest: preview.Digest, TargetRevision: revision, Effects: preview.Effects, Reference: "authority:integration"}); !errors.Is(err, ErrIntegrationStale) {
+		t.Fatalf("tampered preview err=%v", err)
+	}
+	reversed := map[string]string{}
+	reversed[optionalIDs[1]] = "waiver:child-b"
+	reversed[optionalIDs[0]] = "waiver:child-a"
+	reordered, err := service.Preview(graph, IntegrationObservation{TargetRevision: revision, TargetTree: tree, OptionalWaivers: reversed}, nil)
+	if err != nil || reordered.Digest != preview.Digest {
+		t.Fatalf("reordered=%+v err=%v", reordered, err)
+	}
+}
+
 func TestIntegrationStaleAuthorityAndValidationFailureStayNonSuccess(t *testing.T) {
 	graph, results, revision, tree := integrationFixture(t)
 	service := NewIntegrationService(&integratorFake{result: AppliedIntegration{Confirmed: true, ResultTree: tree}}, validatorFake{err: errors.New("failed")})

@@ -13,6 +13,31 @@ type memoryGraphStore struct{ graph Graph }
 func (s *memoryGraphStore) Create(_ context.Context, graph Graph) error        { s.graph = graph; return nil }
 func (s *memoryGraphStore) Load(_ context.Context, _, _ string) (Graph, error) { return s.graph, nil }
 
+type tamperingGraphStore struct {
+	graph  Graph
+	loaded Graph
+	mutate func(*Graph)
+}
+
+func (s *tamperingGraphStore) Create(_ context.Context, graph Graph) error {
+	s.graph = graph
+	return nil
+}
+
+func (s *tamperingGraphStore) Load(_ context.Context, _, _ string) (Graph, error) {
+	wire, err := EncodeGraph(s.graph)
+	if err != nil {
+		return Graph{}, err
+	}
+	loaded, err := DecodeGraph(wire)
+	if err != nil {
+		return Graph{}, err
+	}
+	s.mutate(&loaded)
+	s.loaded = loaded
+	return loaded, nil
+}
+
 func TestGraphPublicationAllocatesStableLineageAndBoundedEnvelopes(t *testing.T) {
 	proposal := mustProposal(t)
 	store := &memoryGraphStore{}
@@ -56,6 +81,34 @@ func TestGraphPublicationRejectsStaleDigestAndAuthorityExpansion(t *testing.T) {
 	request.ChildAuthorities["docs"] = append(request.ChildAuthorities["docs"], Effect{Kind: "repository-write", Target: "outside"})
 	if _, err := service.Publish(context.Background(), request); !errors.Is(err, ErrAuthoritySubset) {
 		t.Fatalf("authority err=%v", err)
+	}
+}
+
+func TestGraphPublicationRejectsStructurallyValidReadbackTampering(t *testing.T) {
+	proposal := mustProposal(t)
+	tests := []struct {
+		name   string
+		mutate func(*Graph)
+	}{
+		{"allowed effects", func(graph *Graph) {
+			graph.Children[0].Envelope.AllowedEffects = []Effect{{Kind: "repository-write", Target: "docs/runtime.md"}}
+		}},
+		{"authority reference", func(graph *Graph) { graph.Children[0].Envelope.AuthorityReference = "authority:other" }},
+		{"runtime resolution", func(graph *Graph) { graph.Children[0].Envelope.Resolution.RuntimeID = "claude" }},
+		{"workspace", func(graph *Graph) { graph.Children[0].Envelope.Workspace = "/tmp/axiom-s8/other" }},
+		{"controls", func(graph *Graph) { graph.Children[0].Envelope.Controls.MaximumAttempts++ }},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			store := &tamperingGraphStore{mutate: test.mutate}
+			_, err := NewGraphService(store, sequenceAllocatorFrom(0), func() time.Time { return time.Unix(10, 0).UTC() }).Publish(context.Background(), publicationRequest(proposal))
+			if !errors.Is(err, ErrInvalidGraph) {
+				t.Fatalf("err=%v", err)
+			}
+			if !ValidGraph(store.loaded) {
+				t.Fatal("test mutation made read-back structurally invalid")
+			}
+		})
 	}
 }
 

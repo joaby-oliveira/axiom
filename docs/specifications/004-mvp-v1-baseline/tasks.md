@@ -1213,12 +1213,15 @@ bounded real Codex Runtime Evidence. Human acceptance is not inferred.**
 
 **S7 (T16–T22) — Explicitly authorized on 2026-09-25 and technically complete; final Evidence at implementation commit `ceb6d0288039793d15a98003d5b30a28a2f19122` (T18 retirement at `ffc2515`). T22 is complete under the revised S7 acceptance scope (HD-S7-T22); the Ubuntu 26.04 amd64/arm64 ext4 native rows are deferred to T24 and remain mandatory before RC acceptance or release claims for those targets. See [S7 Evidence](evidence-s7.md). Human acceptance is not inferred.**
 
-**S8 (T30–T36) — Implementation explicitly authorized on 2026-09-26. T30–T32
-and the deterministic T34 foundation are implemented at `21f4f7c` plus the
-publication read-back correction `e654f83`; T33 and T35
+**S8 (T30–T36) — Existing implementation has no currently verifiable human
+authority record: Issue #97 still says implementation is not authorized and no
+linked authorization comment has been identified. T30–T32 and the deterministic
+T34 foundation exist at `21f4f7c` plus the publication read-back correction
+`e654f83`; T33 and T35
 remain partial because concrete Git workspace/integration adapters and application
 composition are not delivered. T36 has schema and a draft envelope only; the
 separately gated real Codex + Claude run was not executed. See
-[S8 Evidence](evidence-s8.md). Human acceptance is not inferred.**
+[S8 Evidence](evidence-s8.md). Existing code does not retroactively create
+implementation authority, and human acceptance is not inferred.**
 
 **S9 (T23–T25) — Release candidate acceptance; not authorized.**

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -26,9 +27,13 @@ const (
 )
 
 var (
-	ErrInvalidRecord = errors.New("invalid coordination record")
-	ErrStaleRevision = errors.New("stale coordination revision")
-	ErrCapacity      = errors.New("coordination capacity exhausted")
+	ErrInvalidRecord     = errors.New("invalid coordination record")
+	ErrStaleRevision     = errors.New("stale coordination revision")
+	ErrCapacity          = errors.New("coordination capacity exhausted")
+	sensitiveAssignment  = regexp.MustCompile(`(?i)\b(?:password|passwd|token|api[_-]?key|client[_-]?secret|secret|authorization)[ \t]*[:=][ \t]*["']?[^ \t"']{4,}`)
+	bearerCredential     = regexp.MustCompile(`(?i)\bauthorization[ \t]*:[ \t]*bearer[ \t]+[a-z0-9._~+/=-]{8,}`)
+	privateKeyCredential = regexp.MustCompile(`(?i)-----begin (?:[a-z0-9]+ )*private key-----`)
+	knownCredential      = regexp.MustCompile(`\b(?:gh[pousr]_[A-Za-z0-9]{20,}|(?:AKIA|ASIA)[A-Z0-9]{16}|sk-(?:proj-)?[A-Za-z0-9_-]{20,})\b`)
 )
 
 type Kind string
@@ -323,7 +328,14 @@ func validProvenance(value Provenance) bool {
 }
 
 func validValue(value string) bool {
-	return value != "" && len(value) <= maxFieldBytes && !strings.ContainsAny(value, "\x00\r")
+	if value == "" || len(value) > maxFieldBytes || strings.ContainsAny(value, "\x00\r\n") {
+		return false
+	}
+	lower := strings.ToLower(value)
+	if privateKeyCredential.MatchString(value) || strings.Contains(lower, "<|assistant|>") || strings.Contains(lower, "<|user|>") || strings.Contains(lower, "<|system|>") {
+		return false
+	}
+	return !sensitiveAssignment.MatchString(value) && !bearerCredential.MatchString(value) && !knownCredential.MatchString(value)
 }
 
 func validToken(value string) bool {

@@ -171,7 +171,7 @@ func (s Scheduler) DispatchReady(ctx context.Context, request DispatchRequest) (
 				status = AttemptFailed
 			}
 			digest := sha256.Sum256(process.Output)
-			attempt := Attempt{AttemptID: attemptID, Number: attemptNumber, Status: status, StartedAt: &started, FinishedAt: &ended, ResultReference: process.ResultReference, OutputDigest: hex.EncodeToString(digest[:]), ExitCode: process.ExitCode, AmbiguousEffect: process.EffectAmbiguous, CancellationSeen: attemptCtx.Err() != nil}
+			attempt := Attempt{AttemptID: attemptID, Number: attemptNumber, Status: status, StartedAt: &started, FinishedAt: &ended, ResultReference: process.ResultReference, OutputDigest: hex.EncodeToString(digest[:]), ExitCode: process.ExitCode, AmbiguousEffect: process.EffectAmbiguous || status == AttemptUnknown, CancellationSeen: attemptCtx.Err() != nil}
 			completedCh <- completed{index: index, attempt: attempt, record: DispatchRecord{ChildID: child.ExecutionID, AttemptID: attemptID, Status: status, StartedAt: started, EndedAt: ended}}
 		}(plan.index, plan.child, plan.invocation, plan.attemptID, plan.number, plan.started)
 	}
@@ -228,6 +228,10 @@ func readyChildren(graph Graph, retries map[string]bool, blocked map[string]stri
 		}
 		if len(child.Attempts) > 0 {
 			last := child.Attempts[len(child.Attempts)-1]
+			if last.Status == AttemptUnknown {
+				blocked[child.ExecutionID] = "unknown_outcome_requires_reconciliation"
+				continue
+			}
 			if last.AmbiguousEffect {
 				blocked[child.ExecutionID] = "ambiguous_effect"
 				continue

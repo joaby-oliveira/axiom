@@ -64,6 +64,46 @@ func TestRejectsStaleControlRawChatCredentialAndOversize(t *testing.T) {
 	}
 }
 
+func TestRejectsSensitiveCoordinationValuesWithoutKeywordFalsePositives(t *testing.T) {
+	graph := coordinationGraph(t)
+	child := graph.Children[0]
+	tests := []struct {
+		name  string
+		field Field
+	}{
+		{"password assignment in answer", Field{Name: "answer", Value: "pass" + "word=synthetic-value"}},
+		{"bearer authorization", Field{Name: "answer", Value: "Authorization: " + "Bearer synthetic-token-value"}},
+		{"private key", Field{Name: "answer", Value: "-----BEGIN " + "PRIVATE KEY----- synthetic"}},
+		{"RSA private key", Field{Name: "answer", Value: "-----BEGIN RSA " + "PRIVATE KEY----- synthetic"}},
+		{"api key assignment", Field{Name: "summary", Value: "api_" + "key=synthetic-value"}},
+		{"secret assignment", Field{Name: "contract", Value: "sec" + "ret: synthetic-value"}},
+		{"raw chat marker", Field{Name: "answer", Value: "<|user|> copied transcript"}},
+		{"multiline transcript", Field{Name: "answer", Value: "User asks\nAssistant answers"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := New(&memoryStore{}, nil, nil)
+			input := Input{Kind: Answer, ParentID: graph.Parent.ExecutionID, ChildID: child.ExecutionID, GraphRevision: graph.Parent.GraphRevision, Provenance: testProvenance(), Fields: []Field{test.field}}
+			if test.field.Name == "summary" {
+				input.Kind = Progress
+			}
+			if test.field.Name == "contract" {
+				input.Kind = ContractProposal
+			}
+			if _, err := service.Publish(context.Background(), graph, input); err == nil {
+				t.Fatalf("value accepted: %q", test.field.Value)
+			}
+		})
+	}
+	for _, value := range []string{"token budget governance is deferred", "secret handling must remain local"} {
+		service := New(&memoryStore{}, nil, nil)
+		_, err := service.Publish(context.Background(), graph, Input{Kind: Answer, ParentID: graph.Parent.ExecutionID, ChildID: child.ExecutionID, GraphRevision: graph.Parent.GraphRevision, Provenance: testProvenance(), Fields: []Field{{Name: "answer", Value: value}}})
+		if err != nil {
+			t.Fatalf("legitimate value %q rejected: %v", value, err)
+		}
+	}
+}
+
 func TestUsageObservationIsTruthful(t *testing.T) {
 	graph := coordinationGraph(t)
 	child := graph.Children[0]

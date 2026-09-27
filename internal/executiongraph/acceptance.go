@@ -85,19 +85,31 @@ type Evidence struct {
 	GraphRevision        uint64
 	GraphDigest          string
 	Dispatch             []DispatchRecord
+	RuntimeExecutions    []RuntimeExecutionEvidence
 	CoordinationDigests  []string
 	Rollup               ParentRollup
 	ValidationReferences []string
 	Limitations          []string
-	RealRuntimeRun       bool
 	Digest               string
 }
 
+type RuntimeExecutionEvidence struct {
+	ChildID               string
+	AttemptID             string
+	RuntimeID             string
+	ModelProfileID        string
+	RuntimeVersion        string
+	ConfigurationRevision uint64
+	ObservationRevision   uint64
+	InvocationDigest      string
+	ResultReference       string
+}
+
 func BuildEvidence(graph Graph, evidence Evidence) (Evidence, error) {
-	if !ValidGraph(graph) || evidence.FormatVersion != 1 || !validSourceRevision(evidence.BaseRevision) || !validDigest(evidence.ConfigurationDigest) || evidence.ParentID != graph.Parent.ExecutionID || evidence.GraphRevision != graph.Parent.GraphRevision || evidence.Rollup.ParentID != graph.Parent.ExecutionID || evidence.Rollup.GraphRevision != graph.Parent.GraphRevision || !boundedDigests(evidence.CoordinationDigests) || !boundedReferences(evidence.ValidationReferences) || len(evidence.Limitations) == 0 || !boundedReferences(evidence.Limitations) {
+	if !ValidGraph(graph) || evidence.FormatVersion != 1 || !validSourceRevision(evidence.BaseRevision) || !validDigest(evidence.ConfigurationDigest) || evidence.ParentID != graph.Parent.ExecutionID || evidence.GraphRevision != graph.Parent.GraphRevision || !boundedDigests(evidence.CoordinationDigests) || !boundedReferences(evidence.ValidationReferences) || len(evidence.Limitations) == 0 || !boundedReferences(evidence.Limitations) || !validEvidenceRollup(graph, evidence.Rollup) || !validDispatchEvidence(graph, evidence.Dispatch) || !validRuntimeExecutionEvidence(graph, evidence.RuntimeExecutions) {
 		return Evidence{}, ErrInvalidRunEnvelope
 	}
-	if evidence.RealRuntimeRun {
+	if completeRealRuntimeJourney(graph, evidence) {
 		evidence.Status = "real_run_recorded"
 	} else {
 		evidence.Status = "deterministic_preparation_only"
@@ -108,6 +120,12 @@ func BuildEvidence(graph Graph, evidence Evidence) (Evidence, error) {
 	}
 	graphDigest := sha256.Sum256(graphWire)
 	evidence.GraphDigest = hex.EncodeToString(graphDigest[:])
+	sort.Slice(evidence.Dispatch, func(i, j int) bool {
+		return evidence.Dispatch[i].ChildID+"\x00"+evidence.Dispatch[i].AttemptID < evidence.Dispatch[j].ChildID+"\x00"+evidence.Dispatch[j].AttemptID
+	})
+	sort.Slice(evidence.RuntimeExecutions, func(i, j int) bool {
+		return evidence.RuntimeExecutions[i].ChildID+"\x00"+evidence.RuntimeExecutions[i].AttemptID < evidence.RuntimeExecutions[j].ChildID+"\x00"+evidence.RuntimeExecutions[j].AttemptID
+	})
 	sort.Strings(evidence.CoordinationDigests)
 	sort.Strings(evidence.ValidationReferences)
 	sort.Strings(evidence.Limitations)
@@ -119,6 +137,137 @@ func BuildEvidence(graph Graph, evidence Evidence) (Evidence, error) {
 	digest := sha256.Sum256(wire)
 	evidence.Digest = hex.EncodeToString(digest[:])
 	return evidence, nil
+}
+
+func validEvidenceRollup(graph Graph, rollup ParentRollup) bool {
+	if rollup.ParentID != graph.Parent.ExecutionID || rollup.GraphRevision != graph.Parent.GraphRevision || rollup.IntegrationChildID != graph.Parent.IntegrationChild || len(rollup.ChildOutcomes) != len(graph.Children) {
+		return false
+	}
+	if rollup.Status != "partial" && rollup.Status != "success" && rollup.Status != "failure" && rollup.Status != "recovery_required" {
+		return false
+	}
+	if rollup.IntegrationResultTree != "" && !validDigest(rollup.IntegrationResultTree) {
+		return false
+	}
+	if len(rollup.ValidationResults) > 0 && !validValidationResults(rollup.ValidationResults) {
+		return false
+	}
+	if len(rollup.References) > 0 && !boundedReferences(rollup.References) {
+		return false
+	}
+	children := make(map[string]ChildExecution, len(graph.Children))
+	for _, child := range graph.Children {
+		children[child.ExecutionID] = child
+	}
+	seen := map[string]bool{}
+	for _, outcome := range rollup.ChildOutcomes {
+		child, ok := children[outcome.ChildID]
+		if !ok || seen[outcome.ChildID] || outcome.Required != !child.Envelope.Optional || !validAttemptStatus(outcome.Status) {
+			return false
+		}
+		if !child.Envelope.IntegrationOwner {
+			expected := AttemptNotStarted
+			if len(child.Attempts) > 0 {
+				expected = child.Attempts[len(child.Attempts)-1].Status
+			}
+			if outcome.Status != expected {
+				return false
+			}
+		}
+		seen[outcome.ChildID] = true
+	}
+	return true
+}
+
+func validDispatchEvidence(graph Graph, records []DispatchRecord) bool {
+	seen := map[string]bool{}
+	for _, record := range records {
+		child, attempt, ok := graphAttempt(graph, record.ChildID, record.AttemptID)
+		key := record.ChildID + "\x00" + record.AttemptID
+		if !ok || child.Envelope.IntegrationOwner || seen[key] || record.Status != attempt.Status || record.StartedAt.IsZero() || record.EndedAt.IsZero() || record.EndedAt.Before(record.StartedAt) || attempt.StartedAt == nil || attempt.FinishedAt == nil || !record.StartedAt.Equal(*attempt.StartedAt) || !record.EndedAt.Equal(*attempt.FinishedAt) {
+			return false
+		}
+		seen[key] = true
+	}
+	return true
+}
+
+func validRuntimeExecutionEvidence(graph Graph, records []RuntimeExecutionEvidence) bool {
+	seen := map[string]bool{}
+	for _, record := range records {
+		child, attempt, ok := graphAttempt(graph, record.ChildID, record.AttemptID)
+		key := record.ChildID + "\x00" + record.AttemptID
+		resolution := child.Envelope.Resolution
+		if !ok || child.Envelope.IntegrationOwner || seen[key] || attempt.Status != AttemptSucceeded || !validDigest(attempt.OutputDigest) || !validTarget(attempt.ResultReference) || record.RuntimeID != resolution.RuntimeID || record.ModelProfileID != resolution.ModelProfileID || record.ConfigurationRevision != resolution.ConfigurationRevision || record.ObservationRevision != resolution.ObservationRevision || !validToken(record.RuntimeVersion) || !validDigest(record.InvocationDigest) || record.ResultReference != attempt.ResultReference {
+			return false
+		}
+		seen[key] = true
+	}
+	return true
+}
+
+func completeRealRuntimeJourney(graph Graph, evidence Evidence) bool {
+	if evidence.Rollup.Status != "success" || !validDigest(evidence.Rollup.IntegrationResultTree) || !validValidationResults(evidence.Rollup.ValidationResults) || len(evidence.Rollup.References) == 0 {
+		return false
+	}
+	validationReferences := map[string]bool{}
+	for _, reference := range evidence.ValidationReferences {
+		validationReferences[reference] = true
+	}
+	for _, result := range evidence.Rollup.ValidationResults {
+		if !validationReferences[result.CommandReference] {
+			return false
+		}
+	}
+	for _, outcome := range evidence.Rollup.ChildOutcomes {
+		if outcome.Required && outcome.Status != AttemptSucceeded {
+			return false
+		}
+	}
+	dispatched := map[string]bool{}
+	for _, record := range evidence.Dispatch {
+		if record.Status == AttemptSucceeded {
+			dispatched[record.ChildID+"\x00"+record.AttemptID] = true
+		}
+	}
+	children := make(map[string]ChildExecution, len(graph.Children))
+	for _, child := range graph.Children {
+		children[child.ExecutionID] = child
+	}
+	var codexChildren, claudeChildren []string
+	for _, record := range evidence.RuntimeExecutions {
+		if !dispatched[record.ChildID+"\x00"+record.AttemptID] {
+			return false
+		}
+		switch record.RuntimeID {
+		case "codex":
+			codexChildren = append(codexChildren, record.ChildID)
+		case "claude":
+			claudeChildren = append(claudeChildren, record.ChildID)
+		}
+	}
+	for _, codexChild := range codexChildren {
+		for _, claudeChild := range claudeChildren {
+			if codexChild != claudeChild && !childDependsTransitively(children, codexChild, claudeChild) && !childDependsTransitively(children, claudeChild, codexChild) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func graphAttempt(graph Graph, childID, attemptID string) (ChildExecution, Attempt, bool) {
+	for _, child := range graph.Children {
+		if child.ExecutionID != childID {
+			continue
+		}
+		for _, attempt := range child.Attempts {
+			if attempt.AttemptID == attemptID {
+				return child, attempt, true
+			}
+		}
+	}
+	return ChildExecution{}, Attempt{}, false
 }
 
 func runEnvelopeDigest(envelope RunEnvelope) (string, error) {

@@ -3,6 +3,7 @@ package executiongraph
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -33,6 +34,7 @@ type concurrentRunner struct {
 	started         chan struct{}
 	release         chan struct{}
 	ambiguous       bool
+	stopUnconfirmed bool
 	exitCode        int
 }
 
@@ -49,7 +51,7 @@ func (r *concurrentRunner) Run(ctx context.Context, _ Invocation) ProcessResult 
 	case <-r.release:
 	case <-ctx.Done():
 		r.active.Add(-1)
-		return ProcessResult{ExitCode: -1, Stopped: true}
+		return ProcessResult{ExitCode: -1, Stopped: !r.stopUnconfirmed}
 	}
 	r.active.Add(-1)
 	return ProcessResult{ExitCode: r.exitCode, Output: []byte("bounded"), EffectAmbiguous: r.ambiguous}
@@ -206,6 +208,74 @@ func TestSchedulerTimeoutAndAmbiguousRetryBlock(t *testing.T) {
 		if blocked.Blocked[child.ExecutionID] != "ambiguous_effect" {
 			t.Fatalf("blocked=%v", blocked.Blocked)
 		}
+	}
+}
+
+func TestSchedulerUnknownTimeoutRequiresReconciliationEvenWhenFlagIsInconsistent(t *testing.T) {
+	graph := mustGraph(t)
+	for index := range graph.Children {
+		if !graph.Children[index].Envelope.IntegrationOwner {
+			graph.Children[index].Envelope.Controls.Timeout = time.Millisecond
+		}
+	}
+	runner := &concurrentRunner{started: make(chan struct{}, 2), release: make(chan struct{}), stopUnconfirmed: true}
+	result, err := NewScheduler(invocationFake{}, runner, workspaceFake{}, nil, sequenceAllocator(), time.Now).DispatchReady(context.Background(), DispatchRequest{Graph: graph})
+	if err != nil || len(result.Records) != 2 {
+		t.Fatalf("result=%+v err=%v", result, err)
+	}
+	retry := map[string]bool{}
+	for index := range result.Graph.Children {
+		child := &result.Graph.Children[index]
+		if child.Envelope.IntegrationOwner {
+			continue
+		}
+		if len(child.Attempts) != 1 || child.Attempts[0].Status != AttemptUnknown || !child.Attempts[0].AmbiguousEffect {
+			t.Fatalf("attempts=%+v", child.Attempts)
+		}
+		child.Attempts[0].AmbiguousEffect = false
+		retry[child.ExecutionID] = true
+	}
+	blocked, err := NewScheduler(invocationFake{}, runner, workspaceFake{}, nil, sequenceAllocator(), time.Now).DispatchReady(context.Background(), DispatchRequest{Graph: result.Graph, RetryChildIDs: retry})
+	if err != nil || len(blocked.Records) != 0 {
+		t.Fatalf("blocked=%+v err=%v", blocked, err)
+	}
+	for _, child := range blocked.Graph.Children {
+		if child.Envelope.IntegrationOwner {
+			continue
+		}
+		if blocked.Blocked[child.ExecutionID] != "unknown_outcome_requires_reconciliation" || len(child.Attempts) != 1 {
+			t.Fatalf("child=%+v blocked=%v", child, blocked.Blocked)
+		}
+	}
+}
+
+func TestSchedulerRetryPreservesPriorAttempt(t *testing.T) {
+	graph := mustGraph(t)
+	failedRunner := &concurrentRunner{started: make(chan struct{}, 2), release: make(chan struct{}, 2), exitCode: 1}
+	failedRunner.release <- struct{}{}
+	failedRunner.release <- struct{}{}
+	first, err := NewScheduler(invocationFake{}, failedRunner, workspaceFake{}, nil, sequenceAllocatorFrom(100), time.Now).DispatchReady(context.Background(), DispatchRequest{Graph: graph})
+	if err != nil {
+		t.Fatal(err)
+	}
+	childIndex := -1
+	for index, child := range first.Graph.Children {
+		if !child.Envelope.IntegrationOwner {
+			childIndex = index
+			break
+		}
+	}
+	prior := first.Graph.Children[childIndex].Attempts[0]
+	successRunner := &concurrentRunner{started: make(chan struct{}, 1), release: make(chan struct{}, 1)}
+	successRunner.release <- struct{}{}
+	childID := first.Graph.Children[childIndex].ExecutionID
+	second, err := NewScheduler(invocationFake{}, successRunner, workspaceFake{}, nil, sequenceAllocatorFrom(200), time.Now).DispatchReady(context.Background(), DispatchRequest{Graph: first.Graph, RetryChildIDs: map[string]bool{childID: true}})
+	if err != nil || len(second.Records) != 1 {
+		t.Fatalf("result=%+v err=%v", second, err)
+	}
+	attempts := second.Graph.Children[childIndex].Attempts
+	if len(attempts) != 2 || !reflect.DeepEqual(attempts[0], prior) || attempts[1].Number != 2 || attempts[1].AttemptID == prior.AttemptID || attempts[1].Status != AttemptSucceeded {
+		t.Fatalf("attempts=%+v prior=%+v", attempts, prior)
 	}
 }
 

@@ -37,11 +37,17 @@ type IntegrationObservation struct {
 	OptionalWaivers map[string]string
 }
 
+type OptionalWaiver struct {
+	ChildID   string
+	Reference string
+}
+
 type IntegrationPreview struct {
 	ParentID, IntegrationChildID string
 	GraphRevision                uint64
 	TargetRevision, TargetTree   string
 	Sources                      []ChildResult
+	OptionalWaivers              []OptionalWaiver
 	Effects                      []Effect
 	Digest                       string
 }
@@ -116,13 +122,17 @@ func (s IntegrationService) Preview(graph Graph, observation IntegrationObservat
 		byChild[result.ChildID] = result
 	}
 	preview := IntegrationPreview{ParentID: graph.Parent.ExecutionID, IntegrationChildID: integration.ExecutionID, GraphRevision: graph.Parent.GraphRevision, TargetRevision: observation.TargetRevision, TargetTree: observation.TargetTree}
+	usedWaivers := map[string]bool{}
 	for _, child := range graph.Children {
 		if child.Envelope.IntegrationOwner {
 			continue
 		}
 		result, exists := byChild[child.ExecutionID]
 		if !exists {
-			if child.Envelope.Optional && validTarget(observation.OptionalWaivers[child.ExecutionID]) {
+			waiverReference := observation.OptionalWaivers[child.ExecutionID]
+			if child.Envelope.Optional && validTarget(waiverReference) {
+				preview.OptionalWaivers = append(preview.OptionalWaivers, OptionalWaiver{ChildID: child.ExecutionID, Reference: waiverReference})
+				usedWaivers[child.ExecutionID] = true
 				continue
 			}
 			return IntegrationPreview{}, ErrIntegrationBlocked
@@ -133,7 +143,11 @@ func (s IntegrationService) Preview(graph Graph, observation IntegrationObservat
 		preview.Sources = append(preview.Sources, result)
 		preview.Effects = append(preview.Effects, result.Effects...)
 	}
+	if len(usedWaivers) != len(observation.OptionalWaivers) {
+		return IntegrationPreview{}, ErrIntegrationBlocked
+	}
 	sort.Slice(preview.Sources, func(i, j int) bool { return preview.Sources[i].ChildID < preview.Sources[j].ChildID })
+	sort.Slice(preview.OptionalWaivers, func(i, j int) bool { return preview.OptionalWaivers[i].ChildID < preview.OptionalWaivers[j].ChildID })
 	preview.Effects = sortedEffects(preview.Effects)
 	digest, err := integrationPreviewDigest(preview)
 	if err != nil {

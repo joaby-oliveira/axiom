@@ -2,13 +2,15 @@
 
 ## Claim and authority boundary
 
-This record covers the explicitly authorized implementation work for
-Specification 004 Slice S8, tracked by
-[Issue #97](https://github.com/rgomids/axiom/issues/97). The implementation
-foundation is commit `21f4f7c365c89f48dbfe641beb765a14903a69ad`, with
-publication read-back correction
-`e654f833d1786fef89dcd619533c8d36bc63c5e0`, based on `main` at
-`8a9ca19fd260bc19f5bb288b449e8dc6df618194`.
+This record describes existing implementation work for Specification 004 Slice
+S8, tracked by [Issue #97](https://github.com/rgomids/axiom/issues/97). Issue #97
+still says S8/T30–T36 implementation is not authorized, and no linked human
+comment or other verifiable authority record has been identified. The code does
+not create or retroactively imply that authority. The implementation foundation
+is commit `21f4f7c365c89f48dbfe641beb765a14903a69ad`, with publication read-back
+correction `e654f833d1786fef89dcd619533c8d36bc63c5e0`, based on `main` at
+`8a9ca19fd260bc19f5bb288b449e8dc6df618194`; the review remediation described
+below belongs to the same revision as this Evidence update.
 
 The real T36 Codex + Claude acceptance graph was **not executed**. No Runtime
 process, Runtime installation, credential read/provisioning, worktree creation,
@@ -40,7 +42,7 @@ blocking.
 |---|---|
 | Repository | `rgomids/axiom` |
 | Branch | `agent/s8-multi-runtime-execution` |
-| Implementation commits | `21f4f7c365c89f48dbfe641beb765a14903a69ad`, `e654f833d1786fef89dcd619533c8d36bc63c5e0` |
+| Implementation commits | foundation `21f4f7c365c89f48dbfe641beb765a14903a69ad`; first read-back correction `e654f833d1786fef89dcd619533c8d36bc63c5e0`; review-remediation base `bcc4a46711a68e56389bd90d6b00d4a06e481a7f` and source revision containing this record |
 | Go | `go1.26.1 darwin/arm64` |
 | macOS | 27.0, build `26A428` |
 | Architecture | `arm64` |
@@ -48,18 +50,19 @@ blocking.
 | Codex path observation | `/Users/rgomids/.local/bin/codex` (`command -v` only) |
 | Claude path observation | `/Users/rgomids/.local/bin/claude` (`command -v` only) |
 
-Selected source digests at the implementation commit:
+Selected source digests for the review-remediated source represented by this
+record:
 
 | Path | SHA-256 |
 |---|---|
 | `internal/runtimeprofile/runtimeprofile.go` | `bb8e630280f4d40182739ac1f02a0a77bd29d285655ec0ff086b39120f54089d` |
 | `internal/runtimeadapter/adapters.go` | `93d3a30a7f8b6bc0da40e63a1b3c8a2f4f7226f44807ed8e6651927d9223d355` |
 | `internal/executiongraph/planner.go` | `5cf86aea3701ac6752d13ae886996b9fbc05a9eeb0482e0c4b5317ccac66212a` |
-| `internal/executiongraph/graph.go` | `09ed54946a73932a1a7c3b4b890ea466291ce97ad7c9cc814eb938e04d624b5b` |
-| `internal/executiongraph/scheduler.go` | `2d3e0a2a59683e82ead62ec194172a52531072c776d35439c7e94c09e88259a1` |
-| `internal/executiongraph/integration.go` | `aeeb9dd46bf5fdb3f7c174af4fe77208f4d10f8494db60a335eccc8f72a02c5b` |
-| `internal/executiongraph/acceptance.go` | `b034c554cebe6ae7bfd91263e102009b99b2f54fa36fa625b8ef50441090ab1c` |
-| `internal/coordination/coordination.go` | `8c8b87640d605868415d5384ff0815aa2c41ea778e1bacd4f910b0a419b69c27` |
+| `internal/executiongraph/graph.go` | `7381f570a8c52b140de93c3402b1d79f16869c67635cab9d2f610254442041a2` |
+| `internal/executiongraph/scheduler.go` | `4cc4c9915e1e1b51cdb769419e0e6727e58a7d9a09aa4a1d2f91f2e83369f793` |
+| `internal/executiongraph/integration.go` | `b5dc296f9985fcf1795a06ecae51d522b64d1f2aa077db3ce587fd76eb173950` |
+| `internal/executiongraph/acceptance.go` | `864a3c9400dd3b9846ac21f15bd0ac7eee8a41fee48587494e2b26ea9af86b11` |
+| `internal/coordination/coordination.go` | `285f34b9467e7d06e02993c72bb83dda6061dd53fef61b45556ae875d696136e` |
 
 ## Implemented deterministic contracts
 
@@ -98,6 +101,9 @@ Selected source digests at the implementation commit:
   their full repository suite remain unchanged.
 - Graph publication runs an F0–F8 injected-fault matrix. A reader sees either a
   complete valid graph, not-found, or `recovery_required`, never mixed state.
+- Publication read-back canonically encodes and digests the entire intended and
+  loaded graph. Any structurally valid change to effects, authority references,
+  Runtime resolution, workspace or controls fails publication confirmation.
 
 ### T33 — Scheduler foundation
 
@@ -112,8 +118,10 @@ Selected source digests at the implementation commit:
   replaces that attempt and advances storage revision.
 - Timeout/cancellation is bounded. Unobservable full stop remains `unknown`;
   confirmed stop may be `cancelled`. Cancellation prevents new dispatch.
-- Retry requires an explicit child ID, remaining maximum attempts and no ambiguous
-  effect; every retry gets a new attempt identity and prior attempts remain.
+- Retry requires an explicit child ID, remaining maximum attempts and a
+  reconciled outcome. `unknown` itself blocks redispatch even if a stored
+  ambiguity flag is inconsistent; every permitted retry gets a new attempt
+  identity and preserves prior attempts.
 
 Concrete Git worktree creation, base/ownership inspection and cleanup disposition
 are still missing. The workspace port and fake tests are not proof of isolated
@@ -128,6 +136,10 @@ real worktrees.
   digest, provenance, bounded fields and optional usage observation.
 - Unknown/control/raw-chat/reasoning/credential fields, stale revisions,
   unsupported kinds, forged lineage and oversized values are rejected.
+- Field values are single-line structured data. Deterministic high-signal checks
+  reject private-key boundaries, bearer credentials, explicit password/token/API
+  key/secret assignments and known credential formats without rejecting ordinary
+  discussion of token budgets or secret-handling policy.
 - Usage is only `measured`, `partial` or `unavailable`; unavailable values cannot
   carry an estimate.
 - Protected streams are bounded to 64 records and use ADR-0007 publication.
@@ -138,7 +150,8 @@ real worktrees.
   base revision, result tree, artifacts and exact effect set.
 - Missing required output, forged lineage, stale base, conflict or foreign drift
   blocks before apply. Missing optional output requires an explicit waiver
-  reference.
+  reference bound to that exact child. Ordered structured waiver records are
+  included in the preview and therefore in its digest.
 - Apply authority binds preview digest, target revision and exact ordered effects.
 - Only the declared integration child reaches the integration and combined-
   validation ports. Parent roll-up cannot become `success` without confirmed
@@ -147,22 +160,39 @@ real worktrees.
 Concrete Git result inspection, patch application, conflict preview and combined
 command execution remain ports exercised with fakes. T35 is therefore partial.
 
-## Commands actually executed
+### T36 — Evidence status derivation
+
+- The caller-controlled `RealRuntimeRun` boolean no longer exists.
+- `real_run_recorded` derives only from structured Codex and Claude execution
+  records correlated to independent graph children, successful persisted
+  attempts, exact dispatch timestamps, Runtime/Model Profile resolutions and
+  result references.
+- Successful Integration/Reconciliation roll-up, a digested result tree,
+  successful combined validation linked to declared validation references,
+  coordination digests and integration references are also mandatory.
+- Missing journey facts remain `deterministic_preparation_only`; foreign
+  Runtime/Profile/attempt claims are rejected.
+
+These are deterministic contract tests only. No real Codex + Claude Runtime
+journey was executed, and no `real_run_recorded` Evidence exists.
+
+## Final validation commands
 
 | Command | Result |
 |---|---|
 | `go test ./... -count=1` | exit 0; all packages passed |
-| `go test -race ./internal/runtimeprofile ./internal/runtimeadapter ./internal/executiongraph ./internal/coordination ./internal/local -count=1` | exit 0; first four packages passed in the combined call; `internal/local` passed separately in 30.647s |
-| `go test -race ./internal/local -count=1` | exit 0; passed |
+| `go test -race ./internal/runtimeprofile ./internal/runtimeadapter ./internal/executiongraph ./internal/coordination ./internal/local -count=1` | exit 0; all five packages passed |
 | `go vet ./...` | exit 0 |
+| `go build ./...` | exit 0 |
+| `go mod verify` | exit 0; all modules verified |
 | `./scripts/validate-repository.sh .` | exit 0; repository/package/bootstrap validators passed |
 | `./scripts/check-sensitive-files.sh .` | exit 0; worktree passed |
-| `git diff --cached --check` | exit 0 |
-| `./scripts/check-sensitive-files.sh --staged .` | exit 0; passed |
-| `gitleaks git --staged --redact --no-banner` | exit 0; no leaks found |
+| `gitleaks dir . --redact --no-banner` | exit 0; no leaks found |
+| `git diff --check` | exit 0 |
 
-Documentation commits change this record/status only; implementation claims
-remain bound to `21f4f7c` plus `e654f83`.
+These validations cover the review-remediated source represented by this record.
+They prove deterministic checks only; they do not supply missing S8 implementation
+authority, real Runtime Evidence or human acceptance.
 
 ## Proposed T36 real-run envelope — draft, not authorized
 
