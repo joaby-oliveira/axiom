@@ -24,8 +24,9 @@ The original Plan and delivered S1–S7 remain historical. Human review on
 2026-09-26 approved this amendment for S8 multi-runtime Agent Planning/Execution
 Graph delivery, accepted ADR-0009, and renumbered the former RC slice to S9. T23–
 T25 keep their IDs and historical release-candidate objective; T24/T25 are expanded
-to validate and reconcile the new S8 product state. S8 implementation remains
-unauthorized.
+to validate and reconcile the new S8 product state. S8/T30–T36 implementation was
+later authorized on 2026-09-27 (Issue #97 comment #5852650410); the real T36
+Runtime run, S9 and human acceptance remain separately gated.
 
 This Plan describes how to realize the behavior approved in
 [Specification 004](spec.md). It was explicitly approved by the human reviewer in
@@ -1157,7 +1158,7 @@ Architecture assessment found two new durable choices:
 | Package/component map | Planning decomposition with inward dependencies and consumer-owned ports, not a published API or permanent module topology; no ADR. |
 | GitHub label/comment spelling and GitHub Releases adapter | First-adapter conventions within the approved MVP, replaceable behind Provider/distribution boundaries and carrying no broad compatibility/authenticity promise; no ADR at this stage. |
 | Work Item lifecycle projection, flags, bounded history and metadata policy | Extends the already approved local-authority/Provider-projection contract. Lifecycle is derived from the existing gates/facts, so Execution identity, gate semantics, source-of-truth ownership, data ownership and recovery semantics do not change; ADR-0008 remains valid without alteration and no new ADR is needed. Reassess if implementation requires another workflow authority, an independently persisted lifecycle, portable Execution, Provider-owned gates, or a generic custom-field schema. |
-| Parent/child Execution Graph | Changes durable identity/lineage, dependency, authority, retry/cancellation, integration and Evidence semantics. Accepted in ADR-0009 by explicit human decision on 2026-09-26; S8 implementation remains separately gated. ADR-0008 remains historical and sequentially compatible. |
+| Parent/child Execution Graph | Changes durable identity/lineage, dependency, authority, retry/cancellation, integration and Evidence semantics. Accepted in ADR-0009 by explicit human decision on 2026-09-26; S8/T30–T36 implementation was authorized on 2026-09-27 (Issue #97 comment #5852650410) and the real T36 Runtime run remains separately gated. ADR-0008 remains historical and sequentially compatible. |
 
 If implementation or Plan review requires a different release trust topology,
 storage engine, broad Execution schema, automatic cleanup, portable artifact
