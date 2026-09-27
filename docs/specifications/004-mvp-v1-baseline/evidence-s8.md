@@ -15,7 +15,10 @@ human acceptance of S8 or the MVP. The deterministic foundation was delivered by
 PR #102. Concrete T33/T35 delivery is commits
 `e884a468f6b0cc76835dd671ac9f29ea6779919a` and
 `7bfadc3c47dcb453a97efc5b77aab0ef1824d3bc`, based on merged `main` at
-`5dd9660411daadc100d5260e5ff54a9f9d11f945`.
+`5dd9660411daadc100d5260e5ff54a9f9d11f945`. The PR #103 technical-review
+remediation (persisted Integration/Reconciliation attempt, fail-closed Git
+filter/diff-driver guard, private WorkspaceRoot/control paths) is recorded in
+the T33/T35 sections below and in the digest table.
 
 The real T36 Codex + Claude acceptance graph was **not executed**. No Codex or
 Claude Runtime process, Runtime installation, credential read/provisioning, Provider mutation,
@@ -66,12 +69,12 @@ record:
 | `internal/executiongraph/planner.go` | `5cf86aea3701ac6752d13ae886996b9fbc05a9eeb0482e0c4b5317ccac66212a` |
 | `internal/executiongraph/graph.go` | `7381f570a8c52b140de93c3402b1d79f16869c67635cab9d2f610254442041a2` |
 | `internal/executiongraph/scheduler.go` | `74f86a010f9a4cd88c3f2dadf298c78dea64783ec6a44a658db593f0f5200229` |
-| `internal/executiongraph/integration.go` | `9b4108652307e908392d467d460e25ebad70f2c0f53da566a679eafba7d9b60b` |
-| `internal/executiongraph/acceptance.go` | `c5bf3ab64919a52e7e110fc59b08f4818a22f14b207d752d4f79b2e0db983ee9` |
+| `internal/executiongraph/integration.go` | `fa739395154fb2fd07a4e6a08f0a4ec077795b7b298d24a8f5571c0a580ea62a` |
+| `internal/executiongraph/acceptance.go` | `9af29ae129f93c72fef2b060ba02e198b7338e2da690d7afb2d3064aed963871` |
 | `internal/coordination/coordination.go` | `fe4c401dfc36e2f375b5342592c554f3adb04bf398b730ba76bc99e9f778daf0` |
-| `internal/gitworkspace/git.go` | `bf1551b785107a30ae1d235470f5ea9c67c1a54db637783786cf9c82e010af59` |
+| `internal/gitworkspace/git.go` | `f72b3febf2a0a2ba4bca72edadcf00a0e608f836ecf9d1c18fb5a6be0e20f8ac` |
 | `internal/gitworkspace/validator.go` | `61ac2faa66cd495c8d0039b09b2f4da3822d61bba55c85382cc51505f6879418` |
-| `internal/graphapplication/local.go` | `0a88f517668e2f2bf49aedcc34edf4303c17ccf1c22cfd234ea2a7d524976c6f` |
+| `internal/graphapplication/local.go` | `12a72ac6aa163aeddc0ff430c5ce22f986499229cc74708421b9e716d1b8d288` |
 
 ## Implemented deterministic contracts
 
@@ -144,6 +147,28 @@ record:
 - Absolute confinement rejects traversal, outside-root paths, symlink components,
   pre-existing targets, ownership tampering, wrong repository, wrong `HEAD` and
   foreign changes. No destructive cleanup API exists; worktrees remain preserved.
+- Implicit Git command execution fails closed. At `NewManager`, before worktree
+  creation, before every workspace inspection and before every `worktree`, `add`,
+  `apply` or `diff` invocation, the manager reads the effective configuration Git
+  would use in that directory (`git config --list --includes -z`: repository,
+  worktree-specific and included files; system/global remain excluded) and
+  rejects any non-empty `filter.<driver>.clean`, `filter.<driver>.smudge`,
+  `filter.<driver>.process`, `diff.external`, `diff.<driver>.command` or
+  `diff.<driver>.textconv`. Configuration is never rewritten; diffs additionally
+  pass `--no-ext-diff --no-textconv`. Real-Git tests configure a live helper that
+  writes a sentinel (a control repository proves it runs under plain Git) and
+  show rejection before checkout/staging with no sentinel and an unchanged shared
+  checkout, including configuration added by a child after preparation and
+  worktree-specific drivers.
+- ADR-0005 ownership/permissions: the WorkspaceRoot and
+  `.axiom-workspace-owners` must be non-symlink directories owned by the
+  effective user with no group/other bits and no extended ACL; owner records must
+  be single-link owner-only regular files with the same ownership/ACL checks.
+  This reuses the existing `internal/local`/`internal/codexruntime` private-path
+  pattern. A permissive pre-existing root or owner directory fails `NewManager`;
+  permissive, hard-linked, symlinked or foreign-owned control paths fail every
+  later inspection. Foreign ownership is exercised through a test-only effective
+  UID override because `chown` to another UID is unavailable unprivileged.
 - `graphapplication.LocalService` composes the existing scheduler with the concrete
   manager, `OSProcessRunner`, Runtime invocation resolver and graph store. Runtime
   `cwd` remains the exact validated child worktree. Captured process output remains
@@ -162,7 +187,7 @@ Concrete worktree observation:
 | Safe workspace paths | `<temp>/workspaces/{a,b,integrate}` |
 | Child identities | `00000000-0000-4000-8000-000000000002`, `00000000-0000-4000-8000-000000000003`, `00000000-0000-4000-8000-000000000004` |
 | Shared checkout | `HEAD`, tree and porcelain status identical before/after |
-| Negative matrix | wrong repository/ownership/HEAD, dirty workspace, collision, outside root and symlink escape rejected |
+| Negative matrix | wrong repository/ownership/HEAD, dirty workspace, collision, outside root and symlink escape rejected; live `clean`/`smudge`/`process` filters, worktree-specific process driver and `diff.external` rejected with no helper execution; permissive/foreign/symlinked root, owner directory and owner record rejected |
 
 ### T34 — Structured coordination
 
@@ -211,6 +236,17 @@ Concrete worktree observation:
 - `graphapplication.LocalService` composes integration preview, authority-bound
   apply, combined validation, parent roll-up and the concrete coordination
   verifier/Evidence builder.
+- The Integration/Reconciliation child executes as a real attempt with its own
+  opaque identity under the same child Execution. A `running` attempt is persisted
+  through `GraphAttemptStore` before apply; the terminal attempt (`succeeded`,
+  `failed` after combined-validation failure, or `unknown` with ambiguous effect
+  after unconfirmed apply) is persisted before the roll-up reports it. The roll-up
+  is derived from the last persisted graph, and `LocalService` adopts that graph.
+  Pre-effect persistence failure applies nothing; failure to persist after
+  confirmed effects returns `recovery_required` with the canonical attempt still
+  `running`, never success. The preview binds the integration attempt count, so
+  one authority cannot start a second attempt, and a `running`, `unknown`,
+  ambiguous or `succeeded` integration attempt blocks new previews.
 
 Concrete vertical observation:
 
@@ -222,8 +258,8 @@ Concrete vertical observation:
 | Result tree | `9bfa5fb747b6bcf332c952af414b51cae58bc382` |
 | Applied ledger | exact ordered child `repository-write` effects; references `git-workspace:<child-id>` and `git-tree:<tree>` |
 | Combined validator | `git diff --check`; exit `0`; output digest `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
-| Parent roll-up | `success` only after confirmed apply and validator pass |
-| Negative matrix | missing child, forged lineage, stale base, foreign target/child change, real conflict, effect mismatch, authority/preview tamper, missing/matched waiver and validator failure |
+| Parent roll-up | `success` only after confirmed apply, validator pass and a persisted `succeeded` Integration attempt bound to the result tree |
+| Negative matrix | missing child, forged lineage, stale base, foreign target/child change, real conflict, effect mismatch, authority/preview tamper, missing/matched waiver, validator failure (`failed` attempt), apply failure (`unknown` attempt), persistence failure before/after effects and authority replay |
 | Shared checkout | `HEAD`, tree and porcelain status identical before/after |
 
 ### T36 — Evidence status derivation
@@ -258,6 +294,11 @@ Concrete vertical observation:
 - Successful Integration/Reconciliation roll-up, a digested result tree,
   successful combined validation linked to declared validation references and
   integration references are also mandatory.
+- Every roll-up child outcome, including Integration/Reconciliation, must equal
+  that child's last persisted attempt; there is no integration-owner exception.
+  A `success` roll-up additionally requires every required outcome `succeeded`
+  and a persisted `succeeded` integration attempt whose result reference binds
+  the roll-up result tree; otherwise `BuildEvidence` rejects the roll-up.
 - Missing journey facts remain `deterministic_preparation_only`; foreign
   Runtime/Profile/attempt claims and coordination records with foreign parent,
   graph revision, child or attempt (including an attempt of another child),
@@ -283,7 +324,8 @@ Claude Runtime journey was executed, and no `real_run_recorded` Evidence exists.
 | `git diff --check` | exit 0 |
 
 Separate concrete test commands also passed for `./internal/gitworkspace` and
-`./internal/graphapplication`. These validations do not supply real Runtime
+`./internal/graphapplication`. The same command set was rerun after the PR #103
+review remediation with the results above. These validations do not supply real Runtime
 Evidence, T36 real-run authority or human acceptance.
 
 ## Proposed T36 real-run envelope — draft, not authorized
