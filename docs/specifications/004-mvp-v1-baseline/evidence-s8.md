@@ -5,8 +5,10 @@
 This record covers the explicitly authorized implementation work for
 Specification 004 Slice S8, tracked by
 [Issue #97](https://github.com/rgomids/axiom/issues/97). The implementation
-foundation is commit `21f4f7c365c89f48dbfe641beb765a14903a69ad`, based on
-`main` at `8a9ca19fd260bc19f5bb288b449e8dc6df618194`.
+foundation is commit `21f4f7c365c89f48dbfe641beb765a14903a69ad`, with
+publication read-back correction
+`e654f833d1786fef89dcd619533c8d36bc63c5e0`, based on `main` at
+`8a9ca19fd260bc19f5bb288b449e8dc6df618194`.
 
 The real T36 Codex + Claude acceptance graph was **not executed**. No Runtime
 process, Runtime installation, credential read/provisioning, worktree creation,
@@ -38,7 +40,7 @@ blocking.
 |---|---|
 | Repository | `rgomids/axiom` |
 | Branch | `agent/s8-multi-runtime-execution` |
-| Implementation commit | `21f4f7c365c89f48dbfe641beb765a14903a69ad` |
+| Implementation commits | `21f4f7c365c89f48dbfe641beb765a14903a69ad`, `e654f833d1786fef89dcd619533c8d36bc63c5e0` |
 | Go | `go1.26.1 darwin/arm64` |
 | macOS | 27.0, build `26A428` |
 | Architecture | `arm64` |
@@ -53,7 +55,7 @@ Selected source digests at the implementation commit:
 | `internal/runtimeprofile/runtimeprofile.go` | `bb8e630280f4d40182739ac1f02a0a77bd29d285655ec0ff086b39120f54089d` |
 | `internal/runtimeadapter/adapters.go` | `93d3a30a7f8b6bc0da40e63a1b3c8a2f4f7226f44807ed8e6651927d9223d355` |
 | `internal/executiongraph/planner.go` | `5cf86aea3701ac6752d13ae886996b9fbc05a9eeb0482e0c4b5317ccac66212a` |
-| `internal/executiongraph/graph.go` | `fffbf0201bd6b2ac8f080de004931815d4829d26e31dab88cb28ef65eaaf64fa` |
+| `internal/executiongraph/graph.go` | `09ed54946a73932a1a7c3b4b890ea466291ce97ad7c9cc814eb938e04d624b5b` |
 | `internal/executiongraph/scheduler.go` | `2d3e0a2a59683e82ead62ec194172a52531072c776d35439c7e94c09e88259a1` |
 | `internal/executiongraph/integration.go` | `aeeb9dd46bf5fdb3f7c174af4fe77208f4d10f8494db60a335eccc8f72a02c5b` |
 | `internal/executiongraph/acceptance.go` | `b034c554cebe6ae7bfd91263e102009b99b2f54fa36fa625b8ef50441090ab1c` |
@@ -159,8 +161,8 @@ command execution remain ports exercised with fakes. T35 is therefore partial.
 | `./scripts/check-sensitive-files.sh --staged .` | exit 0; passed |
 | `gitleaks git --staged --redact --no-banner` | exit 0; no leaks found |
 
-The documentation commit changes this record/status only; implementation claims
-remain bound to `21f4f7c`.
+Documentation commits change this record/status only; implementation claims
+remain bound to `21f4f7c` plus `e654f83`.
 
 ## Proposed T36 real-run envelope — draft, not authorized
 
