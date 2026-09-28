@@ -167,14 +167,13 @@ supported-platform release artifacts, a stable verified remote installer with
 idempotent reinstall/safe owned upgrade, Codex + Claude first-run bootstrap, and
 Axiom dogfooding through the S8 graph before RC acceptance. The proposed
 Specification/Plan/Tasks amendment adds T37–T40 ahead of historical T23–T25,
-bringing the proposed DAG to 40 Tasks. Product scope is recorded; the Task
+bringing the proposed DAG to 40 Tasks, and reconciles the #81 release-selection
+policy: latest stable by default, exact `--version` pins, exact-version-only
+release candidates and no automatic downgrade. Product scope is recorded; the Task
 amendment, implementation, prerelease publication and final MVP acceptance remain
-separately gated. T37–T39 were then implemented locally under explicit operator
-authority and are recorded, with their limits, in
-[S9 Evidence](004-mvp-v1-baseline/evidence-s9.md); release candidates are
-exact-version only (human decision 2026-09-28). T40 (Codex + Claude first-run
-bootstrap) followed locally under the 2026-09-28 T40 decisions; T23–T25 are not
-started.
+separately gated. T37–T40 are implemented in PR #106 (unmerged) and recorded,
+with their validation limits, in
+[S9 Evidence](004-mvp-v1-baseline/evidence-s9.md); T23–T25 are not started.
 
 Issue [#62](https://github.com/rgomids/axiom/issues/62) originally authorized
 Specification and reconciliation only. After PR #70 resolved that gate, the

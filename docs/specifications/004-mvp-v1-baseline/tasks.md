@@ -31,13 +31,12 @@ owned upgrade, and Codex+Claude first-run bootstrap before historical T23–T25.
 This Task amendment is proposed for human review and is not implementation
 authority.**
 
-**S9 T37–T39 local implementation: explicitly authorized by the operator on
-2026-09-28 to proceed in parallel with S8/T36; S8/T36 remains the gate for
-entering RC/acceptance (T23–T25). T37–T39 are implemented and locally validated
-on `integration/s9-productization` (not pushed or merged); T39 release
-candidates are exact-version only by human decision 2026-09-28. T40 was then
-implemented and locally validated under the 2026-09-28 T40 decisions. T23–T25
-are not started. See [S9 Evidence](evidence-s9.md).**
+**S9 T37–T40 implementation: delivered on `integration/s9-productization`
+(PR #106, unmerged) under the operator's 2026-09-28 local implementation
+authority; S8/T36 remains the gate for entering RC/acceptance (T23–T25). The
+delivered behavior and its validation kinds (confirmed, synthetic, not run) are
+recorded in [S9 Evidence](evidence-s9.md); implementation choices recorded there
+are not Specification requirements. T23–T25 are not started.**
 
 Approved artifact: `main` at `c7f756209c608ff1f1a88947dcc425d07daaa831`, merge
 of [PR #72](https://github.com/rgomids/axiom/pull/72). Human approval in PR #72
@@ -86,8 +85,7 @@ Specification 004 — Approved
 -> S8 Specification/ADR/Plan/Tasks amendment + ADR-0009 — Approved; implementation authorized 2026-09-27 (Issue #97 comment #5852650410)
    -> T30–T36 — Technical candidate ready for human review; real T36 Evidence recorded
 -> S9 Release candidate acceptance (T23–T25, with T24/T25 reconciled for S8) — Not authorized
-   -> T37–T39 — implemented and locally validated (unmerged); Ubuntu Evidence synthetic, macOS 27 not exercised; native acceptance remains T24
-   -> T40 — implemented and locally validated (unmerged); no native row exercised
+   -> T37–T40 — implemented and locally validated in PR #106 (unmerged); Ubuntu Evidence synthetic, macOS 27 and real Runtimes not exercised; native acceptance remains T24
    -> T23–T25 — Not started
 ```
 
@@ -223,7 +221,7 @@ IDs do not imply permission to execute in numeric order.
 | T39 | S9 | Stable remote installer and convergent owned upgrade | T38 |
 | T40 | S9 | Codex + Claude first-run bootstrap | T39 |
 | T23 | S9 | Identified RC archives and authorized prerelease publication | T40 |
-| T24 | S9 | Clean-environment `axiom`/Codex/Claude/GitHub acceptance matrix | T23 |
+| T24 | S9 | Clean-environment CLI/Codex/Claude/GitHub acceptance matrix | T23 |
 | T25 | S9 | Versioned RC Evidence, documentation reconciliation, and human gate | T24 |
 
 The critical path is `T01 -> T02 -> T03 -> T04 -> T05 -> T06 -> T07 -> T08
@@ -999,19 +997,21 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
   install/upgrade recovery and user-facing diagnostics.
 - **Expected implementation:** Create the canonical bootstrap at
   `scripts/install.sh` and expose it through the repository's stable raw URL,
-  suitable for `curl -fsSL <url> | sh`. Detect the exact supported row, select a
-  requested/selected published version, download the matching artifact and
-  checksum data, verify before mutation, and invoke/reuse the protected
-  installation path. Equivalent owned install is a no-op. Older owned install
-  upgrades through the protected path. Foreign/modified/unsafe/ambiguous state
-  refuses unchanged. Selection policy (human decision 2026-09-28, refining
-  Issue #81): default and `--channel stable` install the latest published stable
-  release only; `--version vX.Y.Z[-rc.N]` pins one exact tag; the selectors are
-  mutually exclusive; release candidates are exact-version only and
-  `--channel rc` fails with that explanation (no RC discovery, scraping, API JSON
-  parsing, parser dependency or channel index in S9). Newer owned versions
-  upgrade, equal ones are no-ops and older ones are refused. T24 pins the exact
-  RC with `--version`.
+  suitable for `curl -fsSL <url> | sh`. Detect the exact supported row, resolve
+  one published release under the FR-064 selection policy (Issue #81): no
+  selector or `--channel stable` installs the latest published stable
+  `vX.Y.Z` release and never falls back to an RC (no stable release fails with
+  zero effects and points to `--version`); `--version <tag>` resolves exactly
+  that stable or `vX.Y.Z-rc.N` tag; release candidates are selected only by
+  exact version, and a floating RC selector is not required; `--channel` with
+  `--version`, or any unsupported selector, is a zero-effect input error; drafts
+  are never installable. Download the matching artifact and checksum data,
+  verify before mutation, and invoke/reuse the protected installation path. For
+  a recognized owned install: same resolved version is a no-op, newer upgrades
+  through the protected path, older is refused as an automatic downgrade.
+  Foreign/modified/unsafe/ambiguous state refuses unchanged. The install and its
+  Evidence bind to the exact resolved tag, asset and asset SHA-256, not the
+  selector. T24 pins the exact RC with `--version vX.Y.Z-rc.N`.
 - **Authority and side effects:** Network read plus bounded user-owned local
   installation. No shell-profile mutation, privilege escalation, credential
   mutation or release publication unless separately decided.
@@ -1021,17 +1021,23 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
 - **Explicit non-goals:** background auto-update daemon, package managers,
   Runtime installation, automatic PATH/profile edits, signing/authenticity claims.
 - **Mandatory tests:** three supported selection rows; unsupported row; equivalent
-  reinstall; older owned upgrade; modified/foreign target; checksum mismatch;
-  interrupted/resumed upgrade; unavailable asset/network; exact-RC pinning.
-- **Expected Evidence:** bootstrap bytes/digest/URL, selected asset/checksum,
-  platform facts, install/upgrade effect ledger, receipt revision, no-op/refusal
+  reinstall; older owned upgrade; downgrade refusal; modified/foreign target;
+  checksum mismatch; interrupted/resumed upgrade; unavailable asset/network;
+  stable-only default and `--channel stable` equivalence; no-stable-release
+  failure without RC fallback; exact stable and exact-RC `--version` pinning;
+  `--channel`/`--version` conflict and unsupported selector with zero effects;
+  draft release never selected.
+- **Expected Evidence:** bootstrap bytes/digest/URL, selector and exact resolved
+  release identity, selected asset/checksum, platform facts, install/upgrade effect ledger, receipt revision, no-op/refusal
   tree hashes and recovery result.
 - **Completion criteria:** A clean supported user can install a pinned published
   Axiom version with one remote bootstrap, and repeated execution is convergent
   without weakening fail-closed ownership guarantees.
 - **Risks / gates:** The bootstrap source/hosting decision is fixed at
-  `scripts/install.sh` in this repository and the selection policy is decided
-  (above). A future RC channel index is post-MVP and needs its own decision.
+  `scripts/install.sh` in this repository and the release-selection/version
+  policy is fixed by FR-064/FR-065 (Issue #81; exact-version-only RCs decided
+  2026-09-28). A floating RC channel or an explicit downgrade mechanism is
+  post-MVP and needs its own decision.
 
 ### T40 — Codex + Claude first-run bootstrap
 
@@ -1075,23 +1081,13 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
 - **Completion criteria:** One `axiom first-run` configures all and only supported
   detected Runtimes and leaves the machine in truthful usable/blocked state for
   S8 Runtime resolution.
-- **Decisions (human, 2026-09-28):** presence = executable resolves (`codex`,
-  `claude`) via deterministic lookup; configuration directories alone are
-  absence and only reported diagnostically. `axiom first-run` discovers,
-  converges every detected Runtime's Axiom-owned user-global integration and
-  reports every supported Runtime; exit `0` when every detected Runtime
-  converges (including none), `1` when any cannot be safely configured, with no
-  cross-Runtime rollback and per-Runtime results; invalid usage keeps the CLI's
-  existing usage error. Claude destination is
-  `<CLAUDE_CONFIG_DIR or ~/.claude>/skills/<skill>/SKILL.md`; absent installs,
-  current is a no-op, only registered previous Axiom-owned revisions upgrade (none
-  exist for Claude yet), unknown/modified content is preserved and fails that
-  Runtime, and the receipt (Runtime, root, skill digests) never authorizes
-  overwriting changed content.
 - **Risks / gates:** Each future supported Runtime must declare and validate its
   Runtime-native user-global skill root before product support; no Project-local
   fallback is allowed merely because a global integration is unavailable or
-  unsafe.
+  unsafe. The concrete Runtime-presence signal, first-run exit semantics and
+  Claude ownership/receipt mechanics are implementation choices reviewed with
+  T40; they must satisfy FR-066/AC-47 without weakening fail-closed ownership
+  and are not fixed by this Task amendment.
 
 ### T23 — Identified RC archives and authorized prerelease publication
 
@@ -1101,7 +1097,7 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
 - **Requirements:** FR-031–FR-037; AC-01, AC-19, AC-21, AC-23, AC-24; MVP-SEC-01, MVP-SEC-02, MVP-SEC-04–MVP-SEC-06; MVP-NFR-05–MVP-NFR-07.
 - **ADRs / decisions:** ADR-0003, ADR-0005, ADR-0007; HD-1, HD-3.
 - **Affected boundaries:** release build, archives/checksums/metadata, GitHub Releases distribution adapter, install documentation, RC identity.
-- **Expected implementation:** Require clean revision-bound build; reproduce target manifests; verify internal skill compatibility; generate checksums; preview exact release/tag/assets/body/effects; publish once; read back asset identities/sizes/checksums.
+- **Expected implementation:** Use the T38 pipeline for a clean revision-bound build of one `vX.Y.Z-rc.N` candidate; reproduce target manifests; verify internal skill compatibility; generate checksums; preview exact release/tag/assets/body/effects; publish once as a non-draft GitHub prerelease (`prerelease=true`); read back asset identities/sizes/checksums.
 - **Authority and side effects:** **Human gate before execution.** Exact GitHub prerelease/tag/asset mutation authority required. Allowed only named RC release assets/metadata. Forbidden: final stable release claim, overwrite/delete unrelated release/assets/tags, signing/authenticity claim, automatic latest pointer, Provider issues/workflow mutation.
 - **Failure / recovery:** Confirmed tag/release/assets remain reported; later asset/metadata failure is `partial` with exact read-back and resume plan; ambiguous response reconciles before retry; local failure never invents remote rollback.
 - **Explicit non-goals:** Human RC acceptance, stable release publication, package managers, signing/notarization, Windows, automatic update.
@@ -1118,13 +1114,13 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
 - **Requirements:** FR-001–FR-067; AC-01–AC-23, AC-25–AC-49; MVP-SEC-01–MVP-SEC-09; MVP-NFR-01–MVP-NFR-07; SEC-001–SEC-005; HD-1–HD-4.
 - **ADRs / decisions:** ADR-0001–ADR-0009.
 - **Affected boundaries:** stable remote installer, public `axiom` CLI, published archive/receipts, Codex and Claude Runtime adapters/first-run bootstrap, Project, Work Item, Execution/workflow, GitHub projection, completion/artifacts/Evidence, recovery/cleanup/upgrade.
-- **Expected implementation:** From isolated accounts/VMs with no Axiom roots, follow published instructions only: stable remote install -> `axiom version` provenance -> Codex/Claude discovery/bootstrap -> `axiom first-run` -> Project/metadata policy -> Intent -> authorized GitHub Work Item -> gated lifecycle/flags/bounded history -> workflow/projection -> approved multi-runtime graph -> isolated parallel children -> structured coordination -> integration -> parent Evidence/completion -> one real Axiom engineering dogfood activity through Axiom -> missing-local-state inspection -> reinstall/owned upgrade -> recovery/cleanup checks.
+- **Expected implementation:** From isolated accounts/VMs with no Axiom roots, follow published instructions only: stable remote install pinned to the exact T23 candidate with `--version vX.Y.Z-rc.N` (never a floating selector) -> `axiom version` provenance -> Codex/Claude discovery/bootstrap -> `axiom first-run` -> Project/metadata policy -> Intent -> authorized GitHub Work Item -> gated lifecycle/flags/bounded history -> workflow/projection -> approved multi-runtime graph -> isolated parallel children -> structured coordination -> integration -> parent Evidence/completion -> one real Axiom engineering dogfood activity through Axiom -> missing-local-state inspection -> reinstall/owned upgrade -> recovery/cleanup checks.
 - **Authority and side effects:** **Human gate before each real run.** Exact authority required for bounded GitHub Issue/label/comment effects plus Codex and Claude invocation. Allowed effects and cleanup ownership listed before execution. Forbidden: closing work as human acceptance, unrelated repository/Git mutation, credential publication, release promotion.
 - **Failure / recovery:** Exercise all seven statuses, invalid selectors, denial, interruption/resume, retryable Provider failure, confirmed Provider/local failure, recovery-required, capacity exhaustion, POC detection/export-reconfigure, and partial upgrade. Preserve external effects/references truthfully.
 - **Explicit non-goals:** Automated human acceptance, broad provider/runtime coverage, production workload/load test, historical CI substitution.
 - **Mandatory tests:** Full black-box journey on all three support rows; the T22 native filesystem/install/upgrade suite (`scripts/test-s7-native.sh` or its versioned successor) on Ubuntu 26.04/amd64/ext4 and Ubuntu 26.04/arm64/ext4, deferred from S7 by HD-S7-T22; CLI/Runtime semantic matrix; real bounded Codex and Claude discovery/invocation; replay or reproduce the T36 graph Evidence against the exact RC with one independent child per Runtime, observed concurrency, isolation, coordination and Integration/Reconciliation; real bounded GitHub create/projection; controlled fake failure/non-effect cases; documentation replay.
 - **Expected Evidence:** Candidate/environment identity, commands/exits, hashes/references, prompt counts, Provider/Codex/Claude observations, exact T36 Evidence references or RC rerun records, side-effect ledger, artifact/Evidence IDs/digests, platform facts, exclusions, unexecuted cases, and cleanup disposition.
-- **Completion criteria:** Every AC-01–AC-23 and AC-25–AC-43 has inspectable future Evidence on required scope/platforms, including Codex + Claude RC Evidence and native passing Evidence for both Ubuntu 26.04 rows deferred from T22; AC-24 remains the separate human decision and failures or unavailable rows block RC readiness.
+- **Completion criteria:** Every AC-01–AC-23 and AC-25–AC-49 has inspectable future Evidence on required scope/platforms, including Codex + Claude RC Evidence, the S9 productization and dogfood Evidence, and native passing Evidence for both Ubuntu 26.04 rows deferred from T22, all against the same exact pinned RC; AC-24 remains the separate human decision and failures or unavailable rows block RC readiness.
 - **Risks / gates:** Real credentials stay outside Evidence. Test success prepares review only and never fills AC-24's human decision.
 
 ### T25 — Versioned RC Evidence, documentation reconciliation, and human gate
@@ -1132,7 +1128,7 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
 - **Objective:** Publish a sanitized, auditable RC report and reconcile only delivered behavior, then stop for explicit human accept/reject decision.
 - **Slice:** S9.
 - **Dependencies:** T24.
-- **Requirements:** FR-001–FR-061 Evidence closure; AC-21–AC-43; MVP-SEC-02; MVP-NFR-05–MVP-NFR-07; SEC-001, SEC-005; Constitution II–VI.
+- **Requirements:** FR-001–FR-067 Evidence closure; AC-21–AC-49; MVP-SEC-02; MVP-NFR-05–MVP-NFR-07; SEC-001, SEC-005; Constitution II–VI.
 - **ADRs / decisions:** ADR-0001–ADR-0009; HD-1–HD-4.
 - **Affected boundaries:** Specification Evidence/index, README, commands, architecture/operations docs, CHANGELOG, RC report, final human gate.
 - **Expected implementation:** Map every claim to source revision, command/test, exit/result, artifact/reference/digest, environment, limitation, and review finding; include measured artifact sizes/counts and recommendation on initial limits/retention; reconcile docs to verified behavior only.
@@ -1445,7 +1441,6 @@ human review; human acceptance is not inferred.**
 
 **S9 (proposed T37–T40 plus historical T23–T25) — Productization,
 distribution, Runtime bootstrap and release acceptance. Product scope recorded
-2026-09-27; Task amendment pending human approval. T37–T39 were implemented
-locally under explicit operator authority (2026-09-28), followed by T40 under
-the 2026-09-28 T40 decisions; all are recorded in [S9 Evidence](evidence-s9.md).
+2026-09-27; Task amendment pending human approval. T37–T40 are implemented in
+PR #106 (unmerged) and recorded in [S9 Evidence](evidence-s9.md).
 T23–T25, publication and acceptance are not authorized or started.**

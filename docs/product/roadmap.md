@@ -91,7 +91,10 @@ prepared through repeatable automation; a stable verified macOS/Linux bootstrap
 installs without source checkout and converges owned reinstall/upgrade safely;
 `axiom first-run` configures every supported detected Runtime, including Codex
 and Claude; and S9 acceptance dogfoods real Axiom engineering through Axiom's own
-S8 orchestration path. Historical T23–T25 remain the RC/acceptance tail, while
+S8 orchestration path. The installer defaults to the latest published stable
+release, pins exact tags with `--version`, selects release candidates only by
+exact `--version vX.Y.Z-rc.N`, and never downgrades an owned installation
+automatically. Historical T23–T25 remain the RC/acceptance tail, while
 proposed T37–T40 add the productization work before them. Implementation,
 publication and final acceptance remain separately gated.
 
