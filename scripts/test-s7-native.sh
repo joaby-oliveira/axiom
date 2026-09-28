@@ -124,6 +124,12 @@ receipts="$temporary/install/receipts"
 mkdir -p "$temporary/install" && chmod 700 "$temporary/install"
 mkdir -p "$temporary/extract" && tar -xzf "$old_archive" -C "$temporary/extract"
 installer=$(find "$temporary/extract" -name install.sh -type f | head -1)
+# Every installed binary below, including the candidate that the release
+# installer runs for an owned upgrade, must see only isolated roots: never the
+# operator's real HOME, Lingo state or Runtime skill roots.
+export HOME="$temporary/home" LINGO_PROJECTS_ROOT="$temporary/roots/projects" LINGO_STATE_ROOT="$temporary/roots/state" AXIOM_CODEX_SKILLS_ROOT="$temporary/roots/skills"
+unset CLAUDE_CONFIG_DIR XDG_STATE_HOME
+mkdir -p "$HOME" "$temporary/roots" && chmod 700 "$HOME" "$temporary/roots"
 step clean-install "$installer" --archive "$old_archive" --checksums "$temporary/r100/SHA256SUMS" --bin-dir "$bin" --receipt-dir "$receipts"
 step equivalent-reinstall-unchanged bash -c "'$installer' --archive '$old_archive' --checksums '$temporary/r100/SHA256SUMS' --bin-dir '$bin' --receipt-dir '$receipts' | grep -qx 'install_status=unchanged'"
 # T39: the release installer converges an older owned installation through the
@@ -132,8 +138,6 @@ bin4="$temporary/install4/bin"
 receipts4="$temporary/install4/receipts"
 mkdir -p "$temporary/install4" && chmod 700 "$temporary/install4"
 step installer-owned-upgrade bash -c "'$installer' --archive '$old_archive' --checksums '$temporary/r100/SHA256SUMS' --bin-dir '$bin4' --receipt-dir '$receipts4' >/dev/null && '$installer' --archive '$new_archive' --checksums '$temporary/r110/SHA256SUMS' --bin-dir '$bin4' --receipt-dir '$receipts4' | grep -qx 'install_status=upgraded' && grep -qx 'version=1.1.0' '$receipts4/installation.receipt' && ! '$installer' --archive '$old_archive' --checksums '$temporary/r100/SHA256SUMS' --bin-dir '$bin4' --receipt-dir '$receipts4'"
-export LINGO_PROJECTS_ROOT="$temporary/roots/projects" LINGO_STATE_ROOT="$temporary/roots/state" AXIOM_CODEX_SKILLS_ROOT="$temporary/roots/skills"
-mkdir -p "$temporary/roots" && chmod 700 "$temporary/roots"
 upgrade_args=(upgrade --archive "$new_archive" --checksums "$temporary/r110/SHA256SUMS" --bin-dir "$bin" --receipt-dir "$receipts")
 "$bin/axiom" --json "${upgrade_args[@]}" >"$temporary/preview.json" 2>/dev/null
 digest=$(sed -n 's/.*"references":\["upgrade:\([0-9a-f]\{64\}\)"\].*/\1/p' "$temporary/preview.json")
