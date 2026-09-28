@@ -945,16 +945,23 @@ four bounded units:
    declared macOS 27/arm64, Ubuntu 26.04/amd64 and Ubuntu 26.04/arm64 artifacts
    plus closed manifests/checksums and truthful version/revision provenance.
    Preparation is deterministic; publication remains authority-bearing.
-3. **Stable remote bootstrap:** expose one stable macOS/Linux bootstrap URL that
-   detects the supported row, obtains the selected published artifact, verifies it
-   before mutation and installs into an owned safe destination. Equivalent rerun
-   is a no-op. An older owned install converges through the existing protected
-   upgrade/recovery semantics; foreign/modified/unsafe/ambiguous targets refuse.
+3. **Stable remote bootstrap:** keep the canonical bootstrap implementation at
+   repository path `scripts/install.sh`. The public bootstrap may be invoked from
+   the raw `main` URL while the script itself resolves a selected release
+   channel/version. It detects the supported row, obtains the selected published
+   artifact, verifies it before mutation and installs into an owned safe
+   destination. Equivalent rerun is a no-op. An older owned install converges
+   through the existing protected upgrade/recovery semantics;
+   foreign/modified/unsafe/ambiguous targets refuse.
 4. **Multi-runtime first run:** `axiom first-run` discovers supported local
    Runtime executables/configuration and installs/configures the corresponding
-   Axiom integration for every detected Runtime. Codex-only, Claude-only, both and
-   neither are explicit states. It never silently installs a Runtime, changes
-   credentials, buys capacity or invents availability.
+   Axiom integration for every detected Runtime in that Runtime's user-global
+   scope. For MVP, Codex uses its user-global skill root and Claude uses its
+   user-global `skills/<name>/SKILL.md` root under `~/.claude` (or the
+   configured Claude config directory). Project-local Runtime skills are not the
+   product default. Codex-only, Claude-only, both and neither are explicit states.
+   It never silently installs a Runtime, changes credentials, buys capacity or
+   invents availability.
 
 S9 should reuse existing deterministic install/upgrade ownership and recovery
 logic rather than implement a second unsafe installer model. The remote bootstrap
@@ -1112,9 +1119,9 @@ inherited Specification 002 SEC-001–SEC-005 boundary used by Project persisten
 | FR-061 | §1/§8A explicit material decision and implementation gates |
 | FR-062 | §3/§13 canonical public `axiom` executable while preserving internal Lingo boundaries |
 | FR-063 | §13 clean-revision automated supported-platform artifacts/checksums/provenance; publication separately gated |
-| FR-064 | §13 stable remote bootstrap with deterministic platform selection and integrity verification |
+| FR-064 | §13 canonical `scripts/install.sh` remote bootstrap with deterministic platform selection and integrity verification |
 | FR-065 | §11/§13 idempotent reinstall plus protected owned upgrade; foreign/unsafe/ambiguous refusal |
-| FR-066 | §8/§13 Codex/Claude discovery and all-detected Runtime integration from `axiom first-run` without credential/Runtime provisioning |
+| FR-066 | §8/§13 Codex/Claude discovery and all-detected user-global Runtime skill integration from `axiom first-run` without credential/Runtime provisioning |
 | FR-067 | §13/§15 Axiom engineering dogfood through the S8 graph and retained integrated Evidence |
 
 ### Security requirements
@@ -1178,7 +1185,7 @@ inherited Specification 002 SEC-001–SEC-005 boundary used by Project persisten
 | AC-44 | §13 clean remote install plus canonical public `axiom` executable |
 | AC-45 | §13 automated complete native artifact/checksum/provenance set |
 | AC-46 | §11/§13 equivalent no-op, owned upgrade and fail-closed foreign/unsafe install matrix |
-| AC-47 | §8/§13 Codex-only/Claude-only/both/neither first-run bootstrap matrix with zero provisioning side effects |
+| AC-47 | §8/§13 Codex-only/Claude-only/both/neither first-run bootstrap matrix using Runtime-native user-global skill roots with zero provisioning side effects |
 | AC-48 | §13/§15 exact-RC clean journey starts through remote installer and public `axiom` on every support row |
 | AC-49 | §13/§15 one real Axiom engineering activity coordinated through Axiom with Codex+Claude and integrated Evidence |
 
