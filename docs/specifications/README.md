@@ -155,8 +155,11 @@ that authority does not extend to the real T36 Runtime run beyond its own gate,
 push, merge, Provider mutation, release, deploy, credential provisioning, S9 or
 human acceptance. The deterministic foundation and concrete T33/T35 delivery are
 recorded in [S8 Evidence](004-mvp-v1-baseline/evidence-s8.md). T33 and T35 are
-technically complete; the real Codex + Claude T36 run is the sole remaining
-technical S8 step and was not executed.
+technically complete. The separately operator-authorized real Codex + Claude
+[T36 lab journey](004-mvp-v1-baseline/evidence-t36/README.md) produced
+`real_run_recorded` Evidence after the clean-state coordination fix. The corrected
+local candidate is **S8 ready for human review**. Human acceptance and S9 release
+work remain separately gated.
 
 Issue [#81](https://github.com/rgomids/axiom/issues/81) now records the explicit
 2026-09-27 S9 product-scope direction: public `axiom` CLI identity, automated
@@ -216,9 +219,8 @@ acceptance. S4 was delivered through PR #91. S5 was explicitly authorized on
 recorded in [S6 Evidence](004-mvp-v1-baseline/evidence-s6.md). S7 technical
 delivery is recorded in [S7 Evidence](004-mvp-v1-baseline/evidence-s7.md). The
 current T30–T35 delivery is recorded in
-[S8 Evidence](004-mvp-v1-baseline/evidence-s8.md); S8 remains technically
-incomplete only because the real T36 journey is pending. This is not Runtime
-acceptance or human acceptance. The
+[S8 Evidence](004-mvp-v1-baseline/evidence-s8.md), including the real T36 journey.
+The corrected candidate is ready for human review, not human-accepted. The
 Ubuntu 26.04 native Evidence deferred to T24, now S9,
 Provider mutation outside an exact authorized run, prerelease/release publication,
 and final MVP acceptance remain separately gated. Accepted operational Slice

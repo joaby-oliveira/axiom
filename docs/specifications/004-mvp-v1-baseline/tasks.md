@@ -22,7 +22,7 @@
 
 **Issue #97 Tasks amendment (T30–T36 / S8, with T23–T25 moved to S9): Approved by explicit human decision on 2026-09-26. T23–T25 retain their IDs and historical RC objective; T24/T25 are expanded for S8 validation/Evidence.**
 
-**S8 Implementation: T30–T36 implementation authorized on 2026-09-27 by explicit human decision (Issue #97 comment #5852650410); the real T36 Runtime run remains separately gated; not technically complete. S9 implementation/release remains not authorized.**
+**S8 Implementation: T30–T36 implementation authorized on 2026-09-27 by explicit human decision (Issue #97 comment #5852650410); the separately operator-authorized T36 lab run is recorded as S8 ready for human review on the corrected local candidate. See [T36 Evidence](evidence-t36/README.md). Human acceptance and S9 implementation/release remain separate.**
 
 **Issue #81 S9 product-scope amendment: direction recorded by explicit human
 decision on 2026-09-27. Proposed new Tasks T37–T40 add public `axiom` CLI
@@ -76,7 +76,7 @@ Specification 004 — Approved
    -> T22 — complete under revised S7 scope (HD-S7-T22): macOS 27.0/arm64/APFS native pass; Ubuntu 26.04 amd64/arm64 ext4 not executed, deferred to T24
    -> Human acceptance — Not inferred
 -> S8 Specification/ADR/Plan/Tasks amendment + ADR-0009 — Approved; implementation authorized 2026-09-27 (Issue #97 comment #5852650410)
-   -> T30–T36 — Partial; real T36 run separately gated and not executed
+   -> T30–T36 — Technical candidate ready for human review; real T36 Evidence recorded
 -> S9 Release candidate acceptance (T23–T25, with T24/T25 reconciled for S8) — Not authorized
 ```
 
@@ -1285,7 +1285,7 @@ not completion Evidence.
 | ADR-0006 | T02, T03, T09–T13, T15, T18, T19, T21, T24–T29 |
 | ADR-0007 | T02–T05, T07, T09–T13, T17–T24, T26–T29 |
 | ADR-0008 | T10–T15, T18, T19, T21, T24–T27, T29 |
-| ADR-0009 (Accepted 2026-09-26; T30–T36 implementation authorized 2026-09-27; real T36 run separately gated) | T30–T36, T24, T25 |
+| ADR-0009 (Accepted 2026-09-26; T30–T36 implementation authorized 2026-09-27; real T36 run separately authorized, executed and evidenced) | T30–T36, T24, T25 |
 
 No approved FR/AC, approved security/NFR clause, inherited SEC requirement, HD
 decision, or Accepted ADR is silently deferred. ADR-0009 acceptance is recorded
@@ -1328,9 +1328,9 @@ Task-specific external gates remain explicit:
 - T29 mutating local recovery requires fresh exact ADR-0007 recovery authority;
   its ordinary reconciliation inspection remains read-only.
 - T30–T35 were implemented under the explicit 2026-09-27 S8 authority. T33/T35
-  concrete Git delivery is recorded in S8 Evidence; T36 remains the sole technical
-  S8 step and retains its separate exact real-run gate.
-- T36 uses the approved local-only real-run boundary and still requires a separate
+  concrete Git delivery and the separately authorized T36 lab journey are
+  recorded in S8 Evidence. The corrected candidate is ready for human review.
+- Each T36 run uses the approved local-only boundary and requires its own
   reviewed run envelope naming Model Profiles, repositories/worktrees, commands,
   timeout/maximum attempts, exact local effects and cleanup. External effects need
   their own authority.
@@ -1401,17 +1401,18 @@ bounded real Codex Runtime Evidence. Human acceptance is not inferred.**
 **S7 (T16–T22) — Explicitly authorized on 2026-09-25 and technically complete; final Evidence at implementation commit `ceb6d0288039793d15a98003d5b30a28a2f19122` (T18 retirement at `ffc2515`). T22 is complete under the revised S7 acceptance scope (HD-S7-T22); the Ubuntu 26.04 amd64/arm64 ext4 native rows are deferred to T24 and remain mandatory before RC acceptance or release claims for those targets. See [S7 Evidence](evidence-s7.md). Human acceptance is not inferred.**
 
 **S8 (T30–T36) — Implementation authorized on 2026-09-27 by explicit human
-decision (Issue #97 comment #5852650410); that authority excludes the real T36
-Runtime run beyond its own gate, push, merge, Provider mutation, release, deploy,
-credential provisioning, S9 and human acceptance. T30–T32 and the deterministic
+decision (Issue #97 comment #5852650410); the real T36 Runtime run later received
+its own exact authority and was executed. Neither authority includes push, merge,
+Provider mutation, release, deploy, credential provisioning, S9 or human
+acceptance. T30–T32 and the deterministic
 T34 foundation exist at `21f4f7c` plus the publication read-back correction
 `e654f83`; T33 and T35 are technically complete at `e884a46` plus composition
 fix `7bfadc3`, with concrete Git workspace/integration adapters, combined
 validation and application composition.
-T36 has schema and a draft envelope; the
-separately gated real Codex + Claude run was not executed. See
-[S8 Evidence](evidence-s8.md). S8 is not technically complete, and human
-acceptance is not inferred.**
+The separately operator-authorized real Codex + Claude T36 lab run produced
+`real_run_recorded` Evidence after the clean-state coordination fix. See
+[T36 Evidence](evidence-t36/README.md). The corrected candidate is S8 ready for
+human review; human acceptance is not inferred.**
 
 **S9 (proposed T37–T40 plus historical T23–T25) — Productization,
 distribution, Runtime bootstrap and release acceptance. Product scope recorded
