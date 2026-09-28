@@ -862,30 +862,36 @@ func (i integration) installOne(parent *os.Root, name string, content []byte, ve
 	}
 	child, err := parent.OpenRoot(name)
 	if err != nil {
-		_ = parent.Remove(name)
 		return false, false, err
 	}
 	defer child.Close()
 	if err := errors.Join(verify(), childStillAt(parent, child, name)); err != nil {
-		_ = parent.Remove(name)
+		removeCreatedSkillDirectory(parent, child, name)
 		return false, false, ErrTargetReplaced
 	}
 	file, err := child.OpenFile("SKILL.md", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
-		_ = parent.Remove(name)
+		removeCreatedSkillDirectory(parent, child, name)
 		return false, false, err
 	}
 	_, writeErr := file.Write(content)
 	closeErr := file.Close()
 	if writeErr != nil || closeErr != nil {
 		_ = child.Remove("SKILL.md")
-		_ = parent.Remove(name)
+		removeCreatedSkillDirectory(parent, child, name)
 		return false, false, errors.New("skill write failed")
 	}
 	if errors.Join(verify(), childStillAt(parent, child, name)) != nil {
 		return false, false, errCommitUnconfirmed
 	}
 	return true, true, nil
+}
+
+// Only discard the directory this operation created, never a replacement child.
+func removeCreatedSkillDirectory(parent, child *os.Root, name string) {
+	if childStillAt(parent, child, name) == nil {
+		_ = parent.Remove(name)
+	}
 }
 
 func (i integration) matchesLegacyInstalled(root, name string) bool {

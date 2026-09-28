@@ -182,3 +182,36 @@ func TestUpgradeSessionInspectionAndCleanupRefuseReplacement(t *testing.T) {
 		t.Fatal("replacement cleanup mutated A or B")
 	}
 }
+
+func TestInstallCleanupPreservesReplacementChild(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "skills")
+	root, _, err := ensureRoot(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	name := skillNames[0]
+	calls := 0
+	verify := func() error {
+		calls++
+		if calls == 2 {
+			if err := root.Rename(name, name+"-old"); err != nil {
+				t.Fatal(err)
+			}
+			if err := root.Mkdir(name, 0700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return nil
+	}
+	changed, _, err := codexIntegration.installOne(root, name, []byte("new skill"), verify)
+	if changed || err == nil {
+		t.Fatalf("changed=%v err=%v", changed, err)
+	}
+	for _, directory := range []string{name, name + "-old"} {
+		entries, err := os.ReadDir(filepath.Join(path, directory))
+		if err != nil || len(entries) != 0 {
+			t.Fatalf("cleanup changed %s: %v %v", directory, entries, err)
+		}
+	}
+}
