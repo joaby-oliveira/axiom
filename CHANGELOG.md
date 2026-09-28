@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-09-28]
+
+- implementation (S9/T37): the canonical public executable is `axiom`. Release
+  archives, `MANIFEST.sha256`, the release installer, the owned upgrade path,
+  and the source installer publish `axiom` (receipts, destinations and staging
+  names follow). Help, recovery/compatibility/upgrade diagnostics, and the five
+  Codex skills invoke `axiom`; the previous skill digests and skill-set receipt
+  stay recognized as owned so existing skill installs upgrade. Internal Lingo
+  packages, `cmd/lingo`, `LINGO_*` variables and state roots are unchanged. A
+  prior `lingo` executable or pre-`axiom` release receipt is preserved, not
+  migrated.
+- fix: `build-release-archives.sh` builds from its own checkout instead of the
+  caller's working directory.
+- fix: `install-release.sh` read owner, mode and link count with
+  `stat -f ... || stat -c ...`; GNU `stat -f` reports filesystem status, so
+  every Linux install was refused as unsafe. The syntax is now chosen by
+  kernel. Found while exercising the Ubuntu 26.04/amd64 row in an isolated
+  mount namespace; native Ubuntu Evidence remains a T24 obligation.
+
 ## [2026-09-26]
 
 - implementation: explicit Evidence retirement (HD-S7-T18). `lingo artifact

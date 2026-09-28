@@ -104,7 +104,7 @@ imports de produção; fixtures são sintéticas.
 JSON estrito, metadados locais, ausência versus corrupção e testes de fronteira.
 `go test ./internal/local` inclui matrizes, round-trips, inspeção estática do DTO/imports
 e integração com fake do port T02. Além do lifecycle portátil, este POC inclui
-`lingo project install`, que persiste `installation.json` em
+`axiom project install`, que persiste `installation.json` em
 `<state-root>/projects/<project-id>/installation.json`; `reopen` reconhece esse
 estado local quando disponível. Configuração portátil e estado local permanecem
 separados. Credenciais continuam externas no `gh`; recuperação automatizada e a
@@ -180,9 +180,9 @@ shell profiles:
 ```bash
 ./scripts/install-axiom.sh
 export PATH="$HOME/.local/bin:$PATH"
-command -v lingo
-lingo version
-lingo --json version
+command -v axiom
+axiom version
+axiom --json version
 ```
 
 For an isolated or custom user destination:
@@ -194,9 +194,12 @@ AXIOM_INSTALL_STATE_ROOT=/absolute/path/to/state \
 export PATH="/absolute/path/to/bin:$PATH"
 ```
 
-The installer is safe to rerun. It replaces only a prior binary whose exact
-checksum matches its protected receipt; an unrelated or modified destination is
-refused. `lingo version` reports `development` for source builds plus short revision
+The installed public executable is `axiom`; its source-install receipt is
+`axiom.receipt` in the state root. No shell alias is involved. A `lingo`
+executable left by an earlier source install is neither replaced nor removed;
+delete it yourself when no longer needed. The installer is safe to rerun. It
+replaces only a prior binary whose exact checksum matches its protected receipt;
+an unrelated or modified destination is refused. `axiom version` reports `development` for source builds plus short revision
 or `unavailable` and source state `clean`, `dirty`, or `unknown`; it never invents
 a release version. The receipt retains the full source commit and dirty flag. Test
 missing-PATH guidance, dirty metadata,
@@ -211,9 +214,9 @@ installation and unrelated-CWD invocation with:
 Install and inspect the global thin Axiom skills:
 
 ```bash
-lingo runtime codex install
-lingo runtime codex status
-lingo first-run
+axiom runtime codex install
+axiom runtime codex status
+axiom first-run
 ```
 
 Codex standalone skill names accept lowercase letters, digits and hyphens, so
@@ -230,7 +233,7 @@ $axiom-work-item-status
 The default user-global root is `$HOME/.agents/skills`. For isolated validation:
 
 ```bash
-AXIOM_CODEX_SKILLS_ROOT=/absolute/test/root lingo runtime codex install
+AXIOM_CODEX_SKILLS_ROOT=/absolute/test/root axiom runtime codex install
 ./scripts/test-codex-skills.sh
 ```
 
@@ -250,6 +253,13 @@ absolute output directory. It emits three checksummed archives plus
   --version 0.1.0 \
   --output /absolute/release
 ```
+
+Each archive holds one bundle directory with the canonical public executable
+`axiom`, `LICENSE`, the release installer `install.sh`, `release-metadata.txt`,
+`skills-manifest.txt`, the five Codex skills, and a complete `MANIFEST.sha256`.
+The installer publishes `<bin-dir>/axiom`. A receipt or binary from a pre-`axiom`
+archive (which shipped `lingo`) is not recognized as owned and is preserved;
+no migration from such an installation is performed.
 
 Supported archive rows are the exact approved baselines macOS 27.0/arm64,
 Ubuntu 26.04/amd64, and Ubuntu 26.04/arm64. Other macOS versions, Linux
@@ -287,20 +297,20 @@ Direct Lingo use defaults to a concise human status. Skills and scripts use the
 stable JSON surface by putting `--json` before the command:
 
 ```bash
-lingo project show --selector my-project
-lingo --json project show --selector my-project
-lingo help
+axiom project show --selector my-project
+axiom --json project show --selector my-project
+axiom help
 ```
 
 Strict S5 workflow selectors are explicit and independent of current directory:
 
 ```bash
-lingo --json workflow start \
+axiom --json workflow start \
   --project <project-uuid-or-slug> \
   --repository <project-scoped-key> \
   --work-item 'github:<owner>/<repository>#<number>'
 
-lingo --json workflow status \
+axiom --json workflow status \
   --project <project-uuid-or-slug> \
   --repository <project-scoped-key> \
   --work-item 'github:<owner>/<repository>#<number>' \
@@ -321,11 +331,11 @@ typed payloads until their authorized MVP Tasks migrate them. Exit codes remain
 
 | Codex skill | Stable Lingo entrypoint |
 |---|---|
-| `$axiom-project-configure` | `lingo --json project configure` |
-| `$axiom-project-show` | `lingo --json project show --selector ...` |
-| `$axiom-work-item-create` | `lingo --json work-item create\|select ...` |
-| `$axiom-work-item-run` | `lingo --json workflow start\|advance\|fact\|resume\|reconcile ...` |
-| `$axiom-work-item-status` | `lingo --json workflow status\|evidence ...` |
+| `$axiom-project-configure` | `axiom --json project configure` |
+| `$axiom-project-show` | `axiom --json project show --selector ...` |
+| `$axiom-work-item-create` | `axiom --json work-item create\|select ...` |
+| `$axiom-work-item-run` | `axiom --json workflow start\|advance\|fact\|resume\|reconcile ...` |
+| `$axiom-work-item-status` | `axiom --json workflow status\|evidence ...` |
 
 Skills collect missing selectors conversationally, but Lingo retains validation,
 repository resolution, workflow ordering, and external-mutation authority.
@@ -335,8 +345,8 @@ repository resolution, workflow ordering, and external-mutation authority.
 Use a canonical Project UUID or installation-unique slug from any directory:
 
 ```bash
-lingo project resolve --selector my-project
-lingo project show --selector my-project
+axiom project resolve --selector my-project
+axiom project show --selector my-project
 ```
 
 Resolution reads protected machine-local state. It never searches the caller's
@@ -348,13 +358,13 @@ portable/repository locations.
 Guided CLI:
 
 ```bash
-lingo project configure
+axiom project configure
 ```
 
 Repeatable non-interactive form:
 
 ```bash
-lingo --json project configure \
+axiom --json project configure \
   --slug my-project \
   --name "My Project" \
   --repository main=/absolute/path/to/working-copy \
@@ -365,7 +375,7 @@ This first call is read-only and returns `setup.projectId` plus an exact
 `setup.digest`. After review, repeat the same facts with:
 
 ```bash
-lingo --json project configure \
+axiom --json project configure \
   --project-id <preview-project-id> \
   --slug my-project \
   --name "My Project" \
@@ -389,7 +399,7 @@ only missing fields, prints the exact draft/target/effects/digest, and accepts
 only the literal `yes` before the external effect:
 
 ```bash
-lingo work-item create \
+axiom work-item create \
   --project my-project \
   --repository main \
   --provider-repository owner/repository
@@ -398,7 +408,7 @@ lingo work-item create \
 For non-interactive use, provide all seven sections. The first call is read-only:
 
 ```bash
-lingo --json work-item create \
+axiom --json work-item create \
   --project my-project \
   --repository main \
   --provider-repository owner/repository \
@@ -415,7 +425,7 @@ After reviewing every preview fact, repeat the exact same fields with the return
 digest and explicit external authority:
 
 ```bash
-lingo --json work-item create \
+axiom --json work-item create \
   --project my-project \
   --repository main \
   --provider-repository owner/repository \
@@ -438,13 +448,13 @@ Selecting an existing Issue is a separate local-publication review. Preview the
 exact provider identity/state first, then repeat it with local authority:
 
 ```bash
-lingo --json work-item select \
+axiom --json work-item select \
   --project my-project \
   --repository main \
   --provider-repository owner/repository \
   --number 123
 
-lingo --json work-item select \
+axiom --json work-item select \
   --project my-project \
   --repository main \
   --provider-repository owner/repository \
@@ -452,7 +462,7 @@ lingo --json work-item select \
   --preview-digest <preview-digest> \
   --authorize-local
 
-lingo work-item show --project my-project --repository main --number 123
+axiom work-item show --project my-project --repository main --number 123
 ```
 
 The reviewed effect set includes the local create-attempt fence. Before POST,
@@ -472,8 +482,8 @@ and must not be treated as workflow progress or human acceptance.
 Start one workflow from an already linked Work Item:
 
 ```bash
-lingo workflow start --project my-project --repository main --number 123
-lingo workflow status --project my-project --repository main --number 123
+axiom workflow start --project my-project --repository main --number 123
+axiom workflow status --project my-project --repository main --number 123
 ```
 
 Advance gates in fixed order from the exact current revision. Optional references
@@ -483,7 +493,7 @@ Lingo re-reads and validates it before committing the transition. Repository
 resolution comes from Project state, not caller CWD.
 
 ```bash
-lingo workflow advance --project my-project --repository main --number 123 \
+axiom workflow advance --project my-project --repository main --number 123 \
   --expected-revision 1 --gate intake --outcome pass \
   --reference evidence:docs/intent.md:<sha256> --next "Review specification"
 ```
@@ -498,12 +508,12 @@ transition at the same stage. Resume requires the new exact revision. Neither
 operation closes the Work Item:
 
 ```bash
-lingo workflow advance --project my-project --repository main --number 123 \
+axiom workflow advance --project my-project --repository main --number 123 \
   --expected-revision 6 --gate implementation --outcome fail \
   --reference evidence:evidence/test-failure.txt:<sha256>
-lingo workflow resume --project my-project --repository main --number 123 \
+axiom workflow resume --project my-project --repository main --number 123 \
   --expected-revision 7
-lingo workflow evidence --project my-project --repository main --number 123
+axiom workflow evidence --project my-project --repository main --number 123
 ```
 
 The ten-stage Work Item lifecycle is derived from canonical gates plus explicit,
@@ -511,7 +521,7 @@ revisioned local facts; it is not a second state machine. Record one fact with a
 exact revision, a validated reference, and local authority:
 
 ```bash
-lingo --json workflow fact \
+axiom --json workflow fact \
   --project my-project --repository main --number 123 \
   --execution <execution-id> --expected-revision <revision> \
   --fact planning-authority --active \
@@ -530,7 +540,7 @@ Local completion is a local transition only. It requires the exact current
 revision and never closes the GitHub Issue:
 
 ```bash
-lingo workflow advance --project my-project --repository main --number 123 \
+axiom workflow advance --project my-project --repository main --number 123 \
   --expected-revision 10 --gate completion --outcome pass
 ```
 
@@ -539,7 +549,7 @@ Provider state and review the returned target, Execution revision, projection
 key, comment, exact effects, observation digest, and preview digest:
 
 ```bash
-lingo --json workflow reconcile \
+axiom --json workflow reconcile \
   --project my-project --repository main --number 123 \
   --expected-revision 2
 ```
@@ -548,7 +558,7 @@ Only after explicit review, repeat the same target/revision with the exact diges
 and external authority:
 
 ```bash
-lingo --json workflow reconcile \
+axiom --json workflow reconcile \
   --project my-project --repository main --number 123 \
   --expected-revision 2 \
   --preview-digest <preview-digest> \
@@ -580,7 +590,7 @@ Classify the configured roots (`LINGO_PROJECTS_ROOT`, `LINGO_STATE_ROOT`, and th
 Codex skill root) without creating, locking, or changing anything:
 
 ```bash
-lingo --json compatibility inspect
+axiom --json compatibility inspect
 ```
 
 The closed classifications are `absent_v1`, `valid_v1`, `recognized_poc`,
@@ -597,24 +607,24 @@ authorities, each writing only new private objects into an absent target on the
 same local filesystem as the source, outside every owned root:
 
 ```bash
-lingo --json compatibility backup --target /absolute/new/poc-backup
-lingo --json compatibility export --target /absolute/new/poc-export
+axiom --json compatibility backup --target /absolute/new/poc-backup
+axiom --json compatibility export --target /absolute/new/poc-export
 # after review, repeat each with --preview-digest <digest> --authorize-local
 ```
 
 Backup copies every recognized POC object; export copies only validated
 portable Project manifests to `<target>/projects`, which a separate clean
-`LINGO_STATE_ROOT` can then configure explicitly with `lingo project configure`.
+`LINGO_STATE_ROOT` can then configure explicitly with `axiom project configure`.
 `manifest.json` is written last; a target without it is incomplete and is never
 adopted. An equivalent completed target is reported as a no-op.
 
 Explicit, reference-aware artifact cleanup:
 
 ```bash
-lingo --json artifact cleanup
-lingo --json artifact cleanup --preview-digest <digest> --authorize-local
-lingo --json artifact retire --artifact <artifact-id>
-lingo --json artifact retire --artifact <artifact-id> --preview-digest <digest> --authorize-local
+axiom --json artifact cleanup
+axiom --json artifact cleanup --preview-digest <digest> --authorize-local
+axiom --json artifact retire --artifact <artifact-id>
+axiom --json artifact retire --artifact <artifact-id> --preview-digest <digest> --authorize-local
 ```
 
 Eligible: unreferenced `diagnostic` artifacts at least 30 days old, `evidence`
@@ -636,8 +646,8 @@ Capacity exhaustion never deletes anything.
 Guided recovery of interrupted local publication:
 
 ```bash
-lingo --json recovery inspect
-lingo --json recovery apply --preview-digest <plan-digest> --authorize-local
+axiom --json recovery inspect
+axiom --json recovery apply --preview-digest <plan-digest> --authorize-local
 ```
 
 Inspection lists each interrupted protocol directory, its marker, generations,
@@ -650,7 +660,7 @@ attempt markers remain `preserved_review`.
 Owned upgrade of a release installation made by `install-release.sh`:
 
 ```bash
-lingo --json upgrade \
+axiom --json upgrade \
   --archive /absolute/release/axiom-0.2.0-macos-27-arm64.tar.gz \
   --checksums /absolute/release/SHA256SUMS \
   --bin-dir /absolute/user-owned/bin \
@@ -667,5 +677,5 @@ and then the receipt are published and re-read as separate confirmed effects;
 `.axiom-install-operation` marker records the exact archive, so only the same
 archive can resume, and the installer refuses in the meantime. If installed
 Codex skills do not match the new version the result is `partial` and the next
-action is `lingo runtime codex install` with the upgraded binary. There is no
+action is `axiom runtime codex install` with the upgraded binary. There is no
 automatic update, rollback, or cross-root transaction.

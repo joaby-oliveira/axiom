@@ -2,11 +2,11 @@ package cli
 
 import "io"
 
-const helpText = `Lingo — Axiom local control plane
+const helpText = `Axiom — Lingo local control plane
 
 Usage:
-  lingo [--human|--json] <command>
-  lingo help
+  axiom [--human|--json] <command>
+  axiom help
 
 Commands:
   first-run
@@ -20,11 +20,11 @@ Commands:
   upgrade --archive <path> --checksums <path> --bin-dir <dir> --receipt-dir <dir>
 
 Stable Codex skill mapping:
-  $axiom-project-configure -> lingo --json project configure
-  $axiom-project-show      -> lingo --json project show
-  $axiom-work-item-create  -> lingo --json work-item create|select
-  $axiom-work-item-run     -> lingo --json workflow start|advance|resume|reconcile
-  $axiom-work-item-status  -> lingo --json workflow status|evidence
+  $axiom-project-configure -> axiom --json project configure
+  $axiom-project-show      -> axiom --json project show
+  $axiom-work-item-create  -> axiom --json work-item create|select
+  $axiom-work-item-run     -> axiom --json workflow start|advance|resume|reconcile
+  $axiom-work-item-status  -> axiom --json workflow status|evidence
 
 Maintenance commands are read-only previews unless repeated with the exact
 --preview-digest and --authorize-local. Backup/export targets must be absent

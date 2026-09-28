@@ -81,9 +81,9 @@ git clone https://github.com/rgomids/axiom.git
 cd axiom
 ./scripts/install-axiom.sh
 export PATH="$HOME/.local/bin:$PATH"
-lingo version
-lingo first-run
-lingo runtime codex install
+axiom version
+axiom first-run
+axiom runtime codex install
 ./scripts/validate-repository.sh .
 go test ./...
 ```

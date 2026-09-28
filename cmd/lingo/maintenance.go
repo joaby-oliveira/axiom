@@ -69,7 +69,7 @@ func (s lifecycleService) transfer(ctx context.Context, kind compatibility.Trans
 	preview, err := compatibility.PreviewTransfer(ctx, kind, s.roots(), input.Target)
 	switch {
 	case errors.Is(err, compatibility.ErrTransferSource):
-		return s.maintenanceResult(completion.Facts{ValidationFailed: true}, label+" requires a complete recognized POC source", nil, "Run `lingo compatibility inspect`; only recognized_poc state is preserved this way", nil)
+		return s.maintenanceResult(completion.Facts{ValidationFailed: true}, label+" requires a complete recognized POC source", nil, "Run `axiom compatibility inspect`; only recognized_poc state is preserved this way", nil)
 	case errors.Is(err, compatibility.ErrTransferCapacity):
 		return s.maintenanceResult(completion.Facts{ValidationFailed: true}, label+" target lacks observed free space", nil, "Free space or choose another absent target on the same filesystem", boundedTransfer(preview, nil))
 	case err != nil:
@@ -91,7 +91,7 @@ func (s lifecycleService) transfer(ctx context.Context, kind compatibility.Trans
 	case err == nil:
 		next := "Keep the manifest with the preserved copy"
 		if kind == compatibility.Export {
-			next = "Point LINGO_PROJECTS_ROOT at " + filepath.Join(preview.Target, "projects") + " with a separate clean LINGO_STATE_ROOT, then run `lingo project configure` explicitly"
+			next = "Point LINGO_PROJECTS_ROOT at " + filepath.Join(preview.Target, "projects") + " with a separate clean LINGO_STATE_ROOT, then run `axiom project configure` explicitly"
 		}
 		return s.maintenanceResult(completion.Facts{Completed: true}, label+" completed and verified", references, next, boundedTransfer(preview, &result))
 	case result.Status == "partial":
@@ -126,7 +126,7 @@ func (s lifecycleService) ArtifactCleanup(ctx context.Context, input cli.Mainten
 		if errors.Is(err, local.ErrConflict) {
 			return s.maintenanceResult(completion.Facts{RetrySafeFailure: true}, "Artifact state is locked by another operation", nil, "Retry after the other operation completes", nil)
 		}
-		return s.maintenanceResult(completion.Facts{Failed: true}, "Artifact or reference state is uncertain; nothing is eligible", nil, "Run `lingo recovery inspect` and resolve preserved state before cleanup", nil)
+		return s.maintenanceResult(completion.Facts{Failed: true}, "Artifact or reference state is uncertain; nothing is eligible", nil, "Run `axiom recovery inspect` and resolve preserved state before cleanup", nil)
 	}
 	view := cleanupView{Preview: preview}
 	references := []string{"cleanup:" + preview.Digest}
@@ -180,7 +180,7 @@ func (s lifecycleService) ArtifactRetire(ctx context.Context, input cli.Maintena
 	case errors.Is(err, local.ErrConflict):
 		return s.maintenanceResult(completion.Facts{RetrySafeFailure: true}, "Artifact state is locked by another operation", nil, "Retry after the other operation completes", nil)
 	case err != nil:
-		return s.maintenanceResult(completion.Facts{Failed: true}, "Artifact or reference state is uncertain; retirement is denied", nil, "Run `lingo recovery inspect` and resolve preserved state before retirement", nil)
+		return s.maintenanceResult(completion.Facts{Failed: true}, "Artifact or reference state is uncertain; retirement is denied", nil, "Run `axiom recovery inspect` and resolve preserved state before retirement", nil)
 	}
 	view := retirementView{Preview: preview}
 	references := []string{"retirement:" + preview.Digest}
@@ -202,7 +202,7 @@ func (s lifecycleService) ArtifactRetire(ctx context.Context, input cli.Maintena
 	case errors.Is(err, local.ErrConflict):
 		return s.maintenanceResult(completion.Facts{AuthorityDenied: true}, "Artifact state changed after review", nil, "Prepare and review a fresh preview", nil)
 	default:
-		return s.maintenanceResult(completion.Facts{Failed: true}, "Artifact retirement was not confirmed", nil, "Run `lingo recovery inspect` before any further retirement or cleanup", nil)
+		return s.maintenanceResult(completion.Facts{Failed: true}, "Artifact retirement was not confirmed", nil, "Run `axiom recovery inspect` before any further retirement or cleanup", nil)
 	}
 }
 
@@ -223,7 +223,7 @@ func (s lifecycleService) RecoveryInspect(ctx context.Context) cli.Result {
 		if errors.Is(err, local.ErrConflict) {
 			return s.maintenanceResult(completion.Facts{RetrySafeFailure: true}, "Owned state is locked by another operation", nil, "Retry after the other operation completes", nil)
 		}
-		return s.maintenanceResult(completion.Facts{Failed: true}, "Recovery inspection could not read owned roots safely", nil, "Run `lingo compatibility inspect` and preserve state for operator review", nil)
+		return s.maintenanceResult(completion.Facts{Failed: true}, "Recovery inspection could not read owned roots safely", nil, "Run `axiom compatibility inspect` and preserve state for operator review", nil)
 	}
 	view := recoveryView{Plans: report.Plans, PlansTotal: len(report.Plans), Digest: report.Digest}
 	if len(view.Plans) > maxViewItems {
@@ -235,7 +235,7 @@ func (s lifecycleService) RecoveryInspect(ctx context.Context) cli.Result {
 	next := "Every plan requires operator review; no automatic action is available"
 	for _, plan := range report.Plans {
 		if plan.Action != local.PreservedReview {
-			next = "Review one plan, then run `lingo recovery apply --preview-digest <plan-digest> --authorize-local`"
+			next = "Review one plan, then run `axiom recovery apply --preview-digest <plan-digest> --authorize-local`"
 			break
 		}
 	}
@@ -254,26 +254,26 @@ func (s lifecycleService) RecoveryApply(ctx context.Context, input cli.Maintenan
 		}
 	}
 	if selected == nil {
-		return s.maintenanceResult(completion.Facts{AuthorityDenied: true}, "Recovery plan is missing or stale", nil, "Run `lingo recovery inspect` and authorize a current plan digest", nil)
+		return s.maintenanceResult(completion.Facts{AuthorityDenied: true}, "Recovery plan is missing or stale", nil, "Run `axiom recovery inspect` and authorize a current plan digest", nil)
 	}
 	if selected.Action == local.PreservedReview {
 		return s.maintenanceResult(completion.Facts{ValidationFailed: true}, "Recovery plan requires operator review", nil, "Preserve the state; no automatic recovery action is supported", recoveryView{Plans: []local.RecoveryPlan{*selected}, PlansTotal: 1})
 	}
 	authority, err := local.AuthorizeRecovery(*selected, input.PreviewDigest)
 	if err != nil {
-		return s.maintenanceResult(completion.Facts{AuthorityDenied: true}, "Recovery authority is missing or stale", nil, "Run `lingo recovery inspect` and authorize a current plan digest", nil)
+		return s.maintenanceResult(completion.Facts{AuthorityDenied: true}, "Recovery authority is missing or stale", nil, "Run `axiom recovery inspect` and authorize a current plan digest", nil)
 	}
 	result, err := local.ApplyRecovery(ctx, s.recoveryRoots(), *selected, authority)
 	view := recoveryView{Plans: []local.RecoveryPlan{*selected}, PlansTotal: 1, Result: &result}
 	switch {
 	case err == nil:
-		return s.maintenanceResult(completion.Facts{Completed: true}, "Recovery applied: "+string(result.Action), []string{"recovery-plan:" + selected.Digest}, "Run `lingo recovery inspect` to confirm no interrupted state remains", view)
+		return s.maintenanceResult(completion.Facts{Completed: true}, "Recovery applied: "+string(result.Action), []string{"recovery-plan:" + selected.Digest}, "Run `axiom recovery inspect` to confirm no interrupted state remains", view)
 	case errors.Is(err, local.ErrConflict):
-		return s.maintenanceResult(completion.Facts{AuthorityDenied: true}, "Recovery state changed or is locked", nil, "Run `lingo recovery inspect` and review a fresh plan", nil)
+		return s.maintenanceResult(completion.Facts{AuthorityDenied: true}, "Recovery state changed or is locked", nil, "Run `axiom recovery inspect` and review a fresh plan", nil)
 	case len(result.Removed) > 0:
-		return s.maintenanceResult(completion.Facts{RequestedEffectConfirmed: true, SecondaryFailure: true}, "Recovery partially applied; state remains recovery_required", []string{"recovery-plan:" + selected.Digest}, "Run `lingo recovery inspect`; residual protocol objects are preserved", view)
+		return s.maintenanceResult(completion.Facts{RequestedEffectConfirmed: true, SecondaryFailure: true}, "Recovery partially applied; state remains recovery_required", []string{"recovery-plan:" + selected.Digest}, "Run `axiom recovery inspect`; residual protocol objects are preserved", view)
 	default:
-		return s.maintenanceResult(completion.Facts{Failed: true}, "Recovery failed before any effect", nil, "Run `lingo recovery inspect`; state is preserved", view)
+		return s.maintenanceResult(completion.Facts{Failed: true}, "Recovery failed before any effect", nil, "Run `axiom recovery inspect`; state is preserved", view)
 	}
 }
 
@@ -318,11 +318,11 @@ func (s lifecycleService) Upgrade(ctx context.Context, input cli.MaintenanceInpu
 	view := upgradeView{Preview: preview, Result: &result}
 	switch {
 	case err == nil && result.Status == "success":
-		return s.maintenanceResult(completion.Facts{Completed: true}, "Upgrade confirmed", references, "Run `lingo version` to verify the upgraded binary", view)
+		return s.maintenanceResult(completion.Facts{Completed: true}, "Upgrade confirmed", references, "Run `axiom version` to verify the upgraded binary", view)
 	case err == nil:
-		return s.maintenanceResult(completion.Facts{RequestedEffectConfirmed: true, SecondaryFailure: true}, "Binary, receipt, and Codex skill files upgraded; the Codex skill-set receipt was not refreshed", references, "Run `lingo runtime codex install` with the upgraded binary to refresh the skill-set receipt", view)
+		return s.maintenanceResult(completion.Facts{RequestedEffectConfirmed: true, SecondaryFailure: true}, "Binary, receipt, and Codex skill files upgraded; the Codex skill-set receipt was not refreshed", references, "Run `axiom runtime codex install` with the upgraded binary to refresh the skill-set receipt", view)
 	case len(result.Ledger) > 0:
-		return s.maintenanceResult(completion.Facts{RequestedEffectConfirmed: true, SecondaryFailure: true}, "Upgrade partially applied: "+upgradeCategory(err), references, "Repeat `lingo upgrade` with the same archive to preview the resumable remaining effects", view)
+		return s.maintenanceResult(completion.Facts{RequestedEffectConfirmed: true, SecondaryFailure: true}, "Upgrade partially applied: "+upgradeCategory(err), references, "Repeat `axiom upgrade` with the same archive to preview the resumable remaining effects", view)
 	case upgradeCategory(err) == "authority_denied":
 		return s.maintenanceResult(completion.Facts{AuthorityDenied: true}, "Upgrade state changed after review", nil, "Prepare and review a fresh preview", nil)
 	default:
@@ -341,7 +341,7 @@ func upgradeCategory(err error) string {
 func upgradeNext(category string) string {
 	switch category {
 	case "state_incompatible":
-		return "Run `lingo compatibility inspect`; only absent_v1 or valid_v1 state can be upgraded"
+		return "Run `axiom compatibility inspect`; only absent_v1 or valid_v1 state can be upgraded"
 	case "recovery_required", "installation_busy_or_interrupted":
 		return "Resume with the same archive, or inspect the receipt directory for another operation"
 	case "downgrade_refused", "divergent_equivalent_version":
