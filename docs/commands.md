@@ -243,9 +243,14 @@ not this Runtime's current or earlier Axiom receipt for that root. The skill roo
 it `0755`: it must be a real directory (not a symlink) owned by you, not
 writable by group or other, and without extended ACL, otherwise that Runtime
 fails (`<runtime>_skill_root_unavailable`) without changes. So `0700`, `0750`
-and `0755` are accepted and `0770`, `0775` and `0777` are refused. Everything
-Axiom creates under the root stays `0700`/`0600`. A missing root is created
-`0700`. A relative `CLAUDE_CONFIG_DIR` fails Claude the same way.
+and `0755` are accepted and `0770`, `0775` and `0777` are refused. Every
+ancestor directory up to `/` is checked the same way (owned by root or by
+you, no group/other write unless the sticky bit protects existing entries),
+since a mutable ancestor could otherwise let another principal replace the
+root itself between its check and its use; ordinary system directories and a
+`0755` home directory pass, and a `/tmp`-style sticky world-writable
+directory passes because of the sticky bit. Everything Axiom creates under
+the root stays `0700`/`0600`. A missing root is created `0700`. A relative `CLAUDE_CONFIG_DIR` fails Claude the same way.
 Axiom only reads `CLAUDE_CONFIG_DIR` from the process environment, not from
 Claude settings files. The install keeps its persistent `.axiom-skill-set.lock`
 in each skill root.
@@ -357,8 +362,14 @@ existing binary root may be a shared user directory such as `~/.local/bin`: it
 must be a real directory (not a symlink) owned by the current user that group
 and other cannot write and that has no extended ACL, so `0700`, `0750` and
 `0755` are accepted and `0702`, `0720`, `0770`, `0775` and `0777` are refused.
-A missing root is created `0700`, and the published `axiom` stays `0700` and the
-receipt `0600`. Unsafe roots are preserved, not repaired. The closed receipt includes an RFC 3339 UTC
+Every ancestor of the binary and receipt roots, up to `/`, is checked the
+same way (owned by root or by you, no group/other write unless the sticky
+bit protects existing entries), since a mutable ancestor could otherwise let
+another principal replace the root itself; ordinary system directories and a
+`0755` home directory pass, and a `/tmp`-style sticky world-writable
+directory passes because of the sticky bit. A missing root is created `0700`,
+and the published `axiom` stays `0700` and the receipt `0600`. Unsafe roots
+are preserved, not repaired. The closed receipt includes an RFC 3339 UTC
 `installedAt` value created for the successful installation generation and
 preserved on equivalent reinstall. Exact owned reinstall is a no-op. Platform,
 ownership, permission, ACL, link, type, schema, and content conflicts fail closed.
