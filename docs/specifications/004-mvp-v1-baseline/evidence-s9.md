@@ -442,23 +442,64 @@ root for the whole upgrade, and `PublishSkill` (renamed from
 own subdirectory once (`privateChild`) and do the reread/stage/rename/confirm
 sequence through that same child object.
 
+*Detect and reject, not tolerate* (re-review of F13): binding to the object
+confined the mutation but still let an operation finish in the displaced
+original object and report success while the authorized pathname showed a
+different object — a confined but untruthful commit (ADR-0005 property 3
+requires changed directory identity and controlled ancestor/leaf replacement
+to be detected and rejected; ADR-0007 invariant 7 forbids confirming an effect
+whose canonical object is no longer the authorized one). Each anchored handle
+now also records the identity of every directory on its canonical pathname at
+open time (`anchor` in `internal/local` and, mirrored, `internal/codexruntime`),
+and `StillAtPath`/`anchor.verify` re-walks that pathname from `/` without
+following symlinks, requiring every component to still be the recorded object
+and to end at the open handle. The proof is taken at the declared inspection and
+commit boundaries:
+
+- `local.AnchoredDirectory`'s `CreateExclusive`, `Mkdir`, `Stage` and `Rename`
+  refuse with `local.ErrReplaced` (an `ErrUnsafe`) before acting; `Remove`
+  stays unguarded because it only discards the handle's own stage, lock or
+  marker in the anchored object.
+- `internal/install`: `publishEffect` reports a replacement before the rename
+  as `target_changed` (nothing committed) and one seen when confirming after
+  the rename as `publication_uncertain` (not a confirmed effect); marker
+  writes confirm at the pathname; `Apply` proves `ReceiptDir` and `BinaryDir`
+  again before clearing the operation marker and before declaring success,
+  otherwise `partial` with `final_verification_failed` and the marker kept.
+- `internal/codexruntime`: `Install` and `LockForUpgrade` prove the skill root
+  before and after taking the lock; each skill create/replace and the receipt
+  stage/rename prove the root and the skill directory (`childStillAt`) before
+  the commit and again after it. With nothing changed yet the result is
+  `<runtime>_skill_root_unavailable`; after a change, `partial`
+  (`skill_install_partial` / `skill_receipt_incomplete`), never `applied`.
+  `PublishSkill` returns `ErrTargetReplaced` before a commit and a
+  non-confirmed error after one.
+
+The remaining window between a proof and its syscall is the arbitrary same-UID
+interleaving ADR-0005 explicitly excludes; the proof is not a lock.
+
 **Test seam.** No simulated seam was needed: Go's `os.Root` is itself the
 capability, so the tests physically replace the validated directory (rename
-it away and put a new directory, a symlink, or nothing in its place; replace
-an ancestor) between opening the `AnchoredDirectory`/`UpgradeSession` and the
-later mutation, and assert the mutation lands in the originally validated
-object (wherever it now lives), never in whatever object currently occupies
-the original pathname, and never in an unrelated foreign directory placed
-there:
+it away and put a new directory or a symlink in its place; replace an
+ancestor; replace an ancestor and move the original leaf back under it)
+between opening the `AnchoredDirectory`/`UpgradeSession` (or between two
+effects, through the existing `afterEffect`/`afterSkill` hooks) and the
+later mutation, and assert the operation is refused, the displaced original
+object gains no committed effect, the replacement stays intact, and no
+success is reported:
 
 | Layer | Test | Result |
 |---|---|---|
-| `internal/local` | `TestAnchoredDirectoryMutatesTheValidatedObjectDespiteReplacement` / `...OwnedDirectory...` (leaf renamed+replaced by a directory; leaf renamed+replaced by a symlink; parent renamed away) | mutation lands on the original object; nothing published at the replacement's pathname |
+| `internal/local` | `TestAnchoredDirectoryRefusesMutationAfterReplacement` (publication and owned handles × leaf replaced by a directory, by a symlink; parent replaced; parent replaced with the original leaf moved back under it) | `StillAtPath`, `Stage`, `CreateExclusive`, `Mkdir` refuse with `ErrReplaced`; neither the original nor the replacement gains an entry |
+| `internal/local` | `TestAnchoredDirectoryRefusesCommitAfterReplacement` | a stage prepared before the replacement is not renamed into either object; the handle still removes its own stage |
+| `internal/local` | `TestAnchoredDirectoryAcceptsSameObjectRestoredAtPath` | moving the same object away and back is not a replacement |
 | `internal/local` | `TestAncestorSafeOwnershipAndStickyMatrix`, `TestPublicationDirectoryRefusesUnsafeAncestorRealFilesystem`, `TestPublicationDirectoryRefusesUnsafeGrandparent` | root/self-owned, no group/other write, or sticky → accepted; group/other-writable without sticky, or foreign-owned → refused, including two levels up |
-| `internal/install` | `TestPublishEffectMutatesTheValidatedDirectoryDespiteReplacement` (root replaced by a directory, by a symlink; ancestor replaced) | binary/receipt publication lands on the original object |
+| `internal/install` | `TestPublishEffectRefusesReplacedDirectory` (root replaced by a directory holding a foreign binary, by a symlink; ancestor replaced) | `target_changed`; the original keeps its prior binary and no stage; the replacement is byte-for-byte intact |
 | `internal/install` | `TestPublishEffectRefusesWhenTargetFileChangedAfterOpen` | the pre-existing expected-revision check still refuses a raced target-file change; stage cleaned up |
-| `internal/install` | `TestPublishEffectNeverTouchesForeignTargetDuringReplacement` | a foreign directory placed at the original pathname keeps its own unrelated content untouched |
-| `internal/codexruntime` | `TestUpgradeSessionPublishesToValidatedRootDespiteReplacement` (root replaced by a directory, by a symlink; ancestor replaced) | skill publication lands on the original root |
+| `internal/install` | `TestApplyRefusesReceiptDirectoryReplacedMidOperation` | `ReceiptDir` replaced after the binary commit: `partial`, `target_changed`, only the binary confirmed; the original receipt is unchanged and the replacement stays empty |
+| `internal/install` | `TestApplyDoesNotDeclareSuccessAfterBinaryDirectoryReplaced` | `BinaryDir` replaced after every effect: `partial`, `final_verification_failed`, never `success`; the operation marker is kept |
+| `internal/codexruntime` | `TestUpgradeSessionRefusesReplacedRoot` (root replaced by a directory, by a symlink; ancestor replaced) | `ErrTargetReplaced`; no skill in the original root; the replacement stays empty |
+| `internal/codexruntime` | `TestInstallRefusesRootReplacedBeforeAnyChange` / `TestInstallIsPartialWhenRootReplacedAfterAChange` | `codex_skill_root_unavailable` with nothing changed, `codex_skill_install_partial` after a change; the install never completes in the original root, no receipt anywhere, the replacement stays empty |
 | `internal/codexruntime` | `TestInstallRefusesForeignSkillUntouchedDespiteRootReplacement` | a foreign skill directory is refused, left byte-for-byte unchanged; no receipt published |
 | `internal/codexruntime` | `TestPublishSkillRefusesSkillDirectoryReplacedBySymlink` | a skill directory replaced by a symlink between lock and publish is refused, not followed |
 
@@ -598,13 +639,13 @@ upgrade before any effect.
 | F10 | `internal/local` `TestCoordinationLatestRejectsUnsafeHierarchy` (S8, on `main`) fails under `umask 077`, which `test-s7-native.sh` uses | open, pre-existing on `main`, outside PR #106; separate fix proposed |
 | F11 | The persistent `.axiom-skill-set.lock` is created in a detected Runtime's root even when that Runtime then fails on a conflict | open, low; conflicting and foreign content is never changed |
 | F12 | Release workflow `tag` input is not checked against an existing tag at the dispatched revision | open, low; T23 must bind tag to recorded revision before publication |
-| F13 | Major, final review: a directory was validated by pathname and later mutated by re-deriving the same pathname, and ancestors were never checked for mutation by another principal (ADR-0005 property 3) — the T39 publication root, `internal/install`'s binary/receipt directories, and the T40 Runtime skill root all shared this shape | fixed: ancestor-safety checks added throughout, object-identity bound via `local.AnchoredDirectory` and `codexruntime.UpgradeSession`/anchored skill root; see "Filesystem object identity" |
+| F13 | Major, final review: a directory was validated by pathname and later mutated by re-deriving the same pathname, and ancestors were never checked for mutation by another principal (ADR-0005 property 3) — the T39 publication root, `internal/install`'s binary/receipt directories, and the T40 Runtime skill root all shared this shape | fixed: ancestor-safety checks added throughout, object-identity bound via `local.AnchoredDirectory` and `codexruntime.UpgradeSession`/anchored skill root, and a replacement at the authorized pathname detected and rejected at every inspection/commit boundary instead of being tolerated; see "Filesystem object identity" |
 
 ## Acceptance status by validation kind
 
 | Kind | Claims |
 |---|---|
-| **confirmed** (executed deterministic tests) | Go packages; release build, verifier and workflow `run:` replay; bootstrap selection/verification logic; release installer and protected upgrade with local fixtures; T40 four-state matrix with fake Runtime executables; skill root permission matrix; F6 post-upgrade convergence with a simulated N+1 skill set (in-process); F9 binary-directory matrix; F13 object-identity replacement tests (real `os.Root` file-descriptor binding, not simulated) at the `internal/local`, `internal/install`, and `internal/codexruntime` layers, plus the shell ancestor-safety matrix |
+| **confirmed** (executed deterministic tests) | Go packages; release build, verifier and workflow `run:` replay; bootstrap selection/verification logic; release installer and protected upgrade with local fixtures; T40 four-state matrix with fake Runtime executables; skill root permission matrix; F6 post-upgrade convergence with a simulated N+1 skill set (in-process); F9 binary-directory matrix; F13 object-identity detect-and-reject replacement tests (real filesystem replacement against `os.Root` handles, not simulated) at the `internal/local`, `internal/install`, and `internal/codexruntime` layers, plus the shell ancestor-safety matrix |
 | **native** (supported row, local fixtures, not a clean environment, not a published release) | macOS 27.0/arm64 local-fixture validation: install, reinstall no-op, owned upgrade, downgrade refusal, recovery, skills publication, bootstrap cases and the `0700`/`0750`/`0755` binary-directory lifecycle on this host (results above). macOS 27 clean-environment published-RC acceptance is **not run** (T24) |
 | **synthetic** | Ubuntu 26.04/amd64 install/upgrade/refusal suites and Ubuntu row selection (Ubuntu 24.04 userland, replaced `/etc/os-release`), on earlier commits only; the F6/F9 changes were **not** re-run on a synthetic or native Ubuntu row (CI runs the Go suites on `ubuntu-24.04`) |
 | **real Runtime** | none. Codex and Claude were never invoked; T40 used fake executables |
