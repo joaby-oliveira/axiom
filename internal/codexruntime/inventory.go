@@ -46,7 +46,7 @@ func (s Service) Inventory(ctx context.Context) (Inventory, error) {
 			result.Skills = append(result.Skills, InventorySkill{Name: name, State: "missing"})
 		}
 		return result, nil
-	} else if err != nil || !privateDirectory(s.root) {
+	} else if err != nil || !skillRootDirectory(s.root) {
 		result.State, result.Receipt = SkillSetForeign, "unavailable"
 		return result, nil
 	}

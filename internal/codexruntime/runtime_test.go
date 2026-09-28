@@ -526,6 +526,93 @@ func TestInstallAndInspectRejectUnsafeRootPermissions(t *testing.T) {
 	}
 }
 
+// The skill root belongs to the Runtime and is commonly 0755. Only modes that
+// let group or other mutate it are refused; Axiom's own entries stay private.
+func TestSkillRootAcceptsModesWithoutGroupOrOtherWrite(t *testing.T) {
+	for _, test := range []struct {
+		mode os.FileMode
+		safe bool
+	}{
+		{0o700, true}, {0o750, true}, {0o755, true}, {0o705, true},
+		{0o720, false}, {0o702, false}, {0o770, false}, {0o775, false}, {0o757, false}, {0o777, false},
+	} {
+		t.Run(test.mode.String(), func(t *testing.T) {
+			for _, service := range []func(string) (Service, error){New, NewClaude} {
+				root := filepath.Join(t.TempDir(), "skills")
+				if err := os.Mkdir(root, 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Chmod(root, test.mode); err != nil {
+					t.Fatal(err)
+				}
+				runtime, err := service(root)
+				if err != nil {
+					t.Fatal(err)
+				}
+				unavailable := runtime.Runtime() + "_skill_root_unavailable"
+				got := runtime.Install(context.Background())
+				if !test.safe {
+					if got.Status != Failed || got.Category != unavailable {
+						t.Fatalf("%s install on %v = %#v", runtime.Runtime(), test.mode, got)
+					}
+					if inspected := runtime.Inspect(context.Background()); inspected.Status != Failed || inspected.Category != unavailable {
+						t.Fatalf("%s inspect on %v = %#v", runtime.Runtime(), test.mode, inspected)
+					}
+					entries, err := os.ReadDir(root)
+					if err != nil || len(entries) != 0 {
+						t.Fatalf("unsafe root written: %v, %v", entries, err)
+					}
+				} else {
+					if got.Status != Applied {
+						t.Fatalf("%s install on %v = %#v", runtime.Runtime(), test.mode, got)
+					}
+					if inspected := runtime.Inspect(context.Background()); inspected.Status != Ready {
+						t.Fatalf("%s inspect on %v = %#v", runtime.Runtime(), test.mode, inspected)
+					}
+					if again := runtime.Install(context.Background()); again.Status != Unchanged {
+						t.Fatalf("%s reinstall on %v = %#v", runtime.Runtime(), test.mode, again)
+					}
+					for _, name := range skillNames {
+						directory, err := os.Lstat(filepath.Join(root, name))
+						if err != nil || directory.Mode().Perm() != 0o700 {
+							t.Fatalf("skill directory %s = %v, %v", name, directory, err)
+						}
+						file, err := os.Lstat(filepath.Join(root, name, "SKILL.md"))
+						if err != nil || file.Mode().Perm() != 0o600 {
+							t.Fatalf("skill file %s = %v, %v", name, file, err)
+						}
+					}
+				}
+				info, err := os.Lstat(root)
+				if err != nil || info.Mode().Perm() != test.mode {
+					t.Fatalf("root mode changed: %v, %v", info, err)
+				}
+			}
+		})
+	}
+}
+
+func TestSkillRootRefusesSymlinkedRoot(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "skills")
+	if err := os.Mkdir(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(t.TempDir(), "skills")
+	if err := os.Symlink(target, root); err != nil {
+		t.Fatal(err)
+	}
+	service, err := NewClaude(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := service.Install(context.Background()); got.Status != Failed || got.Category != "claude_skill_root_unavailable" {
+		t.Fatalf("symlinked root = %#v", got)
+	}
+	if entries, err := os.ReadDir(target); err != nil || len(entries) != 0 {
+		t.Fatalf("symlink target written: %v, %v", entries, err)
+	}
+}
+
 func TestInstallRefusesConflictAndRollsBackCurrentAttempt(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "skills")
 	if err := os.MkdirAll(filepath.Join(root, "axiom-work-item-create"), 0o700); err != nil {

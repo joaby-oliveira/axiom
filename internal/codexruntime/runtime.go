@@ -176,7 +176,7 @@ func (s Service) Inspect(ctx context.Context) Result {
 	if os.IsNotExist(err) {
 		return s.inspectResult(Missing, s.integration.category("not_configured"))
 	}
-	if err != nil || !privateDirectory(s.root) {
+	if err != nil || !skillRootDirectory(s.root) {
 		return Result{Status: Failed, Category: s.integration.category("skill_root_unavailable")}
 	}
 	if s.binaryCompatibility != BinaryCompatibility {
@@ -313,9 +313,25 @@ func privateRegularFile(path string) bool {
 	return checkPrivateACL(file) == nil
 }
 
+// privateDirectory accepts a directory Axiom owns: user-owned, mode 0700
+// and without extended ACL.
 func privateDirectory(path string) bool {
+	return directoryWithoutPermissions(path, 0o077)
+}
+
+// skillRootDirectory accepts a Runtime's user-global skill root. The root
+// belongs to the Runtime, not to Axiom, and Runtimes commonly create it 0755.
+// The Axiom skills are public content, so only mutation by another principal
+// matters: the root must be a real user-owned directory that group and other
+// cannot write and that carries no extended ACL. Everything Axiom creates
+// under it stays privateDirectory/privateRegularFile.
+func skillRootDirectory(path string) bool {
+	return directoryWithoutPermissions(path, 0o022)
+}
+
+func directoryWithoutPermissions(path string, forbidden os.FileMode) bool {
 	info, err := os.Lstat(path)
-	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0o077 != 0 {
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&forbidden != 0 {
 		return false
 	}
 	directory, err := os.OpenFile(path, os.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW, 0)
@@ -336,12 +352,12 @@ func ensureRoot(root string) error {
 		if err := os.MkdirAll(root, 0o700); err != nil {
 			return err
 		}
-		if !privateDirectory(root) {
+		if !skillRootDirectory(root) {
 			return errors.New("unsafe created root")
 		}
 		return nil
 	}
-	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() || !privateDirectory(root) {
+	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() || !skillRootDirectory(root) {
 		return errors.New("invalid root")
 	}
 	return nil

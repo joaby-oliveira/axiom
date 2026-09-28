@@ -249,6 +249,68 @@ func TestExecutableFirstRunRuntimeMatrix(t *testing.T) {
 		}
 	})
 
+	t.Run("Runtime-created 0755 skill roots are configured", func(t *testing.T) {
+		m := newFirstRunMachine(t, binary, "codex", "claude")
+		userSkill := filepath.Join(m.home, ".claude", "skills", "my-skill", "SKILL.md")
+		for _, directory := range []string{".claude", ".claude/skills", ".claude/skills/my-skill", ".agents", ".agents/skills"} {
+			if err := os.Mkdir(filepath.Join(m.home, directory), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chmod(filepath.Join(m.home, directory), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := os.WriteFile(userSkill, []byte("user skill\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		event, _ := m.run(0, "--json", "first-run")
+		for _, id := range []string{"codex", "claude"} {
+			if _, state, category, _ := m.runtime(event, id); state != "configured" {
+				t.Fatalf("%s = %s %s", id, state, category)
+			}
+		}
+		if content, err := os.ReadFile(userSkill); err != nil || string(content) != "user skill\n" {
+			t.Fatalf("user skill changed: %q %v", content, err)
+		}
+		for _, root := range []string{".claude/skills", ".agents/skills"} {
+			info, err := os.Lstat(filepath.Join(m.home, root))
+			if err != nil || info.Mode().Perm() != 0o755 {
+				t.Fatalf("%s mode changed: %v %v", root, info, err)
+			}
+			skill, err := os.Lstat(filepath.Join(m.home, root, "axiom-work-item-run"))
+			if err != nil || skill.Mode().Perm() != 0o700 {
+				t.Fatalf("%s Axiom skill = %v %v", root, skill, err)
+			}
+		}
+		again, _ := m.run(0, "--json", "first-run")
+		for _, id := range []string{"codex", "claude"} {
+			if _, state, _, _ := m.runtime(again, id); state != "already_configured" {
+				t.Fatalf("%s rerun = %+v", id, again)
+			}
+		}
+	})
+
+	t.Run("group-writable skill root fails that Runtime unchanged", func(t *testing.T) {
+		m := newFirstRunMachine(t, binary, "codex", "claude")
+		root := filepath.Join(m.home, ".claude", "skills")
+		if err := os.MkdirAll(root, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(root, 0o775); err != nil {
+			t.Fatal(err)
+		}
+		event, _ := m.run(1, "--json", "first-run")
+		if _, state, category, _ := m.runtime(event, "claude"); state != "failed" || category != "claude_skill_root_unavailable" {
+			t.Fatalf("claude = %s %s", state, category)
+		}
+		if _, state, _, _ := m.runtime(event, "codex"); state != "configured" {
+			t.Fatalf("codex = %+v", event)
+		}
+		if entries, err := os.ReadDir(root); err != nil || len(entries) != 0 {
+			t.Fatalf("unsafe root written: %v %v", entries, err)
+		}
+	})
+
 	t.Run("configuration directory without executable is absent", func(t *testing.T) {
 		m := newFirstRunMachine(t, binary)
 		for _, directory := range []string{".claude", ".codex"} {

@@ -52,7 +52,7 @@ func (s Service) InspectUpgrade(ctx context.Context) (UpgradeInventory, error) {
 			inventory.Skills = append(inventory.Skills, UpgradeSkill{Name: name})
 		}
 		return inventory, nil
-	} else if err != nil || !privateDirectory(s.root) {
+	} else if err != nil || !skillRootDirectory(s.root) {
 		return UpgradeInventory{}, ErrUpgradeConflict
 	}
 	if _, err := os.Lstat(filepath.Join(s.root, ".axiom-skill-set-receipt-stage")); !os.IsNotExist(err) {
