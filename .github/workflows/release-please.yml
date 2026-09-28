@@ -35,7 +35,7 @@ jobs:
           manifest-file: .release-please-manifest.json
           skip-github-release: true
       - name: Run required CI on the Release PR head
-        if: steps.release.outputs.pr != ''
+        if: steps.release.outputs.prs_created == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
