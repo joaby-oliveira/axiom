@@ -229,11 +229,65 @@ safe_components() {
   done
 }
 
+# has_sticky_bit reports whether $1 carries the sticky bit (mode &01000).
+# file_mode/stat's %Lp on macOS omits it, so it is checked separately.
+has_sticky_bit() {
+  [[ -n "$(find "$1" -maxdepth 0 -perm -1000 2>/dev/null)" ]]
+}
+
+# ancestor_safe accepts a directory that CONTAINS a later path component
+# (binary_root or receipt_root, or one more level up) only when no principal
+# other than root or the current user can replace, rename, or remove that
+# entry: the container is owned by root or by the current user, and disallows
+# group/other write unless the sticky bit restricts removal/rename of
+# existing entries to each entry's own owner (ADR-0005 property 3, controlled
+# ancestor replacement). This mirrors the Go anchoredRoot/ancestorSafe rule.
+# Symlinks in the chain are already rejected by safe_components; read/execute
+# access by others is never evaluated here, only write/replace. A bare "/"
+# and ordinary system directories such as /Users or /home are root-owned
+# without group/other write and pass without a special case. /tmp-style
+# 1777 directories pass because of the sticky bit, not because they are
+# root-owned: a hypothetical root-owned 0777 directory WITHOUT sticky is
+# still refused, since without sticky any principal could replace an entry
+# inside it regardless of who owns the container.
+ancestor_safe() {
+  local directory=$1 owner mode
+  owner=$(file_owner "$directory") || return 1
+  [[ "$owner" == 0 || "$owner" == "$(id -u)" ]] || return 1
+  mode=$(file_mode "$directory") || return 1
+  [[ "$mode" =~ ^[0-7]{3,4}$ ]] || return 1
+  if (( (8#$mode & 8#022) != 0 )); then
+    has_sticky_bit "$directory" || return 1
+  fi
+  return 0
+}
+
+# ancestors_safe validates every container from $1's parent up to "/". It
+# does not evaluate $1 itself; destination_directory already applies the
+# stricter, specific rule for the binary or receipt root itself. Shell has no
+# equivalent of an anchored file descriptor, so this narrows but cannot close
+# the gap between this check and the later mutation the way the Go upgrade
+# path's anchored directories do; see the accompanying Evidence note.
+ancestors_safe() {
+  local current
+  current=$(dirname "$1")
+  while true; do
+    # A missing ancestor will be created by mkdir -p (owned by the current
+    # user); only an existing ancestor's real ownership/mode is evaluated.
+    if [[ -e "$current" ]]; then
+      ancestor_safe "$current" || return 1
+    fi
+    [[ "$current" == / ]] && break
+    current=$(dirname "$current")
+  done
+}
+
 # Refusals that need no lock are decided read-only, before any directory is
 # created: symlinked or unsafe existing roots, and a binary without receipt
 # or interrupted-operation marker.
 for directory in "$binary_root" "$receipt_root"; do
   safe_components "$directory" || { printf 'install_error: symlink destination refused\n' >&2; exit 1; }
+  ancestors_safe "$directory" || { printf 'install_error: unsafe destination ownership, permissions, ACL, or type\n' >&2; exit 1; }
   if [[ -e "$directory" ]]; then
     destination_directory "$directory" || { printf 'install_error: unsafe destination ownership, permissions, ACL, or type\n' >&2; exit 1; }
   fi
@@ -246,6 +300,7 @@ fi
 
 prepare_directory() {
   local directory=$1
+  ancestors_safe "$directory" || { printf 'install_error: unsafe destination ownership, permissions, ACL, or type\n' >&2; exit 1; }
   if [[ ! -e "$directory" ]]; then
     mkdir -p -- "$directory"
     chmod 700 "$directory"

@@ -438,6 +438,41 @@ if [[ "$acl_ready" == true ]]; then
 else
   printf 'case=bin-dir-755-mutation-acl-refused result=not_run reason=acl_tool_unavailable\n'
 fi
+
+# --- Ancestor safety (a directory ABOVE --bin-dir mutable by another
+# principal must refuse the install even though --bin-dir itself looks safe).
+home=$(new_home bin-ancestor-unsafe)
+export home
+step bin-dir-unsafe-ancestor-refused bash -eo pipefail -c '
+  mkdir -m 700 "$home/unsafe-parent"; chmod 777 "$home/unsafe-parent"
+  refused "$home" "unsafe destination ownership, permissions, ACL, or type" --version v1.1.0 --bin-dir "$home/unsafe-parent/bin"
+  [[ ! -e "$home/unsafe-parent/bin" ]]
+'
+home=$(new_home bin-grandparent-unsafe)
+export home
+step bin-dir-unsafe-grandparent-refused bash -eo pipefail -c '
+  mkdir -m 700 "$home/unsafe-grandparent"; chmod 775 "$home/unsafe-grandparent"
+  mkdir -m 755 "$home/unsafe-grandparent/parent"
+  refused "$home" "unsafe destination ownership, permissions, ACL, or type" --version v1.1.0 --bin-dir "$home/unsafe-grandparent/parent/bin"
+  [[ ! -e "$home/unsafe-grandparent/parent/bin" ]]
+'
+home=$(new_home bin-safe-ancestor)
+export home
+step bin-dir-ordinary-safe-parent-accepted bash -eo pipefail -c '
+  mkdir -m 755 "$home/safe-parent"
+  run_bootstrap "$home" --version v1.0.0 --bin-dir "$home/safe-parent/bin" || { cat "$temporary/stderr"; exit 1; }
+  grep -Fxq "install_status=installed" "$temporary/stdout"
+  [[ $(mode_of "$home/safe-parent") == 755 ]]
+'
+home=$(new_home bin-sticky-ancestor)
+export home
+step bin-dir-sticky-world-writable-ancestor-accepted bash -eo pipefail -c '
+  mkdir -m 755 "$home/sticky-parent"; chmod 1777 "$home/sticky-parent"
+  run_bootstrap "$home" --version v1.0.0 --bin-dir "$home/sticky-parent/bin" || { cat "$temporary/stderr"; exit 1; }
+  grep -Fxq "install_status=installed" "$temporary/stdout"
+  [[ -x "$home/sticky-parent/bin/axiom" && $(mode_of "$home/sticky-parent/bin/axiom") == 700 ]]
+'
+
 home=$(new_home symlink)
 export home
 step symlinked-destination bash -eo pipefail -c '
