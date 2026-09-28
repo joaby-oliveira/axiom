@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0 (2026-09-28)
+
+
+### Bug Fixes
+
+* **release:** handle failed Release Please output safely ([#109](https://github.com/rgomids/axiom/issues/109)) ([ad903b9](https://github.com/rgomids/axiom/commit/ad903b96b0220ce866b4362af32fdcb877f1e704))
+* **release:** skip CI dispatch when no Release PR exists ([#108](https://github.com/rgomids/axiom/issues/108)) ([320abcf](https://github.com/rgomids/axiom/commit/320abcf9e58d07bd91fe2772e7d8b2829da7639c))
+
 ## [2026-09-28]
 
 - ci/release: adopt GitHub Flow with a release-gated `main`. `ci.yml`
