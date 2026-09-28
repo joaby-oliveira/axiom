@@ -126,7 +126,12 @@ mkdir -p "$temporary/extract" && tar -xzf "$old_archive" -C "$temporary/extract"
 installer=$(find "$temporary/extract" -name install.sh -type f | head -1)
 step clean-install "$installer" --archive "$old_archive" --checksums "$temporary/r100/SHA256SUMS" --bin-dir "$bin" --receipt-dir "$receipts"
 step equivalent-reinstall-unchanged bash -c "'$installer' --archive '$old_archive' --checksums '$temporary/r100/SHA256SUMS' --bin-dir '$bin' --receipt-dir '$receipts' | grep -qx 'install_status=unchanged'"
-step installer-refuses-owned-upgrade bash -c "! '$installer' --archive '$new_archive' --checksums '$temporary/r110/SHA256SUMS' --bin-dir '$bin' --receipt-dir '$receipts'"
+# T39: the release installer converges an older owned installation through the
+# protected upgrade path of the verified candidate (separate root).
+bin4="$temporary/install4/bin"
+receipts4="$temporary/install4/receipts"
+mkdir -p "$temporary/install4" && chmod 700 "$temporary/install4"
+step installer-owned-upgrade bash -c "'$installer' --archive '$old_archive' --checksums '$temporary/r100/SHA256SUMS' --bin-dir '$bin4' --receipt-dir '$receipts4' >/dev/null && '$installer' --archive '$new_archive' --checksums '$temporary/r110/SHA256SUMS' --bin-dir '$bin4' --receipt-dir '$receipts4' | grep -qx 'install_status=upgraded' && grep -qx 'version=1.1.0' '$receipts4/installation.receipt' && ! '$installer' --archive '$old_archive' --checksums '$temporary/r100/SHA256SUMS' --bin-dir '$bin4' --receipt-dir '$receipts4'"
 export LINGO_PROJECTS_ROOT="$temporary/roots/projects" LINGO_STATE_ROOT="$temporary/roots/state" AXIOM_CODEX_SKILLS_ROOT="$temporary/roots/skills"
 mkdir -p "$temporary/roots" && chmod 700 "$temporary/roots"
 upgrade_args=(upgrade --archive "$new_archive" --checksums "$temporary/r110/SHA256SUMS" --bin-dir "$bin" --receipt-dir "$receipts")

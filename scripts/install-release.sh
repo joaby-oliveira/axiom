@@ -206,24 +206,100 @@ safe_components() {
   done
 }
 
+# Refusals that need no lock are decided read-only, before any directory is
+# created: symlinked or unsafe existing roots, and a binary without receipt
+# or interrupted-operation marker.
 for directory in "$binary_root" "$receipt_root"; do
   safe_components "$directory" || { printf 'install_error: symlink destination refused\n' >&2; exit 1; }
   if [[ -e "$directory" ]]; then
     private_directory "$directory" || { printf 'install_error: unsafe destination ownership, permissions, ACL, or type\n' >&2; exit 1; }
-  else
+  fi
+done
+if [[ -e "$binary_root/axiom" || -L "$binary_root/axiom" ]] && [[ ! -e "$receipt_root/installation.receipt" && ! -L "$receipt_root/installation.receipt" ]] \
+  && [[ ! -e "$receipt_root/.axiom-install-operation" && ! -L "$receipt_root/.axiom-install-operation" ]]; then
+  printf 'install_error: foreign binary preserved\n' >&2
+  exit 1
+fi
+
+prepare_directory() {
+  local directory=$1
+  if [[ ! -e "$directory" ]]; then
     mkdir -p -- "$directory"
     chmod 700 "$directory"
   fi
   safe_components "$directory" || { printf 'install_error: symlink destination refused\n' >&2; exit 1; }
   private_directory "$directory" || { printf 'install_error: unsafe destination ownership, permissions, ACL, or type\n' >&2; exit 1; }
-done
+}
 
+# The lock lives in the receipt root; the binary root is created only while
+# holding it, so a concurrent installer refuses without any effect.
+prepare_directory "$receipt_root"
 lock_directory="$receipt_root/.axiom-install.lock"
 if ! mkdir "$lock_directory" 2>/dev/null; then
+  lock_directory=
   printf 'install_error: concurrent installation refused\n' >&2
   exit 1
 fi
-if [[ -e "$receipt_root/.axiom-install-operation" || -L "$receipt_root/.axiom-install-operation" ]]; then
+prepare_directory "$binary_root"
+
+# The protected owned upgrade is the verified candidate's own `axiom upgrade`:
+# a read-only preview, then apply under that exact preview digest. It takes
+# the installation lock itself and re-validates ownership, receipt, version
+# order, state compatibility, space and skills under it, so this installer
+# releases its lock first and never writes owned state on this path. Any
+# refusal leaves the installation unchanged; a later failure is reported as
+# the upgrade path's resumable partial state.
+owned_upgrade() {
+  local preview="$temporary/upgrade-preview.json" applied="$temporary/upgrade-apply.json" preview_digest status
+  local arguments=(--json upgrade --archive "$archive" --checksums "$checksums" --bin-dir "$binary_root" --receipt-dir "$receipt_root")
+  rmdir "$lock_directory"
+  lock_directory=
+  (cd / && "$bundle/axiom" "${arguments[@]}") >"$preview" 2>/dev/null || true
+  status=$(sed -n 's/^{"status":"\([a-z_]*\)".*/\1/p' "$preview")
+  preview_digest=$(sed -n 's/.*"references":\["upgrade:\([0-9a-f]\{64\}\)"\].*/\1/p' "$preview")
+  if [[ "$status" != success || ! "$preview_digest" =~ ^[0-9a-f]{64}$ ]]; then
+    printf 'install_error: owned upgrade refused: %s\n' "$(upgrade_result "$preview")" >&2
+    exit 1
+  fi
+  (cd / && "$bundle/axiom" "${arguments[@]}" --preview-digest "$preview_digest" --authorize-local) >"$applied" 2>/dev/null || true
+  status=$(sed -n 's/^{"status":"\([a-z_]*\)".*/\1/p' "$applied")
+  case "$status" in
+    success)
+      printf 'install_status=upgraded\n'
+      exit 0
+      ;;
+    partial)
+      printf 'install_status=partial\n'
+      printf 'install_error: owned upgrade partially applied: %s\n' "$(upgrade_result "$applied")" >&2
+      printf 'install_next: %s\n' "$(upgrade_next "$applied")" >&2
+      exit 1
+      ;;
+    *)
+      printf 'install_error: owned upgrade failed: %s\n' "$(upgrade_result "$applied")" >&2
+      exit 1
+      ;;
+  esac
+}
+
+upgrade_result() {
+  local result
+  result=$(sed -n 's/^{"status":"[a-z_]*","result":"\([^"]*\)".*/\1/p' "$1" | LC_ALL=C tr -cd 'A-Za-z0-9 :;,._`-')
+  printf '%s' "${result:-unavailable}"
+}
+
+upgrade_next() {
+  local next
+  next=$(sed -n 's/.*"next":"\([^"]*\)".*/\1/p' "$1" | LC_ALL=C tr -cd 'A-Za-z0-9 :;,._`-')
+  printf '%s' "${next:-unavailable}"
+}
+
+operation_path="$receipt_root/.axiom-install-operation"
+if [[ -e "$operation_path" || -L "$operation_path" ]]; then
+  # Only an interrupted owned upgrade to this exact archive is resumable, and
+  # only through the protected upgrade path; everything else stays preserved.
+  if [[ -f "$operation_path" && ! -L "$operation_path" ]] && grep -Fxq 'operation=upgrade' "$operation_path" && grep -Fxq "archiveSha256=$actual" "$operation_path"; then
+    owned_upgrade
+  fi
   printf 'install_error: recovery_required\n' >&2
   exit 1
 fi
@@ -269,13 +345,12 @@ if [[ -e "$destination" || -L "$destination" ]]; then
   recorded_checksum=$(awk -F= '$1 == "sha256" {print $2}' "$receipt")
   [[ $(file_links "$destination") == 1 && $(file_links "$receipt") == 1 ]] || { printf 'install_error: hard-linked installation preserved\n' >&2; exit 1; }
   [[ "$recorded_checksum" == "$(digest "$destination")" ]] || { printf 'install_error: modified binary preserved\n' >&2; exit 1; }
-  cmp -s "$receipt" "$expected_receipt" || { printf 'install_error: divergent receipt preserved\n' >&2; exit 1; }
   if [[ "$recorded_checksum" == "$new_checksum" ]]; then
+    cmp -s "$receipt" "$expected_receipt" || { printf 'install_error: divergent receipt preserved\n' >&2; exit 1; }
     printf 'install_status=unchanged\n'
     exit 0
   fi
-  printf 'install_error: owned upgrade requires future upgrade flow\n' >&2
-  exit 1
+  owned_upgrade
 fi
 if [[ -e "$receipt" || -L "$receipt" ]]; then
   printf 'install_error: foreign receipt preserved\n' >&2
