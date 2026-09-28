@@ -85,7 +85,7 @@ Specification 004 — Approved
 -> S8 Specification/ADR/Plan/Tasks amendment + ADR-0009 — Approved; implementation authorized 2026-09-27 (Issue #97 comment #5852650410)
    -> T30–T36 — Technical candidate ready for human review; real T36 Evidence recorded
 -> S9 Release candidate acceptance (T23–T25, with T24/T25 reconciled for S8) — Not authorized
-   -> T37–T40 — implemented and locally validated in PR #106 (unmerged); Ubuntu Evidence synthetic, macOS 27 and real Runtimes not exercised; native acceptance remains T24
+   -> T37–T40 — implemented and locally validated in PR #106 (unmerged); native macOS 27 local-fixture validation recorded; native Ubuntu 26.04 and real Runtime acceptance remain T24
    -> T23–T25 — Not started
 ```
 

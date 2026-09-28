@@ -428,9 +428,9 @@ symlink swap at that pathname. `CheckPrivateDirectory`/`CheckPublicationDirector
 (no duplicated logic). `internal/install`'s `Apply()` opens `ReceiptDir`
 once (`local.OpenOwnedDirectory`) and uses that same handle for the install
 lock, every marker write/removal, and the receipt file publication for the
-rest of the call; `BinaryDir` is opened once, lazily
-(`local.OpenPublicationDirectory`), and reused for the binary effect and any
-binary-directory leftover cleanup. `publishEffect` and `writeMarker` now take
+rest of the call; the first fix opened `BinaryDir` lazily. The final
+correction opens it before preview revalidation and reuses it for inspection,
+publication, confirmation and cleanup. `publishEffect` and `writeMarker` now take
 an already-opened `AnchoredDirectory` and do their whole stage/reread/rename/confirm
 sequence through it. `internal/codexruntime` mirrors this for the skill
 root: `Service.Install` opens the skill root once (`ensureRoot` now returns
@@ -475,6 +475,44 @@ commit boundaries:
   `PublishSkill` returns `ErrTargetReplaced` before a commit and a
   non-confirmed error after one.
 
+*Authority evidence through the same object* (final closure, `f346595`,
+`ac18ea0`, `babf2ba`): the detect-and-reject review still left pathname-based
+skill/receipt evidence inside T40 mutation paths. The final correction removes
+that mixed-object authority: `Install` uses `matchesSkillIn`,
+`receiptRecognizedIn`, `matchesLegacyReceiptIn` and `inspectResultIn` through its
+existing root/direct children. Receipt expected bytes still use the textual
+Claude `skillsRoot`; actual bytes always come from the anchored root. Receipt
+and skill replacement recheck the exact observed private bytes before rename;
+an equivalent receipt also requires identity verification. Receipt absence uses
+`Lstat`, so a dangling symlink is never treated as an absent receipt.
+
+The whole-class audit found and corrected the same pattern in `install.Apply`:
+its preview revalidation used fresh-path receipt/marker/binary/skill observations
+after handles were already opened, and its final skill confirmation reopened the
+root. `previewIn` now retains binary/receipt handles for inspection through
+confirmation; marker reads, directory listings and filesystem capacity also use
+those handles. `UpgradeSession.Inspect` reads bounded skill ownership evidence
+through its root/direct children; final skill confirmation uses that session and
+checks identity before clearing recovery state. `RemoveSkillLeftover` validates
+the skill/stage names, private file and root/child identity. Failed fresh-skill
+cleanup removes a created directory only when it remains the opened child;
+otherwise it preserves the replacement and uncertain original state.
+
+Audit scope: every pathname-call occurrence in the PR's `internal/local`,
+`internal/install`, `internal/codexruntime`, `internal/runtimebootstrap` and
+`scripts/install-release.sh` mutation paths. Remaining fresh-path reads serve
+independent read-only observation, initial capability acquisition or identity
+rejection; `filepath.Join` also constructs data/diagnostic targets. State
+compatibility inspects separate, unmodified Project/state roots. The shell path
+has no anchored capability and retains the explicitly bounded limitation below.
+No new filesystem framework or contract change was introduced.
+
+Historical sequence: pathname validation plus pathname mutation was the finding;
+anchored handles first prevented redirection; review then required replacement
+to invalidate commit; final closure combines detect-and-reject with anchored
+ownership/evidence throughout the mutable operation. F13 is fixed within this
+Go mutation boundary; the shell limitation is not claimed solved.
+
 The remaining window between a proof and its syscall is the arbitrary same-UID
 interleaving ADR-0005 explicitly excludes; the proof is not a lock.
 
@@ -502,6 +540,16 @@ success is reported:
 | `internal/codexruntime` | `TestInstallRefusesRootReplacedBeforeAnyChange` / `TestInstallIsPartialWhenRootReplacedAfterAChange` | `codex_skill_root_unavailable` with nothing changed, `codex_skill_install_partial` after a change; the install never completes in the original root, no receipt anywhere, the replacement stays empty |
 | `internal/codexruntime` | `TestInstallRefusesForeignSkillUntouchedDespiteRootReplacement` | a foreign skill directory is refused, left byte-for-byte unchanged; no receipt published |
 | `internal/codexruntime` | `TestPublishSkillRefusesSkillDirectoryReplacedBySymlink` | a skill directory replaced by a symlink between lock and publish is refused, not followed |
+
+Final closure tests (same real-filesystem replacement mechanism):
+
+| Test | Contract checked |
+|---|---|
+| `TestReceiptAndSkillAuthorityUsesAnchoredObject` | Codex and Claude, owned A/foreign B and foreign A/owned B: skill and current/legacy receipt decisions observe A; B cannot authorize A; receipt/skill publication refuses and both trees remain unchanged |
+| `TestInstallOwnershipInspectionDoesNotReadReplacement` | replacement after locking, before ownership inspection: B's foreign receipt cannot change A's ownership classification; replacement produces refusal, no new commit in A, B intact |
+| `TestUpgradeSessionInspectionAndCleanupRefuseReplacement` | session inventory and leftover cleanup refuse replaced roots without touching either tree |
+| `TestApplyKeepsMarkerWhenSkillRootReplacedAfterPublication` | equivalent-looking B cannot confirm effects in A; result partial and recovery marker retained |
+| `TestInstallCleanupPreservesReplacementChild` | replacement of a newly created child before write is refused; cleanup preserves the replacement directory. Test failed against `f346595` before the cleanup correction and passes after it |
 
 **Shell (`scripts/install-release.sh`).** Bash cannot hold an anchored file
 descriptor the way `os.Root` does, so the fix there is the ancestor-safety
@@ -542,6 +590,41 @@ threat-model commitment.
 | `test-s7-native.sh` ran the owned-upgrade step before isolating Lingo state and skill roots, so the candidate inspected the operator's real HOME | isolation moved before the first installed binary, HOME isolated too (`7185a1e`) | native macOS 27 run below; the unisolated run was read-only and refused before any effect |
 
 ## Validation
+
+### Native macOS 27.0/arm64 host — 2026-09-28 (F13 authority closure)
+
+Final code tree `babf2baa4d430506839151f6232cc2baaeb05d31`, clean, no
+untracked files; macOS 27.0 (26A428), arm64, APFS, Go 1.26.0, default umask
+`022`. This is local-fixture validation on the maintainer workstation, not
+clean-environment published-RC acceptance. This Evidence update changes docs
+only. Earlier validation commits below are historical and do not substitute for
+this run.
+
+| Command | Result |
+|---|---|
+| `go build ./...`, `go vet ./...`, `go mod verify`, `gofmt -l .` | pass; gofmt output empty |
+| `go test ./...`, `go test -race ./...` (default umask `022`) | pass |
+| `./scripts/validate-repository.sh .`, `./scripts/check-sensitive-files.sh .` | pass |
+| `./scripts/test-install-bootstrap.sh`, `bash --posix ./scripts/test-install-bootstrap.sh` | pass, zero failures each; Ubuntu host-selection cases remain explicitly `not_run` on this macOS host |
+| `./scripts/test-install-axiom.sh`, `./scripts/test-release-archives.sh`, `./scripts/test-release-pipeline.sh`, `./scripts/test-codex-skills.sh` | pass |
+| `./scripts/test-s7-security.sh`, `./scripts/dogfood-poc.sh` | pass; security race, sensitive-file and worktree Gitleaks checks pass |
+| `./scripts/test-s7-native.sh` | 32 steps pass; only `race` fails with the exact pre-existing F10 under the script's `umask 077`; native install, owned upgrade, resume and skills steps pass; archives built from clean source |
+| `umask 077; go test -race ./...` | exit 0 with cached results; not used as restrictive-umask proof |
+| `umask 077; go test -race ./... -count=1` | only `TestCoordinationLatestRejectsUnsafeHierarchy` fails (F10); all other packages pass, no race report |
+| `gitleaks git --log-opts=origin/main..HEAD` | pass, 29 commits scanned, no leaks |
+| `git diff --check`, `git diff --check origin/main...HEAD` | pass |
+
+F10 was reproduced independently from an isolated archive of `origin/main`
+`2f4563e4bd478a5c6c862fe7cff3dfae512184b4` with
+`umask 077; go test -race ./internal/local -run '^TestCoordinationLatestRejectsUnsafeHierarchy$' -count=1`:
+`unsafe latest exists=false err=<nil>` at `s8_stores_test.go:251`.
+The test requests a `0755` directory with `Mkdir`; umask `077` makes it `0700`,
+so its expected unsafe-directory refusal is not applicable. No F10 code or test
+was changed, and no new failure was classified as F10.
+
+The PR body records the final pushed HEAD and its exact Ubuntu 24.04/macOS 15
+CI checks. Those CI rows do not replace native Ubuntu 26.04 acceptance or T24.
+No real Runtime, release/tag publication, T23–T25 or Issue #81 mutation occurred.
 
 ### Native macOS 27.0/arm64 host — 2026-09-28 (F6/F9 final review)
 
@@ -639,7 +722,7 @@ upgrade before any effect.
 | F10 | `internal/local` `TestCoordinationLatestRejectsUnsafeHierarchy` (S8, on `main`) fails under `umask 077`, which `test-s7-native.sh` uses | open, pre-existing on `main`, outside PR #106; separate fix proposed |
 | F11 | The persistent `.axiom-skill-set.lock` is created in a detected Runtime's root even when that Runtime then fails on a conflict | open, low; conflicting and foreign content is never changed |
 | F12 | Release workflow `tag` input is not checked against an existing tag at the dispatched revision | open, low; T23 must bind tag to recorded revision before publication |
-| F13 | Major, final review: a directory was validated by pathname and later mutated by re-deriving the same pathname, and ancestors were never checked for mutation by another principal (ADR-0005 property 3) — the T39 publication root, `internal/install`'s binary/receipt directories, and the T40 Runtime skill root all shared this shape | fixed: ancestor-safety checks added throughout, object-identity bound via `local.AnchoredDirectory` and `codexruntime.UpgradeSession`/anchored skill root, and a replacement at the authorized pathname detected and rejected at every inspection/commit boundary instead of being tolerated; see "Filesystem object identity" |
+| F13 | Major, final review: a directory was validated by pathname and later mutated by re-deriving the same pathname, and ancestors were never checked for mutation by another principal (ADR-0005 property 3) — the T39 publication root, `internal/install`'s binary/receipt directories, and the T40 Runtime skill root all shared this shape | fixed: ancestor-safety checks added throughout, object-identity bound via `local.AnchoredDirectory` and `codexruntime.UpgradeSession`/anchored skill root, and a replacement at the authorized pathname detected and rejected at every inspection/commit boundary instead of being tolerated; final ownership/evidence reads are anchored throughout Install and UpgradeSession/Apply (`f346595`, `ac18ea0`, `babf2ba`); see "Filesystem object identity" |
 
 ## Acceptance status by validation kind
 
