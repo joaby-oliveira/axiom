@@ -35,6 +35,139 @@ across human and AI work.
 Spec-Driven Development connects the reason for a change to its implementation
 and acceptance evidence.
 
+## Getting Started
+
+Using Axiom needs no clone, Go toolchain, or build. To work on Axiom itself,
+see [Developing Axiom](#developing-axiom).
+
+### 1. Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh | sh
+```
+
+The installer resolves the latest stable release, downloads the archive for
+your host, verifies its SHA-256 checksum before extracting anything, and
+installs `axiom` into `$HOME/.local/bin`. It never uses `sudo`, edits shell
+profiles, installs Runtimes, or touches credentials.
+
+Supported hosts: macOS 27.0 on arm64 and Ubuntu 26.04 on amd64 or arm64. Other
+hosts are refused before any download. The installer needs `curl`, `tar`,
+`bash`, `awk`, `grep`, `mktemp`, and `sha256sum` or `shasum`.
+
+If it prints a `path_notice`, put the binary directory on `PATH`:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+To install an exact release instead, pass `--version`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh | sh -s -- --version v0.1.0
+```
+
+### 2. Verify
+
+```bash
+axiom version
+axiom help
+```
+
+`axiom version` reports the installed version and revision; `axiom help` lists
+the available commands.
+
+### 3. First run
+
+```bash
+axiom first-run
+```
+
+`first-run` looks for supported Runtimes by their executables on your `PATH`
+and installs or upgrades Axiom's user-global skills for each one it finds. It is
+safe to rerun. When no Runtime is found it reports that and exits successfully;
+install the Runtime yourself, make sure it is on `PATH`, and run `first-run`
+again. It never installs a Runtime, signs you in, reads or changes
+credentials, or infers a Project.
+
+| Runtime | Detected by | Skills installed into |
+|---|---|---|
+| Codex | `codex` on `PATH` | `$HOME/.agents/skills` |
+| Claude | `claude` on `PATH` | `<CLAUDE_CONFIG_DIR or ~/.claude>/skills` |
+
+Inspect one integration with `axiom runtime codex status` or
+`axiom runtime claude status`.
+
+### 4. Available skills
+
+After `first-run`, these skills are available in each configured Runtime:
+
+| Skill | Use it to |
+|---|---|
+| `axiom-project-configure` | Configure a Project and its local Repository associations. |
+| `axiom-project-show` | Inspect or resolve a configured Project from any directory. |
+| `axiom-work-item-create` | Create or select a GitHub-backed Work Item. |
+| `axiom-work-item-run` | Start or resume the bounded delivery workflow for a Work Item. |
+| `axiom-work-item-status` | Inspect Work Item workflow status and Evidence. |
+
+Invoke them by name:
+
+```text
+Codex:  $axiom-project-configure
+Claude: /axiom-project-configure
+```
+
+Each skill calls the `axiom` CLI, which keeps validation and the authority for
+every local or external change.
+
+### 5. First workflow
+
+```text
+install Axiom → axiom version → axiom first-run
+  → configure a Project → inspect the Project
+  → create a Work Item → start and inspect its workflow
+```
+
+The same path from the CLI. `project configure` and `work-item create` are
+guided: they ask for missing values, preview the exact change, and write nothing
+until you answer `yes`.
+
+```bash
+# Configure a Project: slug, name, Repository key=absolute-path, provider
+axiom project configure
+
+# Inspect it from any directory
+axiom project show --selector my-project
+
+# Create a Work Item as a GitHub Issue (uses your authenticated gh CLI)
+axiom work-item create --project my-project --repository main \
+  --provider-repository owner/repository
+
+# Start the workflow for Issue #123 and check its status
+axiom workflow start --project my-project --repository main --number 123
+axiom workflow status --project my-project --repository main --number 123
+```
+
+Replace `my-project`, `main`, `owner/repository`, and `123` with your own
+values. GitHub Issues is currently the only Work Item provider; Axiom uses the
+existing [GitHub CLI](https://cli.github.com/) session and never stores its
+credential.
+
+### 6. Next steps
+
+- [Command reference](docs/commands.md): every command, including
+  [first-run](docs/commands.md#first-run-and-runtime-integrations),
+  [installation options](docs/commands.md#install-a-published-release-s9t39),
+  [Projects](docs/commands.md#configure-a-project),
+  [Work Items](docs/commands.md#github-work-items), and the
+  [workflow](docs/commands.md#execute-the-bounded-workflow).
+- [Architecture overview](docs/architecture/README.md) and
+  [conceptual model](docs/architecture/conceptual-model.md).
+- [Specifications](docs/specifications/README.md) for detailed scope and
+  acceptance state.
+- [Roadmap](docs/product/roadmap.md) for direction.
+- [Developing Axiom](#developing-axiom) to build, test, or contribute.
+
 ## How Axiom works
 
 ```mermaid
@@ -72,27 +205,6 @@ Issues), and a sequential single-agent workflow. The
 [Specifications index](docs/specifications/README.md) owns detailed scope,
 approval, implementation, and acceptance state.
 
-## Explore Axiom
-
-Requirements: Git, Bash, standard POSIX utilities, and Go 1.26 or later. The
-first Go command may download the dependency pinned in `go.mod`.
-
-```bash
-git clone https://github.com/rgomids/axiom.git
-cd axiom
-./scripts/install-axiom.sh
-export PATH="$HOME/.local/bin:$PATH"
-axiom version
-axiom first-run
-./scripts/validate-repository.sh .
-go test ./...
-```
-
-The installer never edits shell profiles. Use the
-[Getting Started guide](docs/development/getting-started.md) for setup and the
-[command reference](docs/commands.md) for validation, build, archive, and
-dogfooding workflows.
-
 ## Core concepts
 
 | Concept | Meaning |
@@ -129,12 +241,13 @@ See the [architecture overview](docs/architecture/README.md),
 
 | Topic | Start here |
 |---|---|
+| Using Axiom | [Getting Started](#getting-started) · [Command reference](docs/commands.md) |
 | Product | [Product Foundation](docs/product/foundation.md) · [Roadmap](docs/product/roadmap.md) |
 | Governance | [Documentation governance](docs/documentation.md) · [Constitution](docs/product/constitution.md) |
 | Architecture | [Architecture overview](docs/architecture/README.md) · [ADRs](docs/decisions/README.md) |
 | Delivery | [Specifications and Evidence](docs/specifications/README.md) |
 | Research | [Research index](docs/research/README.md) |
-| Development | [Getting Started](docs/development/getting-started.md) · [Commands](docs/commands.md) · [Development and release flow](CONTRIBUTING.md#development-flow) |
+| Development | [Developing Axiom](#developing-axiom) · [Development setup](docs/development/getting-started.md) · [Commands](docs/commands.md) · [Development and release flow](CONTRIBUTING.md#development-flow) |
 | Community | [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Support](SUPPORT.md) |
 | Security | [Security policy](SECURITY.md) · [Repository security](docs/security/repository-security.md) |
 | History | [Changelog](CHANGELOG.md) |
@@ -143,6 +256,29 @@ See the [architecture overview](docs/architecture/README.md),
 provides product discovery and research context. Versioned repository artifacts
 own technical contracts, decisions, and implementation evidence. Discovery does
 not imply approval.
+
+## Developing Axiom
+
+This section is for working on Axiom itself; it is not required to use it.
+Requirements: Git, Bash, standard POSIX utilities, and Go 1.26 or later. The
+first Go command may download the dependency pinned in `go.mod`.
+
+```bash
+git clone https://github.com/rgomids/axiom.git
+cd axiom
+./scripts/install-axiom.sh
+export PATH="$HOME/.local/bin:$PATH"
+axiom version
+axiom first-run
+./scripts/validate-repository.sh .
+go test ./...
+```
+
+`./scripts/install-axiom.sh` installs a development build from the checkout and
+never edits shell profiles. Use the
+[development Getting Started guide](docs/development/getting-started.md) for
+setup and the [command reference](docs/commands.md) for validation, build,
+archive, and dogfooding workflows.
 
 ## Repository structure
 
