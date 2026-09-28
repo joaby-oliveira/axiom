@@ -13,6 +13,11 @@
   migrated.
 - fix: `build-release-archives.sh` builds from its own checkout instead of the
   caller's working directory.
+- fix: `install-release.sh` read owner, mode and link count with
+  `stat -f ... || stat -c ...`; GNU `stat -f` reports filesystem status, so
+  every Linux install was refused as unsafe. The syntax is now chosen by
+  kernel. Found while exercising the Ubuntu 26.04/amd64 row in an isolated
+  mount namespace; native Ubuntu Evidence remains a T24 obligation.
 
 ## [2026-09-26]
 

@@ -13,15 +13,15 @@ digest_file() {
 }
 
 file_mode() {
-  stat -f %Lp "$1" 2>/dev/null || stat -c %a "$1"
+  if [[ $(uname -s) == Darwin ]]; then stat -f %Lp "$1"; else stat -c %a "$1"; fi
 }
 
 file_owner() {
-  stat -f %u "$1" 2>/dev/null || stat -c %u "$1"
+  if [[ $(uname -s) == Darwin ]]; then stat -f %u "$1"; else stat -c %u "$1"; fi
 }
 
 file_links() {
-  stat -f %l "$1" 2>/dev/null || stat -c %h "$1"
+  if [[ $(uname -s) == Darwin ]]; then stat -f %l "$1"; else stat -c %h "$1"; fi
 }
 
 acl_absent() {
@@ -238,7 +238,7 @@ if [[ -n "$native" ]]; then
     exit 1
   fi
   grep -Fq 'unsafe destination ownership, permissions, ACL, or type' "$temporary/permissive.stderr"
-  [[ $(stat -f %Lp "$temporary/permissive-bin" 2>/dev/null || stat -c %a "$temporary/permissive-bin") == 770 ]]
+  [[ $(file_mode "$temporary/permissive-bin") == 770 ]]
   [[ ! -e "$temporary/permissive-bin/axiom" ]]
 
   if [[ $(uname -s) == Darwin ]]; then
@@ -271,7 +271,7 @@ if [[ -n "$native" ]]; then
   if "$repository_root/scripts/install-release.sh" --archive "$native" --checksums "$temporary/release/SHA256SUMS" --bin-dir "$temporary/mode-bin" --receipt-dir "$temporary/mode-receipt" >/dev/null 2>&1; then
     exit 1
   fi
-  [[ $(stat -f %Lp "$temporary/mode-bin/axiom" 2>/dev/null || stat -c %a "$temporary/mode-bin/axiom") == 755 ]]
+  [[ $(file_mode "$temporary/mode-bin/axiom") == 755 ]]
 
   if AXIOM_INSTALL_TEST_FAIL_STAGE=before_binary "$repository_root/scripts/install-release.sh" --archive "$native" --checksums "$temporary/release/SHA256SUMS" --bin-dir "$temporary/pre-bin" --receipt-dir "$temporary/pre-receipt" >/dev/null 2>&1; then
     exit 1

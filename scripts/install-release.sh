@@ -167,15 +167,15 @@ if ! host_matches_release_row "$release_platform" "$platform" "$architecture"; t
 fi
 
 file_owner() {
-  stat -f %u "$1" 2>/dev/null || stat -c %u "$1"
+  if [[ $(uname -s) == Darwin ]]; then stat -f %u "$1"; else stat -c %u "$1"; fi
 }
 
 file_links() {
-  stat -f %l "$1" 2>/dev/null || stat -c %h "$1"
+  if [[ $(uname -s) == Darwin ]]; then stat -f %l "$1"; else stat -c %h "$1"; fi
 }
 
 file_mode() {
-  stat -f %Lp "$1" 2>/dev/null || stat -c %a "$1"
+  if [[ $(uname -s) == Darwin ]]; then stat -f %Lp "$1"; else stat -c %a "$1"; fi
 }
 
 private_acl() {
