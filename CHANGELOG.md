@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-09-28]
+
+- docs: reconcile the Issue #81 S9 release-selection and version policy into
+  Specification 004 FR-064/FR-065, AC-44/AC-46/AC-48, Plan §13 and Tasks
+  T39/T23–T25: stable `vX.Y.Z` and RC `vX.Y.Z-rc.N` tags; latest stable by
+  default and `--channel stable` without RC fallback; exact `--version` pins;
+  release candidates selected only by exact version; mutually exclusive
+  selectors; no automatic downgrade; T24 pins the exact RC. No implementation,
+  release or acceptance authority is implied.
+
 ## [2026-09-27]
 
 - implementation: add read-only `lingo runtime profile validate`, with strict

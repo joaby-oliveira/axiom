@@ -167,7 +167,9 @@ supported-platform release artifacts, a stable verified remote installer with
 idempotent reinstall/safe owned upgrade, Codex + Claude first-run bootstrap, and
 Axiom dogfooding through the S8 graph before RC acceptance. The proposed
 Specification/Plan/Tasks amendment adds T37–T40 ahead of historical T23–T25,
-bringing the proposed DAG to 40 Tasks. Product scope is recorded; the Task
+bringing the proposed DAG to 40 Tasks, and reconciles the #81 release-selection
+policy: latest stable by default, exact `--version` pins, exact-version-only
+release candidates and no automatic downgrade. Product scope is recorded; the Task
 amendment, implementation, prerelease publication and final MVP acceptance remain
 separately gated.
 
