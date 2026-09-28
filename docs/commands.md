@@ -231,11 +231,15 @@ axiom --json first-run
 | Claude | `<CLAUDE_CONFIG_DIR or ~/.claude>/skills/<skill>/SKILL.md` | `.axiom-skill-set.receipt` with `runtime=claude`, the skill root and each skill digest |
 
 Each detected Runtime converges independently: absent skills are installed,
-current content is a no-op, and only content registered as a previous
-Axiom-owned revision for that Runtime is upgraded. Claude has no previous
-revisions yet. Unknown, foreign, or modified content is preserved and fails that
-Runtime (`<runtime>_skill_conflict`); the receipt never authorizes overwriting
-changed content. The skill root belongs to the Runtime, which commonly creates
+current content is a no-op, and only content that is a previous Axiom-owned
+revision for that Runtime is upgraded. Every skill set published through the
+shared Runtime integration (from this release on) is a known revision for every
+Runtime, so after `axiom upgrade` changes the skill text, the next `first-run`
+upgrades Claude as well as Codex; older Codex-only revisions are never adopted
+in a Claude root. Unknown, foreign, or modified content is preserved and fails
+that Runtime (`<runtime>_skill_conflict`); the receipt never authorizes
+overwriting changed content, and no skill is replaced beside a receipt that is
+not this Runtime's current or earlier Axiom receipt for that root. The skill root belongs to the Runtime, which commonly creates
 it `0755`: it must be a real directory (not a symlink) owned by you, not
 writable by group or other, and without extended ACL, otherwise that Runtime
 fails (`<runtime>_skill_root_unavailable`) without changes. So `0700`, `0750`
@@ -347,9 +351,14 @@ archive matching the current host into explicit user-owned destinations:
   --receipt-dir /absolute/user-owned/state
 ```
 
-The install is checksum-first. Existing binary and receipt roots must be owned by
-the current user, mode `0700`, and free of extended ACLs; unsafe roots are
-preserved, not repaired. The closed receipt includes an RFC 3339 UTC
+The install is checksum-first. An existing receipt root is Axiom-owned state and
+must be owned by the current user, mode `0700`, and free of extended ACLs. An
+existing binary root may be a shared user directory such as `~/.local/bin`: it
+must be a real directory (not a symlink) owned by the current user that group
+and other cannot write and that has no extended ACL, so `0700`, `0750` and
+`0755` are accepted and `0702`, `0720`, `0770`, `0775` and `0777` are refused.
+A missing root is created `0700`, and the published `axiom` stays `0700` and the
+receipt `0600`. Unsafe roots are preserved, not repaired. The closed receipt includes an RFC 3339 UTC
 `installedAt` value created for the successful installation generation and
 preserved on equivalent reinstall. Exact owned reinstall is a no-op. Platform,
 ownership, permission, ACL, link, type, schema, and content conflicts fail closed.
@@ -405,9 +414,11 @@ resolved version and row of a clean release build, and runs that release
 installer. All installation effects, ownership checks, no-op reinstall,
 protected owned upgrade, downgrade refusal and recovery belong to that
 installer (see above). Defaults are `--bin-dir $HOME/.local/bin` and
-`--receipt-dir ${XDG_STATE_HOME:-$HOME/.local/state}/axiom/install`; an existing
-directory must be owned by you, mode `0700` and without extended ACLs, or pass
-another absolute canonical directory. It prints the resolved identity
+`--receipt-dir ${XDG_STATE_HOME:-$HOME/.local/state}/axiom/install`. An existing
+binary directory must be yours, not a symlink, not writable by group or other,
+and without extended ACLs (a usual `0755` `~/.local/bin` is accepted); an
+existing receipt directory must be yours, mode `0700` and without extended
+ACLs. Otherwise pass another absolute canonical directory. It prints the resolved identity
 (`install_tag`, `install_asset`, `install_asset_sha256`, `install_row`,
 `install_revision`, receipt path) and, when the binary directory is not on
 `PATH`, a `path_notice` with the export to run. It never uses `sudo`, edits
@@ -863,7 +874,10 @@ and then the receipt are published and re-read as separate confirmed effects;
 `installedAt` is preserved. A later failure is `partial`: the installer's
 `.axiom-install-operation` marker records the exact archive, so only the same
 archive can resume (through `axiom upgrade` or the release installer), and any
-other install is refused in the meantime. If installed
-Codex skills do not match the new version the result is `partial` and the next
-action is `axiom runtime codex install` with the upgraded binary. There is no
-automatic update, rollback, or cross-root transaction.
+other install is refused in the meantime. The upgrade publishes skill files
+only to the Codex root. If installed Codex skills do not match the new version
+the result is `partial` and the next action is `axiom first-run` with the
+upgraded binary (or `axiom runtime codex install` when Codex is not on `PATH`):
+it refreshes the Codex skill-set receipt and converges every other detected
+Runtime, such as Claude, from an earlier Axiom-owned revision to the new one.
+There is no automatic update, rollback, or cross-root transaction.
