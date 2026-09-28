@@ -121,6 +121,8 @@ fi
   cmp -s "$temporary/actual-files" "$temporary/manifest-files"
 ) || { printf 'install_error: bundle manifest mismatch\n' >&2; exit 1; }
 
+[[ -f "$bundle/axiom" && ! -L "$bundle/axiom" ]] || { printf 'install_error: bundle axiom executable missing\n' >&2; exit 1; }
+
 metadata="$bundle/release-metadata.txt"
 metadata_fields='formatVersion product version revision sourceState release platform goos architecture skillSetVersion'
 [[ $(wc -l <"$metadata" | tr -d ' ') == 10 ]] || { printf 'install_error: release metadata schema mismatch\n' >&2; exit 1; }
@@ -226,9 +228,9 @@ if [[ -e "$receipt_root/.axiom-install-operation" || -L "$receipt_root/.axiom-in
   exit 1
 fi
 
-destination="$binary_root/lingo"
+destination="$binary_root/axiom"
 receipt="$receipt_root/installation.receipt"
-new_checksum=$(digest "$bundle/lingo")
+new_checksum=$(digest "$bundle/axiom")
 expected_receipt="$temporary/expected.receipt"
 
 valid_receipt_schema() {
@@ -289,8 +291,8 @@ if [[ ${AXIOM_INSTALL_TEST_FAIL_STAGE:-} == before_binary ]]; then
   exit 75
 fi
 
-stage=$(mktemp "$binary_root/.axiom-lingo-stage.XXXXXX")
-cp "$bundle/lingo" "$stage"
+stage=$(mktemp "$binary_root/.axiom-binary-stage.XXXXXX")
+cp "$bundle/axiom" "$stage"
 chmod 700 "$stage"
 [[ $(digest "$stage") == "$new_checksum" ]] || { printf 'install_error: staged binary mismatch\n' >&2; exit 1; }
 mv -n -- "$stage" "$destination"

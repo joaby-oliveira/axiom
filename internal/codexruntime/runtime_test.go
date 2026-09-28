@@ -109,7 +109,7 @@ func TestSkillSetV2KeepsSelectorsAndCanonicalResultThin(t *testing.T) {
 			t.Fatal(err)
 		}
 		text := string(content)
-		for _, required := range []string{"lingo --json", "`status`", "`result`", "`references`", "`next`", "`details`", "`provenance`"} {
+		for _, required := range []string{"axiom --json", "`status`", "`result`", "`references`", "`next`", "`details`", "`provenance`"} {
 			if !strings.Contains(text, required) {
 				t.Fatalf("%s missing thin adapter contract %q", name, required)
 			}
@@ -257,6 +257,39 @@ func TestReviewRemediatedV2SkillsRemainUpgradeable(t *testing.T) {
 	}
 }
 
+// T37 renamed the public executable in the thin entrypoints from lingo to
+// axiom; the previously installed owned skill set and its receipt must stay
+// recognized so the existing install and upgrade paths can replace them.
+func TestPreAxiomExecutableSkillsAndReceiptRemainUpgradeable(t *testing.T) {
+	prior := map[string]string{
+		"axiom-project-configure": "237da8ea6a57e9240ae464d85a1fd1ad2d8c4d19ba8160c24943ae4752b2885d",
+		"axiom-project-show":      "74abd548a0b352b9464efb2b1a6d5aca453bc1e88a164903d8a6043dfeebe8ab",
+		"axiom-work-item-create":  "7d69ac3036d16a66df106b82ca21e7753c98b3bb0d203fc40c090659bdd1bfea",
+		"axiom-work-item-run":     "5e1661d06a1caa7f7af6fd8c6253d3742f0cbb26df262a8c8357507e76f85f00",
+		"axiom-work-item-status":  "213c58a0b55e0b7d52ca97ea72b4d474b5c1577f0f473e4e8b4be8e07c3d9319",
+	}
+	for name, digest := range prior {
+		if !containsString(legacySkillDigests[name], digest) {
+			t.Fatalf("%s pre-axiom owned digest is not upgradeable", name)
+		}
+		content, err := skillFiles.ReadFile("skills/" + name + "/SKILL.md")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(content), "`lingo ") {
+			t.Fatalf("%s still invokes the lingo executable", name)
+		}
+	}
+	priorReceipt := []byte("formatVersion=1\nskillSetVersion=2\nbinaryCompatibility=2\nmanifestSha256=98b58d88e51ad9e5c907067248245a1e758d15b561bbf2d8dc99cc50924cb67d\n")
+	found := false
+	for _, wire := range legacyReceiptWires {
+		found = found || string(wire) == string(priorReceipt)
+	}
+	if !found {
+		t.Fatal("pre-axiom skill-set receipt is not upgradeable")
+	}
+}
+
 func TestPublishReceiptUpgradesOnlyExactPriorAxiomReceipt(t *testing.T) {
 	current, err := receiptBytes()
 	if err != nil {
@@ -302,8 +335,8 @@ func TestEmbeddedSkillsUseSupportedNamesAndThinEntrypoints(t *testing.T) {
 			t.Fatal(err)
 		}
 		text := string(content)
-		if !strings.Contains(text, "name: "+name) || !strings.Contains(text, "lingo --json") {
-			t.Fatalf("skill is not a named thin Lingo entrypoint: %s", name)
+		if !strings.Contains(text, "name: "+name) || !strings.Contains(text, "axiom --json") {
+			t.Fatalf("skill is not a named thin axiom entrypoint: %s", name)
 		}
 	}
 }
@@ -336,7 +369,7 @@ current working directory.
 		t.Fatalf("upgrade = %#v", got)
 	}
 	data, err := os.ReadFile(filepath.Join(directory, "SKILL.md"))
-	if err != nil || !strings.Contains(string(data), "lingo --json project show") {
+	if err != nil || !strings.Contains(string(data), "axiom --json project show") {
 		t.Fatalf("skill not upgraded: %q, %v", data, err)
 	}
 }

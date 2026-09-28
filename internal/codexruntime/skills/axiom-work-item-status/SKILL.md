@@ -6,8 +6,8 @@ description: Inspect Axiom Work Item workflow status and Evidence through Lingo.
 # Show Axiom Work Item Status
 
 Collect only missing Project, Project-scoped Repository, exact Work Item, and
-Execution selectors. Run `lingo --json workflow status` and, when requested,
-`lingo --json workflow evidence` with `--project <uuid-or-slug> --repository
+Execution selectors. Run `axiom --json workflow status` and, when requested,
+`axiom --json workflow evidence` with `--project <uuid-or-slug> --repository
 <key> --work-item github:<owner>/<repository>#<number> --execution <id>`.
 
 Never infer selectors from CWD, Git, Provider, Runtime chat, or global discovery.

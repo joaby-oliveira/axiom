@@ -30,7 +30,7 @@ run_success() {
   local category=$1
   local destination=$2
   shift 2
-  lingo --json "$@" >"$destination"
+  axiom --json "$@" >"$destination"
   grep -q '"status":"success"' "$destination"
   grep -q '"category":"'"$category"'"' "$destination"
 }
@@ -39,7 +39,7 @@ run_failure() {
   local category=$1
   shift
   local output="$temporary/failure-$category.json"
-  if lingo --json "$@" >"$output"; then
+  if axiom --json "$@" >"$output"; then
     exit 1
   fi
   grep -q '"status":"error"' "$output"
@@ -66,7 +66,7 @@ run_canonical_failure() {
   local next=$4
   shift 4
   local output="$temporary/canonical-failure-$label.json"
-  if lingo --json "$@" >"$output"; then
+  if axiom --json "$@" >"$output"; then
     exit 1
   fi
   assert_canonical "$output" "$status" "$result"
@@ -74,31 +74,31 @@ run_canonical_failure() {
 }
 
 cd "$unrelated"
-resolved_binary=$(command -v lingo)
-if [[ "$resolved_binary" != "$binary_root/lingo" ]]; then
+resolved_binary=$(command -v axiom)
+if [[ "$resolved_binary" != "$binary_root/axiom" ]]; then
   exit 1
 fi
-lingo --json version >"$temporary/version.json"
+axiom --json version >"$temporary/version.json"
 assert_canonical "$temporary/version.json" success "Axiom build information"
 
-if lingo --json first-run >"$temporary/first-run-missing.json"; then
+if axiom --json first-run >"$temporary/first-run-missing.json"; then
   exit 1
 fi
 assert_canonical "$temporary/first-run-missing.json" validation_failure "Codex skill compatibility is not ready"
 run_success codex_configured "$temporary/runtime-install.json" runtime codex install
-lingo --json first-run >"$temporary/runtime-status.json"
+axiom --json first-run >"$temporary/runtime-status.json"
 assert_canonical "$temporary/runtime-status.json" success "Lingo and Codex skills are compatible"
 skill_count=$(find "$skills_root" -name SKILL.md -type f | wc -l | tr -d ' ')
 if [[ "$skill_count" != 5 ]]; then
   exit 1
 fi
-lingo help >"$temporary/help.txt"
+axiom help >"$temporary/help.txt"
 for skill in axiom-project-configure axiom-project-show axiom-work-item-create axiom-work-item-run axiom-work-item-status; do
   grep -q "\$${skill}" "$temporary/help.txt"
 done
 rm -- "$skills_root/axiom-work-item-status/SKILL.md"
 rmdir -- "$skills_root/axiom-work-item-status"
-if lingo --json runtime codex status >"$temporary/runtime-missing.json"; then
+if axiom --json runtime codex status >"$temporary/runtime-missing.json"; then
   exit 1
 fi
 assert_canonical "$temporary/runtime-missing.json" validation_failure "Codex skill compatibility is not ready"
@@ -127,18 +127,18 @@ export AXIOM_GH_BIN="$gh_binary"
 export AXIOM_FAKE_PROVIDER_LABEL="$provider_label"
 export AXIOM_FAKE_PROVIDER_COMMENT="$provider_comment"
 
-lingo --json project configure --slug dogfood-project --name "Dogfood Project" \
+axiom --json project configure --slug dogfood-project --name "Dogfood Project" \
   --repository "main=$repository" --work-item-provider github >"$temporary/project-preview.json"
 assert_canonical "$temporary/project-preview.json" success "Project setup preview ready"
 project_id=$(sed -n 's/.*"projectId":"\([^"]*\)".*/\1/p' "$temporary/project-preview.json")
 preview_digest=$(sed -n 's/.*"digest":"\([^"]*\)".*/\1/p' "$temporary/project-preview.json")
 [[ -n "$project_id" && -n "$preview_digest" ]]
-lingo --json project configure --project-id "$project_id" --slug dogfood-project \
+axiom --json project configure --project-id "$project_id" --slug dogfood-project \
   --name "Dogfood Project" --repository "main=$repository" \
   --work-item-provider github --preview-digest "$preview_digest" --authorize-local \
   >"$temporary/project-configure.json"
 assert_canonical "$temporary/project-configure.json" success "Project setup published"
-lingo --json project show --selector dogfood-project >"$temporary/project-show.json"
+axiom --json project show --selector dogfood-project >"$temporary/project-show.json"
 assert_canonical "$temporary/project-show.json" success "Project resolved"
 grep -Fq '"references":["project:' "$temporary/project-show.json"
 grep -Fq '"repository:main"' "$temporary/project-show.json"
@@ -159,18 +159,18 @@ draft_args=(work-item create --project dogfood-project --repository main \
   --context "Synthetic deterministic E2E" --scope "Bounded Work Item change" \
   --constraints "Preserve exact authority" --non-goals "No implicit workflow" \
   --acceptance "Deterministic dogfood passes")
-lingo --json "${draft_args[@]}" >"$temporary/work-item-preview.json"
+axiom --json "${draft_args[@]}" >"$temporary/work-item-preview.json"
 assert_canonical "$temporary/work-item-preview.json" success "Work Item draft ready for review"
 work_item_digest=$(sed -n 's/.*"digest":"\([^"]*\)".*/\1/p' "$temporary/work-item-preview.json")
 [[ -n "$work_item_digest" ]]
 run_canonical_failure work-item-stale denied_authority "Work Item authority denied" \
   "Review the exact preview and grant only the required authority" \
   "${draft_args[@]}" --preview-digest stale --authorize-external
-lingo --json "${draft_args[@]}" --preview-digest "$work_item_digest" \
+axiom --json "${draft_args[@]}" --preview-digest "$work_item_digest" \
   --authorize-external >"$temporary/work-item.json"
 assert_canonical "$temporary/work-item.json" success "GitHub Work Item linked"
 grep -Fq '"externalId":"7"' "$temporary/work-item.json"
-lingo --json workflow start --project dogfood-project --repository main --number 7 \
+axiom --json workflow start --project dogfood-project --repository main --number 7 \
   >"$temporary/workflow-start.json"
 assert_canonical "$temporary/workflow-start.json" success "Execution workflow operation completed"
 execution_id=$(sed -n 's/.*"executionId":"\([^"]*\)".*/\1/p' "$temporary/workflow-start.json")
@@ -180,7 +180,7 @@ revision=1
 for gate in intake specification clarification; do
   printf '%s\n' "$gate" >"$repository/$gate.md"
   reference_digest=$(shasum -a 256 "$repository/$gate.md" | awk '{print $1}')
-  lingo --json workflow advance --project dogfood-project --repository main --number 7 \
+  axiom --json workflow advance --project dogfood-project --repository main --number 7 \
     --expected-revision "$revision" --gate "$gate" --outcome pass \
     --reference "evidence:$gate.md:$reference_digest" >"$temporary/workflow-$gate.json"
   assert_canonical "$temporary/workflow-$gate.json" success "Execution workflow operation completed"
@@ -188,7 +188,7 @@ for gate in intake specification clarification; do
 done
 
 specification_digest=$(shasum -a 256 "$repository/specification.md" | awk '{print $1}')
-lingo --json workflow fact --project dogfood-project --repository main --number 7 \
+axiom --json workflow fact --project dogfood-project --repository main --number 7 \
   --expected-revision "$revision" --fact planning-authority --active \
   --reference "specification:specification.md:$specification_digest" --authorize-local \
   >"$temporary/workflow-planning-authority.json"
@@ -198,7 +198,7 @@ revision=$((revision + 1))
 for gate in plan tasks; do
   printf '%s\n' "$gate" >"$repository/$gate.md"
   reference_digest=$(shasum -a 256 "$repository/$gate.md" | awk '{print $1}')
-  lingo --json workflow advance --project dogfood-project --repository main --number 7 \
+  axiom --json workflow advance --project dogfood-project --repository main --number 7 \
     --expected-revision "$revision" --gate "$gate" --outcome pass \
     --reference "evidence:$gate.md:$reference_digest" >"$temporary/workflow-$gate.json"
   assert_canonical "$temporary/workflow-$gate.json" success "Execution workflow operation completed"
@@ -206,7 +206,7 @@ for gate in plan tasks; do
 done
 
 plan_digest=$(shasum -a 256 "$repository/plan.md" | awk '{print $1}')
-lingo --json workflow fact --project dogfood-project --repository main --number 7 \
+axiom --json workflow fact --project dogfood-project --repository main --number 7 \
   --expected-revision "$revision" --fact implementation-authority --active \
   --reference "plan:plan.md:$plan_digest" --authorize-local \
   >"$temporary/workflow-implementation-authority.json"
@@ -217,47 +217,47 @@ revision=$((revision + 1))
 # the exact already-aligned observation; deterministic adapter tests cover label
 # creation/replacement effects separately.
 printf '%s\n' 'axiom:stage:implementing' >"$provider_label"
-lingo --json workflow reconcile --project dogfood-project --repository main --number 7 \
+axiom --json workflow reconcile --project dogfood-project --repository main --number 7 \
   --expected-revision "$revision" >"$temporary/workflow-projection-preview.json"
 assert_canonical "$temporary/workflow-projection-preview.json" success "Execution workflow operation completed"
 projection_digest=$(sed -n 's/.*"projection":.*"digest":"\([^"]*\)".*/\1/p' "$temporary/workflow-projection-preview.json")
 projection_key=$(sed -n 's/.*"projectionKey":"\([^"]*\)".*/\1/p' "$temporary/workflow-projection-preview.json")
 [[ -n "$projection_digest" && -n "$projection_key" ]]
-lingo --json workflow reconcile --project dogfood-project --repository main --number 7 \
+axiom --json workflow reconcile --project dogfood-project --repository main --number 7 \
   --expected-revision "$revision" --preview-digest "$projection_digest" --authorize-external \
   >"$temporary/workflow-projected.json"
 assert_canonical "$temporary/workflow-projected.json" success "Execution workflow operation completed"
 grep -Fq 'axiom:stage:implementing' "$provider_label"
 grep -Fq 'axiom:workflow-projection:' "$provider_comment"
-lingo --json workflow reconcile --project dogfood-project --repository main --number 7 \
+axiom --json workflow reconcile --project dogfood-project --repository main --number 7 \
   --expected-revision "$revision" >"$temporary/workflow-projection-replay.json"
 assert_canonical "$temporary/workflow-projection-replay.json" success "Execution workflow operation completed"
 grep -Fq '"effects":[]' "$temporary/workflow-projection-replay.json"
 
 printf '%s\n' implementation >"$repository/implementation.md"
 implementation_digest=$(shasum -a 256 "$repository/implementation.md" | awk '{print $1}')
-if lingo --json workflow advance --project dogfood-project --repository main --number 7 \
+if axiom --json workflow advance --project dogfood-project --repository main --number 7 \
   --expected-revision "$revision" --gate implementation --outcome fail \
   --reference "evidence:implementation.md:$implementation_digest" >"$temporary/workflow-interrupted.json"; then
   exit 1
 fi
 assert_canonical "$temporary/workflow-interrupted.json" interrupted "Execution remains at the current workflow stage"
 revision=$((revision + 1))
-lingo --json workflow resume --project dogfood-project --repository main --number 7 \
+axiom --json workflow resume --project dogfood-project --repository main --number 7 \
   --expected-revision "$revision" >"$temporary/workflow-resume.json"
 assert_canonical "$temporary/workflow-resume.json" success "Execution workflow operation completed"
 revision=$((revision + 1))
 
 printf '%s\n' implementation >"$repository/implementation.md"
 implementation_digest=$(shasum -a 256 "$repository/implementation.md" | awk '{print $1}')
-lingo --json workflow advance --project dogfood-project --repository main --number 7 \
+axiom --json workflow advance --project dogfood-project --repository main --number 7 \
   --expected-revision "$revision" --gate implementation --outcome pass \
   --reference "evidence:implementation.md:$implementation_digest" \
   >"$temporary/workflow-implementation.json"
 assert_canonical "$temporary/workflow-implementation.json" success "Execution workflow operation completed"
 revision=$((revision + 1))
 
-lingo --json workflow fact --project dogfood-project --repository main --number 7 \
+axiom --json workflow fact --project dogfood-project --repository main --number 7 \
   --expected-revision "$revision" --fact review-started --active \
   --reference "evidence:implementation.md:$implementation_digest" --authorize-local \
   >"$temporary/workflow-review-started.json"
@@ -267,7 +267,7 @@ revision=$((revision + 1))
 for gate in review evidence reconciliation completion; do
   printf '%s\n' "$gate" >"$repository/$gate.md"
   reference_digest=$(shasum -a 256 "$repository/$gate.md" | awk '{print $1}')
-  lingo --json workflow advance --project dogfood-project --repository main --number 7 \
+  axiom --json workflow advance --project dogfood-project --repository main --number 7 \
     --expected-revision "$revision" --gate "$gate" --outcome pass \
     --reference "evidence:$gate.md:$reference_digest" >"$temporary/workflow-$gate.json"
   assert_canonical "$temporary/workflow-$gate.json" success "Execution workflow operation completed"
@@ -275,14 +275,14 @@ for gate in review evidence reconciliation completion; do
 done
 
 evidence_digest=$(shasum -a 256 "$repository/evidence.md" | awk '{print $1}')
-lingo --json workflow fact --project dogfood-project --repository main --number 7 \
+axiom --json workflow fact --project dogfood-project --repository main --number 7 \
   --expected-revision "$revision" --fact human-acceptance --active \
   --reference "evidence:evidence.md:$evidence_digest" --authorize-local \
   >"$temporary/workflow-human-acceptance.json"
 assert_canonical "$temporary/workflow-human-acceptance.json" success "Execution workflow operation completed"
 revision=$((revision + 1))
 
-lingo --json workflow evidence --project dogfood-project --repository main --number 7 \
+axiom --json workflow evidence --project dogfood-project --repository main --number 7 \
   >"$temporary/workflow-evidence.json"
 assert_canonical "$temporary/workflow-evidence.json" success "Execution workflow operation completed"
 grep -q '"currentGate":"completion"' "$temporary/workflow-evidence.json"

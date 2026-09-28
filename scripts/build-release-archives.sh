@@ -77,10 +77,12 @@ build_target() {
   local bundle="axiom-${version}-${platform}-${arch}"
   local root="$work/$bundle"
   mkdir -p "$root/skills"
-  GOOS="$goos" GOARCH="$arch" CGO_ENABLED=0 go build -trimpath \
+  # Build from the repository root so the module is this checkout, not the
+  # caller's working directory.
+  (cd "$repository_root" && GOOS="$goos" GOARCH="$arch" CGO_ENABLED=0 go build -trimpath \
     -ldflags "-s -w -X main.buildVersion=$version -X main.buildRevision=${revision:0:12} -X main.buildSourceState=$source_state -X main.buildRelease=$release" \
-    -o "$root/lingo" "$repository_root/cmd/lingo"
-  chmod 700 "$root/lingo"
+    -o "$root/axiom" ./cmd/lingo)
+  chmod 700 "$root/axiom"
   cp "$repository_root/LICENSE" "$root/LICENSE"
   cp "$repository_root/scripts/install-release.sh" "$root/install.sh"
   chmod 700 "$root/install.sh"
@@ -110,7 +112,7 @@ build_target() {
     printf 'skillSetVersion=1\n'
   } >"$root/release-metadata.txt"
   {
-    printf '%s  lingo\n' "$(digest "$root/lingo")"
+    printf '%s  axiom\n' "$(digest "$root/axiom")"
     printf '%s  LICENSE\n' "$(digest "$root/LICENSE")"
     printf '%s  install.sh\n' "$(digest "$root/install.sh")"
     printf '%s  release-metadata.txt\n' "$(digest "$root/release-metadata.txt")"

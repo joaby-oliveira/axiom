@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-09-28]
+
+- implementation (S9/T37): the canonical public executable is `axiom`. Release
+  archives, `MANIFEST.sha256`, the release installer, the owned upgrade path,
+  and the source installer publish `axiom` (receipts, destinations and staging
+  names follow). Help, recovery/compatibility/upgrade diagnostics, and the five
+  Codex skills invoke `axiom`; the previous skill digests and skill-set receipt
+  stay recognized as owned so existing skill installs upgrade. Internal Lingo
+  packages, `cmd/lingo`, `LINGO_*` variables and state roots are unchanged. A
+  prior `lingo` executable or pre-`axiom` release receipt is preserved, not
+  migrated.
+- fix: `build-release-archives.sh` builds from its own checkout instead of the
+  caller's working directory.
+
 ## [2026-09-26]
 
 - implementation: explicit Evidence retirement (HD-S7-T18). `lingo artifact

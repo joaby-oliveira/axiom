@@ -10,17 +10,17 @@ applicable Execution selectors. Use `--project <uuid-or-slug> --repository <key>
 --work-item github:<owner>/<repository>#<number>`. `workflow start` omits
 `--execution`; every resume, advance, status, evidence, or reconcile call forwards
 the exact `--execution <id>` returned by Lingo. Follow `currentGate` returned by
-Lingo. Advance through `lingo --json workflow advance` with its required revision,
+Lingo. Advance through `axiom --json workflow advance` with its required revision,
 outcome, and repository-relative artifact reference.
 
 Record planning authority, implementation authority, review start, human
-acceptance, or an auxiliary condition only through `lingo --json workflow fact`
+acceptance, or an auxiliary condition only through `axiom --json workflow fact`
 with the exact Execution revision, one validated reference, explicit `--active`
 value, and `--authorize-local`. Never infer a fact from GitHub, CI, merge, review,
 Issue state, or conversation. Human acceptance additionally requires terminal
 canonical completion and an explicit human decision.
 
-Invoke only `lingo --json`. Do not infer CWD, Git remote, Work Item, Execution,
+Invoke only `axiom --json`. Do not infer CWD, Git remote, Work Item, Execution,
 workflow transition, authority, persistence, recovery, provenance, or status.
 Unknown, duplicate, and conflicting inputs go to Lingo validation.
 

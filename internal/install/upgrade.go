@@ -26,11 +26,11 @@ import (
 )
 
 const (
-	binaryName      = "lingo"
+	binaryName      = "axiom"
 	receiptName     = "installation.receipt"
 	lockName        = ".axiom-install.lock"
 	markerName      = ".axiom-install-operation"
-	binaryStage     = ".axiom-lingo-stage."
+	binaryStage     = ".axiom-binary-stage."
 	receiptStage    = ".axiom-install-receipt."
 	maxReceiptBytes = 64 << 10
 )

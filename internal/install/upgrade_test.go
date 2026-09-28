@@ -27,6 +27,7 @@ type bundle struct {
 	files   map[string][]byte
 	links   map[string]string
 	skip    map[string]bool
+	drop    map[string]bool
 }
 
 func newBundle(version string, binary []byte) *bundle {
@@ -39,7 +40,7 @@ func newBundle(version string, binary []byte) *bundle {
 
 func (b *bundle) contents() map[string][]byte {
 	files := map[string][]byte{
-		"lingo":                b.binary,
+		binaryName:             b.binary,
 		"LICENSE":              []byte("license\n"),
 		"release-metadata.txt": []byte(fmt.Sprintf("formatVersion=1\nproduct=Axiom\nversion=%s\nrevision=123456789abc\nsourceState=clean\nrelease=true\nplatform=macos-27\ngoos=darwin\narchitecture=arm64\nskillSetVersion=1\n", b.version)),
 	}
@@ -51,6 +52,9 @@ func (b *bundle) contents() map[string][]byte {
 	files["skills-manifest.txt"] = []byte(manifest)
 	for name, wire := range b.files {
 		files[name] = wire
+	}
+	for name := range b.drop {
+		delete(files, name)
 	}
 	return files
 }
@@ -195,6 +199,12 @@ func TestLoadCandidateMirrorsInstallerVerification(t *testing.T) {
 		"injection version": func(b *bundle) { b.version = "1.1.0;$(touch pwned)" },
 		"skill manifest skewed": func(b *bundle) {
 			b.files["skills-manifest.txt"] = []byte("formatVersion=1\nskillSetVersion=2\nbinaryCompatibility=1\n")
+		},
+		// T37: the public executable is axiom; a pre-T37 bundle that only
+		// carries lingo is not a candidate for the axiom installation.
+		"pre-axiom executable entry": func(b *bundle) {
+			b.files["lingo"] = b.binary
+			b.drop = map[string]bool{binaryName: true}
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -661,6 +671,12 @@ func TestUpgradeRefusalsHaveZeroEffects(t *testing.T) {
 			writeFile(t, filepath.Join(workflows, "main-7.json"), wire, 0o600)
 			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
 		}, "state_incompatible"},
+		{"pre-axiom lingo receipt destination", func(t *testing.T, i *installation) Candidate {
+			path := filepath.Join(i.target.ReceiptDir, receiptName)
+			wire := strings.Replace(read(t, path), "destination="+filepath.Join(i.target.BinaryDir, binaryName)+"\n", "destination="+filepath.Join(i.target.BinaryDir, "lingo")+"\n", 1)
+			writeFile(t, path, []byte(wire), 0o600)
+			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
+		}, "receipt_invalid"},
 		{"permissive target directory", func(t *testing.T, i *installation) Candidate {
 			if err := os.Chmod(i.target.BinaryDir, 0o755); err != nil {
 				t.Fatal(err)

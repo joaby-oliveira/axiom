@@ -186,7 +186,7 @@ func (o observation) report() Report {
 	switch {
 	case counts[local.InventoryRecovery] > 0 || skillState == codexruntime.SkillSetInterrupted:
 		report.Classification, report.Reason = RecoveryRequired, "interrupted_protocol_state"
-		report.Next = []string{"Run `lingo recovery inspect` and authorize only an exact recognized recovery plan", "Do not overwrite, migrate, or clean the preserved state meanwhile"}
+		report.Next = []string{"Run `axiom recovery inspect` and authorize only an exact recognized recovery plan", "Do not overwrite, migrate, or clean the preserved state meanwhile"}
 	case counts[local.InventoryNewer] > 0:
 		report.Classification, report.Reason = UnsupportedNewer, "newer_format_version"
 		report.Next = []string{"Use an Axiom version that supports the newer format", "Preserve all state; this version will not overwrite it"}
@@ -207,19 +207,19 @@ func (o observation) report() Report {
 		report.POCTag, report.POCRevision = HistoricalPOCTag, HistoricalPOCRevision
 		report.Next = []string{
 			"POC state is preserved; it is never migrated in place and POC workflow history does not become v1 state",
-			"Optional local preservation: `lingo compatibility backup --target <absent-directory>` and authorize the exact preview digest",
-			"Optional portable intent: `lingo compatibility export --target <absent-directory>` and authorize the exact preview digest",
-			"Configure clean v1 state in a separate LINGO_STATE_ROOT and run `lingo project configure` explicitly",
+			"Optional local preservation: `axiom compatibility backup --target <absent-directory>` and authorize the exact preview digest",
+			"Optional portable intent: `axiom compatibility export --target <absent-directory>` and authorize the exact preview digest",
+			"Configure clean v1 state in a separate LINGO_STATE_ROOT and run `axiom project configure` explicitly",
 		}
 	case supported || skillState == codexruntime.SkillSetCurrent || skillState == codexruntime.SkillSetUpgradable:
 		report.Classification, report.Reason = ValidV1, "v1_readable_state"
 		report.Next = []string{"Continue with v1 operations"}
 	default:
 		report.Classification, report.Reason = AbsentV1, "no_owned_state"
-		report.Next = []string{"Run `lingo runtime codex install`, then `lingo project configure` explicitly"}
+		report.Next = []string{"Run `axiom runtime codex install`, then `axiom project configure` explicitly"}
 	}
 	if skillState == codexruntime.SkillSetUpgradable && (report.Classification == ValidV1 || report.Classification == RecognizedPOC) {
-		report.Next = append(report.Next, "Run `lingo runtime codex install` to replace the known older owned Codex skill set")
+		report.Next = append(report.Next, "Run `axiom runtime codex install` to replace the known older owned Codex skill set")
 	}
 	for _, object := range o.objects {
 		switch object.Kind {
