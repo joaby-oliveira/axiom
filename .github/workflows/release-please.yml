@@ -35,10 +35,11 @@ jobs:
           manifest-file: .release-please-manifest.json
           skip-github-release: true
       - name: Run required CI on the Release PR head
-        if: steps.release.outputs.prs_created == 'true'
+        if: steps.release.outcome == 'success' && steps.release.outputs.prs_created == 'true' && steps.release.outputs.pr != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+          RELEASE_PR: ${{ steps.release.outputs.pr }}
         run: |
+          RELEASE_BRANCH="$(jq -er '.headBranchName' <<<"$RELEASE_PR")"
           [[ "$RELEASE_BRANCH" =~ ^release-please--[A-Za-z0-9._/-]+$ ]]
           gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$RELEASE_BRANCH"
