@@ -343,9 +343,10 @@ The installer publishes `<bin-dir>/axiom`. A receipt or binary from a pre-`axiom
 archive (which shipped `lingo`) is not recognized as owned and is preserved;
 no migration from such an installation is performed.
 
-Supported archive rows are the exact approved baselines macOS 27.0/arm64,
-Ubuntu 26.04/amd64, and Ubuntu 26.04/arm64. Other macOS versions, Linux
-distributions, Ubuntu versions, and architectures fail closed. Install the
+Supported archive rows are macOS 27.0/arm64 and Linux amd64/arm64. The Linux
+archives (named `ubuntu-26.04-*`, their native Evidence baseline) are static
+builds installed on any Linux distribution and version. Other macOS versions,
+operating systems, and architectures fail closed. Install the
 archive matching the current host into explicit user-owned destinations:
 
 ```bash
@@ -416,8 +417,9 @@ Selection:
   selector, is an input error with no effect.
 - `--channel` and `--version` are mutually exclusive and fail before any effect.
 
-The bootstrap detects the exact supported row (macOS 27.0/arm64, Ubuntu
-26.04/amd64, Ubuntu 26.04/arm64) before any download, fetches the release
+The bootstrap detects the supported row (macOS 27.0/arm64, or any Linux on
+x86_64/aarch64 mapped to the `ubuntu-26.04-amd64`/`-arm64` archive) before any
+download, fetches the release
 `SHA256SUMS` and the row's archive over HTTPS only, and verifies the digest
 before reading the archive. It then requires the bundle's `install.sh` and
 `release-metadata.txt` to match the bundle manifest and the metadata to be the
@@ -444,8 +446,8 @@ Test the matrix with a fake `curl` and local release fixtures (no live GitHub):
 
 Selector, host and input refusals run on any host. Install, reinstall, upgrade,
 downgrade, foreign/modified/unsafe state, concurrency, interruption and network
-cases need a supported row and exit `78` elsewhere. On Linux,
-`AXIOM_TEST_SYNTHETIC_UBUNTU_ROW=1` reruns the suite in a private mount
+cases need a supported row (any Linux x86_64/aarch64 qualifies) and exit `78`
+elsewhere. On Linux, `AXIOM_TEST_SYNTHETIC_UBUNTU_ROW=1` reruns the suite in a private mount
 namespace declaring Ubuntu 26.04 (needs root or unprivileged user namespaces);
 that is synthetic Evidence, not native acceptance.
 

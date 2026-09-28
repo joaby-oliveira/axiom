@@ -93,11 +93,11 @@ case "$(uname -s):$(uname -m)" in
     ;;
   Linux:x86_64)
     host_candidate="$temporary/release/axiom-0.0.0-s2-test-ubuntu-26.04-amd64.tar.gz"
-    if [[ -r /etc/os-release ]] && grep -Eq '^ID=(ubuntu|"ubuntu")$' /etc/os-release && grep -Eq '^VERSION_ID=(26\.04|"26\.04")$' /etc/os-release; then native=$host_candidate; fi
+    native=$host_candidate
     ;;
   Linux:aarch64)
     host_candidate="$temporary/release/axiom-0.0.0-s2-test-ubuntu-26.04-arm64.tar.gz"
-    if [[ -r /etc/os-release ]] && grep -Eq '^ID=(ubuntu|"ubuntu")$' /etc/os-release && grep -Eq '^VERSION_ID=(26\.04|"26\.04")$' /etc/os-release; then native=$host_candidate; fi
+    native=$host_candidate
     ;;
 esac
 
