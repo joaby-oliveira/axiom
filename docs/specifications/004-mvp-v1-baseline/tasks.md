@@ -31,6 +31,13 @@ owned upgrade, and Codex+Claude first-run bootstrap before historical T23–T25.
 This Task amendment is proposed for human review and is not implementation
 authority.**
 
+**S9 T37–T40 implementation: delivered on `integration/s9-productization`
+(PR #106, unmerged) under the operator's 2026-09-28 local implementation
+authority; S8/T36 remains the gate for entering RC/acceptance (T23–T25). The
+delivered behavior and its validation kinds (confirmed, synthetic, not run) are
+recorded in [S9 Evidence](evidence-s9.md); implementation choices recorded there
+are not Specification requirements. T23–T25 are not started.**
+
 Approved artifact: `main` at `c7f756209c608ff1f1a88947dcc425d07daaa831`, merge
 of [PR #72](https://github.com/rgomids/axiom/pull/72). Human approval in PR #72
 accepted the corrected final DAG of 25 Tasks as reconciled with the approved
@@ -78,6 +85,8 @@ Specification 004 — Approved
 -> S8 Specification/ADR/Plan/Tasks amendment + ADR-0009 — Approved; implementation authorized 2026-09-27 (Issue #97 comment #5852650410)
    -> T30–T36 — Technical candidate ready for human review; real T36 Evidence recorded
 -> S9 Release candidate acceptance (T23–T25, with T24/T25 reconciled for S8) — Not authorized
+   -> T37–T40 — implemented and locally validated in PR #106 (unmerged); native macOS 27 local-fixture validation recorded; native Ubuntu 26.04 and real Runtime acceptance remain T24
+   -> T23–T25 — Not started
 ```
 
 The accepted POC and current Go packages are implementation inputs and historical
@@ -1432,5 +1441,6 @@ human review; human acceptance is not inferred.**
 
 **S9 (proposed T37–T40 plus historical T23–T25) — Productization,
 distribution, Runtime bootstrap and release acceptance. Product scope recorded
-2026-09-27; Task amendment pending human approval; implementation/release not
-authorized.**
+2026-09-27; Task amendment pending human approval. T37–T40 are implemented in
+PR #106 (unmerged) and recorded in [S9 Evidence](evidence-s9.md).
+T23–T25, publication and acceptance are not authorized or started.**

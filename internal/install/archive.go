@@ -84,7 +84,7 @@ func LoadCandidate(archivePath, checksumsPath string) (Candidate, error) {
 	if err := verifyBundleManifest(files); err != nil {
 		return Candidate{}, &Error{Category: "archive_invalid"}
 	}
-	candidate := Candidate{ArchiveSHA256: actual, Binary: files["lingo"], Skills: map[string]string{}, SkillFiles: map[string][]byte{}}
+	candidate := Candidate{ArchiveSHA256: actual, Binary: files[binaryName], Skills: map[string]string{}, SkillFiles: map[string][]byte{}}
 	if candidate.Metadata, candidate.Values, err = parseMetadata(files["release-metadata.txt"]); err != nil {
 		return Candidate{}, &Error{Category: "release_metadata_invalid"}
 	}
@@ -142,7 +142,7 @@ func readBundle(archive []byte) (map[string][]byte, error) {
 			return nil, errors.New("file outside bundle root")
 		}
 		limit := int64(maxBundleFile)
-		if rest == "lingo" {
+		if rest == binaryName {
 			limit = maxBinaryBytes
 		}
 		if header.Size < 0 || header.Size > limit {

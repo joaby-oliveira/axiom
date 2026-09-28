@@ -2,6 +2,80 @@
 
 ## [2026-09-28]
 
+- fix (S9/T40, finding F6): every Runtime installer now recognizes the skill
+  sets Axiom published through the shared Runtime integration as Axiom-owned.
+  After `axiom upgrade` changes the skill text (which it publishes only to the
+  Codex root), the next `axiom first-run` converges Claude from the earlier
+  Axiom revision instead of failing with `claude_skill_conflict`, and refreshes
+  both receipts. Ownership still rests on exact known digests and receipts:
+  modified, foreign or ambiguous skills, older Codex-only revisions in a Claude
+  root, and any skill beside an unrecognized receipt are refused unchanged.
+  The partial `axiom upgrade` next action now names `axiom first-run`.
+- fix (S9/T39, finding F9): the release installer and the owned upgrade accept
+  a pre-existing `--bin-dir` that is a real, user-owned directory without group
+  or other write and without extended ACL, so a usual `0755` `~/.local/bin` no
+  longer refuses the default remote install. Group/other-writable, symlinked,
+  foreign-owned or ACL-bearing directories are still refused; the receipt
+  directory stays `0700`, and the published binary and receipt stay `0700` and
+  `0600`.
+- implementation (S9/T40): `axiom first-run` is now the idempotent Runtime
+  bootstrap. It finds Codex and Claude only by resolving `codex`/`claude` on
+  `PATH` (never running them), installs or upgrades Axiom's user-global skills
+  for each one found, and reports every supported Runtime; no Runtime is
+  success, and any detected Runtime that cannot be configured makes the run fail
+  while keeping the others' results. Claude skills go to
+  `<CLAUDE_CONFIG_DIR or ~/.claude>/skills/<skill>/SKILL.md` with a receipt that
+  records the Runtime, root and skill digests, under the same fail-closed
+  ownership as Codex. New
+  `axiom runtime claude install|status`. The shared skill text is now
+  Runtime-neutral; the previous Codex revision stays recognized as owned.
+  Executable-only discovery, exit codes and partial-success retention are
+  implementation behavior recorded in S9 Evidence, not Specification rules.
+- fix (S9/T40): a Runtime's user-global skill root is accepted when it is a
+  real, user-owned directory that group and other cannot write and that has no
+  extended ACL, so the common Runtime-created `0755` roots
+  (`~/.claude/skills`, `~/.agents/skills`) are configured instead of failing
+  first-run. Group/other-writable roots still fail closed; everything Axiom
+  creates under the root stays `0700`/`0600`.
+- implementation (S9/T37): the canonical public executable is `axiom`. Release
+  archives, `MANIFEST.sha256`, the release installer, the owned upgrade path,
+  and the source installer publish `axiom` (receipts, destinations and staging
+  names follow). Help, recovery/compatibility/upgrade diagnostics, and the five
+  Codex skills invoke `axiom`; the previous skill digests and skill-set receipt
+  stay recognized as owned so existing skill installs upgrade. Internal Lingo
+  packages, `cmd/lingo`, `LINGO_*` variables and state roots are unchanged. A
+  prior `lingo` executable or pre-`axiom` release receipt is preserved, not
+  migrated.
+- implementation (S9/T39): `scripts/install.sh` remote bootstrap installs a
+  published release without checkout or build: latest stable by default (never
+  an RC), `--channel stable`, or an exact `--version vX.Y.Z[-rc.N]`; the two
+  selectors are mutually exclusive. It detects the exact supported row,
+  verifies the archive against the release `SHA256SUMS` before reading it,
+  checks bundle metadata, and runs the bundle's release installer. Release
+  candidates are selected only by exact `--version vX.Y.Z-rc.N` (FR-064);
+  there is no RC channel, and `--channel rc` is an input error with no effect.
+- implementation (S9/T39): `install-release.sh` converges an older owned
+  installation through the verified candidate's protected `axiom upgrade`
+  (preview, exact digest, apply), refuses downgrade and divergent same
+  version, and resumes only an interrupted owned upgrade of the same archive.
+- fix: a refused concurrent `install-release.sh` no longer removes the lock of
+  the running installer, and lock-free refusals (unsafe roots, binary without
+  receipt) happen before any directory is created.
+- implementation (S9/T38): manually dispatched `Release artifacts` workflow
+  prepares the complete macOS 27/arm64, Ubuntu 26.04/amd64 and Ubuntu
+  26.04/arm64 set from one exact clean revision and one tag
+  (`vX.Y.Z` or `vX.Y.Z-rc.N`, recorded as version `X.Y.Z[-rc.N]`), verifies it
+  with `scripts/verify-release-artifacts.sh`, and retains the files plus
+  Evidence as a workflow artifact. Read-only token; no tag, release,
+  prerelease, `latest` or repository effect. Not native acceptance.
+  `scripts/test-release-pipeline.sh` covers the contract.
+- fix: `build-release-archives.sh` builds from its own checkout instead of the
+  caller's working directory.
+- fix: `install-release.sh` read owner, mode and link count with
+  `stat -f ... || stat -c ...`; GNU `stat -f` reports filesystem status, so
+  every Linux install was refused as unsafe. The syntax is now chosen by
+  kernel. Found while exercising the Ubuntu 26.04/amd64 row in an isolated
+  mount namespace; native Ubuntu Evidence remains a T24 obligation.
 - docs: reconcile the Issue #81 S9 release-selection and version policy into
   Specification 004 FR-064/FR-065, AC-44/AC-46/AC-48, Plan §13 and Tasks
   T39/T23–T25: stable `vX.Y.Z` and RC `vX.Y.Z-rc.N` tags; latest stable by

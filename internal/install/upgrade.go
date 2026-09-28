@@ -6,8 +6,6 @@ package install
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,7 +14,6 @@ import (
 	"regexp"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/rgomids/axiom/internal/codexruntime"
@@ -26,11 +23,11 @@ import (
 )
 
 const (
-	binaryName      = "lingo"
+	binaryName      = "axiom"
 	receiptName     = "installation.receipt"
 	lockName        = ".axiom-install.lock"
 	markerName      = ".axiom-install-operation"
-	binaryStage     = ".axiom-lingo-stage."
+	binaryStage     = ".axiom-binary-stage."
 	receiptStage    = ".axiom-install-receipt."
 	maxReceiptBytes = 64 << 10
 )
@@ -127,6 +124,20 @@ func (s Service) Preview(ctx context.Context, target Target, candidate Candidate
 }
 
 func (s Service) preview(ctx context.Context, target Target, candidate Candidate, lockHeld bool) (Preview, error) {
+	receiptDir, err := local.OpenOwnedDirectory(target.ReceiptDir)
+	if err != nil {
+		return Preview{}, &Error{Category: "unsafe_target"}
+	}
+	defer receiptDir.Close()
+	binaryDir, err := local.OpenPublicationDirectory(target.BinaryDir)
+	if err != nil {
+		return Preview{}, &Error{Category: "unsafe_target"}
+	}
+	defer binaryDir.Close()
+	return s.previewIn(ctx, target, candidate, lockHeld, receiptDir, binaryDir, nil)
+}
+
+func (s Service) previewIn(ctx context.Context, target Target, candidate Candidate, lockHeld bool, receiptDir, binaryDir local.AnchoredDirectory, session *codexruntime.UpgradeSession) (Preview, error) {
 	if err := ctx.Err(); err != nil {
 		return Preview{}, err
 	}
@@ -134,9 +145,12 @@ func (s Service) preview(ctx context.Context, target Target, candidate Candidate
 		if !filepath.IsAbs(directory) || filepath.Clean(directory) != directory || directory == string(filepath.Separator) {
 			return Preview{}, &Error{Category: "invalid_target"}
 		}
-		if local.CheckPrivateDirectory(directory) != nil {
-			return Preview{}, &Error{Category: "unsafe_target"}
-		}
+	}
+	// The binary directory may be a pre-existing user directory such as
+	// ~/.local/bin, which only has to be safe from other principals; the
+	// receipt directory is Axiom-owned state and stays owner-only.
+	if binaryDir.StillAtPath() != nil || receiptDir.StillAtPath() != nil {
+		return Preview{}, &Error{Category: "unsafe_target"}
 	}
 	if len(candidate.Binary) == 0 || candidate.ArchiveSHA256 == "" || candidate.Values == nil {
 		return Preview{}, &Error{Category: "invalid_candidate"}
@@ -146,12 +160,12 @@ func (s Service) preview(ctx context.Context, target Target, candidate Candidate
 		return Preview{}, &Error{Category: "unsupported_host"}
 	}
 	if !lockHeld {
-		if _, err := os.Lstat(filepath.Join(target.ReceiptDir, lockName)); !os.IsNotExist(err) {
+		if _, err := receiptDir.Lstat(lockName); !os.IsNotExist(err) {
 			return Preview{}, &Error{Category: "installation_busy_or_interrupted"}
 		}
 	}
 	preview := Preview{TargetVersion: candidate.Version, ArchiveSHA256: candidate.ArchiveSHA256, Effects: []Effect{}, Leftovers: []string{}, target: target, candidate: candidate}
-	if marker, err := readMarker(target.ReceiptDir); err == nil {
+	if marker, err := readMarkerIn(receiptDir); err == nil {
 		if marker["archiveSha256"] != candidate.ArchiveSHA256 || marker["operation"] != "upgrade" {
 			return Preview{}, &Error{Category: "recovery_required"}
 		}
@@ -160,7 +174,7 @@ func (s Service) preview(ctx context.Context, target Target, candidate Candidate
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return Preview{}, &Error{Category: "recovery_required"}
 	}
-	currentReceipt, err := local.ReadOwnedFile(target.ReceiptDir, receiptName, maxReceiptBytes)
+	currentReceipt, err := receiptDir.ReadFile(receiptName, maxReceiptBytes)
 	if err != nil {
 		return Preview{}, &Error{Category: "owned_receipt_required"}
 	}
@@ -169,7 +183,7 @@ func (s Service) preview(ctx context.Context, target Target, candidate Candidate
 	if err != nil || values["destination"] != destination {
 		return Preview{}, &Error{Category: "receipt_invalid"}
 	}
-	binary, err := local.ReadOwnedFile(target.BinaryDir, binaryName, maxBinaryBytes)
+	binary, err := binaryDir.ReadFile(binaryName, maxBinaryBytes)
 	if err != nil {
 		return Preview{}, &Error{Category: "unsafe_binary"}
 	}
@@ -205,19 +219,27 @@ func (s Service) preview(ctx context.Context, target Target, candidate Candidate
 		preview.Effects = append(preview.Effects, Effect{Kind: "receipt", Target: filepath.Join(target.ReceiptDir, receiptName), Expected: digest(currentReceipt), Next: digest(preview.nextReceipt)})
 		preview.RequiredBytes += int64(len(preview.nextReceipt))
 	}
-	skills, err := planSkills(ctx, target.SkillsRoot, candidate, values["skillManifestSha256"], preview.markerSkills, preview.Resume)
+	skills, err := planSkills(ctx, target.SkillsRoot, candidate, values["skillManifestSha256"], preview.markerSkills, preview.Resume, session)
 	if err != nil {
 		return preview, err
 	}
 	preview.Skills = skills.state
 	preview.Effects = append(preview.Effects, skills.effects...)
 	if preview.Resume {
-		preview.Leftovers = append(stageLeftovers(target), skills.leftovers...)
+		preview.Leftovers = append(stageLeftoversIn(target, binaryDir, receiptDir), skills.leftovers...)
 		sort.Strings(preview.Leftovers)
 	}
 	space := s.availableSpace
 	if space == nil {
-		space = statfsAvailable
+		space = func(path string) (uint64, error) {
+			if path == target.BinaryDir {
+				return binaryDir.AvailableBytes()
+			}
+			if session != nil {
+				return session.AvailableBytes()
+			}
+			return statfsAvailable(path)
+		}
 	}
 	if len(preview.Effects) != len(skills.effects) {
 		available, err := space(target.BinaryDir)
@@ -232,6 +254,9 @@ func (s Service) preview(ctx context.Context, target Target, candidate Candidate
 			return preview, &Error{Category: "insufficient_space"}
 		}
 		preview.RequiredBytes += skills.bytes
+	}
+	if receiptDir.StillAtPath() != nil || binaryDir.StillAtPath() != nil || session != nil && session.StillAtPath() != nil {
+		return Preview{}, &Error{Category: "target_changed"}
 	}
 	preview.Digest = previewDigest(preview)
 	return preview, nil
@@ -262,32 +287,66 @@ func Authorize(preview Preview, reviewedDigest string) (Authority, error) {
 // skill files); there is no cross-root transaction. A later failure is
 // reported as partial with every confirmed effect listed, and the owned
 // operation marker keeps the installation resumable.
+//
+// ReceiptDir is opened exactly once, as an anchored, validated directory
+// object: the install lock, every marker write and its final removal, and the
+// receipt file publication all resolve through that same object for the rest
+// of this call, never by re-deriving ReceiptDir's pathname. BinaryDir is
+// opened the same way before preview revalidation and reused. This closes the
+// gap where validating a directory by pathname and later mutating it by
+// pathname again leaves a window in which the two operations could land on
+// different objects if the directory (or one of its ancestors) were replaced
+// in between (ADR-0005 property 3, controlled ancestor/leaf replacement).
+//
+// Binding to the object is not by itself truthful: each anchored directory
+// must also still be the object visible at its authorized pathname at every
+// inspection and commit boundary. The lock, the marker, every stage and
+// rename refuse once either directory or one of its ancestors was replaced;
+// each published effect is confirmed at its pathname after the commit; and
+// success is declared only after both directories are proven, once more, to
+// be the objects the operation was authorized for. A replacement is reported
+// as target_changed before a commit and never as a confirmed effect after one.
 func (s Service) Apply(ctx context.Context, preview Preview, authority Authority) (Result, error) {
 	result := Result{Status: "denied_authority", Ledger: []LedgerEntry{}}
 	if authority.digest == "" || authority.digest != preview.Digest {
 		return result, &Error{Category: "authority_denied"}
 	}
-	lock := filepath.Join(preview.target.ReceiptDir, lockName)
-	if err := os.Mkdir(lock, 0o700); err != nil {
+	receiptDir, err := local.OpenOwnedDirectory(preview.target.ReceiptDir)
+	if err != nil {
 		result.Status = "failure"
+		return result, &Error{Category: "unsafe_target"}
+	}
+	defer receiptDir.Close()
+	if err := receiptDir.Mkdir(lockName); err != nil {
+		result.Status = "failure"
+		if errors.Is(err, local.ErrReplaced) {
+			return result, &Error{Category: "target_changed"}
+		}
 		return result, &Error{Category: "installation_busy_or_interrupted"}
 	}
-	defer os.Remove(lock)
+	defer func() { _ = receiptDir.Remove(lockName) }()
 	var skills codexruntime.Service
+	var skillSession *codexruntime.UpgradeSession
 	if touchesSkills(preview) {
 		var err error
 		if skills, err = codexruntime.New(preview.target.SkillsRoot); err != nil {
 			result.Status = "failure"
 			return result, &Error{Category: "skill_inspection_failed"}
 		}
-		unlock, err := skills.LockForUpgrade()
+		skillSession, err = skills.LockForUpgrade()
 		if err != nil {
 			result.Status = "failure"
 			return result, &Error{Category: "skill_set_busy_or_interrupted"}
 		}
-		defer unlock()
+		defer skillSession.Close()
 	}
-	current, err := s.preview(ctx, preview.target, preview.candidate, true)
+	binaryDir, err := local.OpenPublicationDirectory(preview.target.BinaryDir)
+	if err != nil {
+		result.Status = "failure"
+		return result, &Error{Category: "unsafe_target"}
+	}
+	defer binaryDir.Close()
+	current, err := s.previewIn(ctx, preview.target, preview.candidate, true, receiptDir, binaryDir, skillSession)
 	if err != nil || current.Digest != preview.Digest {
 		return result, &Error{Category: "authority_denied"}
 	}
@@ -300,7 +359,10 @@ func (s Service) Apply(ctx context.Context, preview Preview, authority Authority
 				recorded[effect.Name] = effect.Expected
 			}
 		}
-		if err := writeMarker(current.target.ReceiptDir, current.candidate.ArchiveSHA256, "prepare", true, recorded); err != nil {
+		if err := writeMarker(receiptDir, current.candidate.ArchiveSHA256, "prepare", true, recorded); err != nil {
+			if errors.Is(err, local.ErrReplaced) {
+				return result, &Error{Category: "target_changed"}
+			}
 			return result, &Error{Category: "marker_unavailable"}
 		}
 	}
@@ -311,15 +373,15 @@ func (s Service) Apply(ctx context.Context, preview Preview, authority Authority
 		var err error
 		switch effect.Kind {
 		case "binary":
-			err = publishEffect(current.target.BinaryDir, binaryName, binaryStage, current.candidate.Binary, effect, 0o700, maxBinaryBytes)
+			err = publishEffect(binaryDir, binaryName, binaryStage, current.candidate.Binary, effect, 0o700, maxBinaryBytes)
 		case "receipt":
-			err = publishEffect(current.target.ReceiptDir, receiptName, receiptStage, current.nextReceipt, effect, 0o600, maxReceiptBytes)
+			err = publishEffect(receiptDir, receiptName, receiptStage, current.nextReceipt, effect, 0o600, maxReceiptBytes)
 		case "skill":
 			expected := effect.Expected
 			if expected == absentRevision {
 				expected = ""
 			}
-			if skills.PublishUpgradeSkill(effect.Name, current.candidate.SkillFiles[effect.Name], expected) != nil {
+			if skillSession.PublishSkill(effect.Name, current.candidate.SkillFiles[effect.Name], expected) != nil {
 				err = &Error{Category: "skill_publication_failed"}
 			}
 		default:
@@ -330,7 +392,9 @@ func (s Service) Apply(ctx context.Context, preview Preview, authority Authority
 		}
 		result.Ledger = append(result.Ledger, LedgerEntry{Kind: effect.Kind, Name: effect.Name, Target: effect.Target, Revision: effect.Next, Confirmed: true})
 		if effect.Kind == "binary" {
-			if err := writeMarker(current.target.ReceiptDir, current.candidate.ArchiveSHA256, "binary_committed", false, recorded); err != nil {
+			if err := writeMarker(receiptDir, current.candidate.ArchiveSHA256, "binary_committed", false, recorded); errors.Is(err, local.ErrReplaced) {
+				return partial(result), &Error{Category: "target_changed"}
+			} else if err != nil {
 				return partial(result), &Error{Category: "marker_unavailable"}
 			}
 		}
@@ -345,18 +409,33 @@ func (s Service) Apply(ctx context.Context, preview Preview, authority Authority
 		}
 	}
 	for _, leftover := range current.Leftovers {
-		_ = os.Remove(leftover)
+		switch parent := filepath.Dir(leftover); {
+		case parent == current.target.BinaryDir:
+			_ = binaryDir.Remove(filepath.Base(leftover))
+		case parent == current.target.ReceiptDir:
+			_ = receiptDir.Remove(filepath.Base(leftover))
+		case skillSession != nil && filepath.Dir(parent) == current.target.SkillsRoot:
+			_ = skillSession.RemoveSkillLeftover(filepath.Base(parent), filepath.Base(leftover))
+		}
 	}
-	if err := os.Remove(filepath.Join(current.target.ReceiptDir, markerName)); err != nil && !os.IsNotExist(err) {
+	// The operation marker is recovery state for the authorized objects: it
+	// is cleared only while both directories are still those objects.
+	if receiptDir.StillAtPath() != nil || binaryDir.StillAtPath() != nil || skillSession != nil && skillSession.StillAtPath() != nil {
+		return partial(result), &Error{Category: "final_verification_failed"}
+	}
+	if err := receiptDir.Remove(markerName); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return partial(result), &Error{Category: "marker_cleanup_failed"}
 	}
-	syncDirectory(current.target.ReceiptDir)
+	_ = receiptDir.Sync()
 	final, err := compatibility.Inspect(ctx, current.target.State)
 	if err != nil || final.Classification != compatibility.AbsentV1 && final.Classification != compatibility.ValidV1 {
 		return partial(result), &Error{Category: "final_verification_failed"}
 	}
-	verified, err := planSkills(ctx, current.target.SkillsRoot, current.candidate, "", nil, false)
+	verified, err := planSkills(ctx, current.target.SkillsRoot, current.candidate, "", nil, false, skillSession)
 	if err != nil || len(verified.effects) != 0 || len(verified.leftovers) != 0 {
+		return partial(result), &Error{Category: "final_verification_failed"}
+	}
+	if receiptDir.StillAtPath() != nil || binaryDir.StillAtPath() != nil || skillSession != nil && skillSession.StillAtPath() != nil {
 		return partial(result), &Error{Category: "final_verification_failed"}
 	}
 	result.Skills, result.Status = verified.state, "success"
@@ -392,46 +471,45 @@ func partial(result Result) Result {
 	return result
 }
 
-// publishEffect stages private bytes beside the target, rechecks the exact
-// expected current revision, renames, and confirms the published revision.
-func publishEffect(directory, name, prefix string, wire []byte, effect Effect, mode os.FileMode, limit int) error {
-	var entropy [8]byte
-	if _, err := rand.Read(entropy[:]); err != nil {
-		return err
-	}
-	stage := filepath.Join(directory, prefix+hex.EncodeToString(entropy[:]))
-	file, err := os.OpenFile(stage, os.O_WRONLY|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW, mode)
-	if err != nil {
+// publishEffect stages private bytes inside dir, rechecks the exact expected
+// current revision, renames, and confirms the published revision, all
+// through the same anchored directory object: dir must already be the
+// directory whose identity was just validated by its caller (OpenOwnedDirectory
+// or OpenPublicationDirectory), so this never re-derives the target by
+// pathname and cannot be redirected by a later replacement of dir at its
+// pathname. A replacement of dir or an ancestor observed before the commit
+// is refused as target_changed with nothing renamed; one observed after the
+// commit is publication_uncertain, never a confirmed effect.
+func publishEffect(dir local.AnchoredDirectory, name, prefix string, wire []byte, effect Effect, mode os.FileMode, limit int) error {
+	stage, err := dir.Stage(prefix, wire, mode)
+	if errors.Is(err, local.ErrReplaced) {
+		return &Error{Category: "target_changed"}
+	} else if err != nil {
 		return &Error{Category: "stage_unavailable"}
 	}
 	committed := false
 	defer func() {
 		if !committed {
-			_ = os.Remove(stage)
+			_ = dir.Remove(stage)
 		}
 	}()
-	written, writeErr := file.Write(wire)
-	chmodErr := file.Chmod(mode)
-	syncErr := file.Sync()
-	closeErr := file.Close()
-	if writeErr != nil || chmodErr != nil || syncErr != nil || closeErr != nil || written != len(wire) {
-		return &Error{Category: "stage_write_failed"}
-	}
-	staged, err := local.ReadOwnedFile(directory, filepath.Base(stage), limit)
+	staged, err := dir.ReadFile(stage, limit)
 	if err != nil || digest(staged) != effect.Next {
 		return &Error{Category: "stage_verification_failed"}
 	}
-	current, err := local.ReadOwnedFile(directory, name, limit)
+	current, err := dir.ReadFile(name, limit)
 	if err != nil || digest(current) != effect.Expected {
 		return &Error{Category: "target_changed"}
 	}
-	if err := os.Rename(stage, filepath.Join(directory, name)); err != nil {
+	if err := dir.Rename(stage, name); errors.Is(err, local.ErrReplaced) {
+		return &Error{Category: "target_changed"}
+	} else if err != nil {
 		return &Error{Category: "publication_failed"}
 	}
 	committed = true
-	syncDirectory(directory)
-	confirmed, err := local.ReadOwnedFile(directory, name, limit)
-	if err != nil || digest(confirmed) != effect.Next {
+	_ = dir.Sync()
+	confirmed, err := dir.ReadFile(name, limit)
+	if err != nil || digest(confirmed) != effect.Next || dir.StillAtPath() != nil {
 		return &Error{Category: "publication_uncertain"}
 	}
 	return nil
@@ -450,7 +528,7 @@ type skillPlan struct {
 // present skill may be replaced only when owned: its whole set matches the
 // installation receipt's skill manifest, it is known to this binary, or a
 // resumed operation recorded it as the authorized expected revision.
-func planSkills(ctx context.Context, root string, candidate Candidate, installedManifest string, recorded map[string]string, resume bool) (skillPlan, error) {
+func planSkills(ctx context.Context, root string, candidate Candidate, installedManifest string, recorded map[string]string, resume bool, session *codexruntime.UpgradeSession) (skillPlan, error) {
 	plan := skillPlan{state: SkillsNotConfigured, effects: []Effect{}, leftovers: []string{}}
 	if root == "" {
 		return plan, nil
@@ -459,7 +537,12 @@ func planSkills(ctx context.Context, root string, candidate Candidate, installed
 	if err != nil {
 		return plan, &Error{Category: "skill_inspection_failed"}
 	}
-	inventory, err := service.InspectUpgrade(ctx)
+	var inventory codexruntime.UpgradeInventory
+	if session != nil {
+		inventory, err = session.Inspect(ctx)
+	} else {
+		inventory, err = service.InspectUpgrade(ctx)
+	}
 	if errors.Is(err, codexruntime.ErrUpgradeConflict) {
 		return plan, &Error{Category: "skill_conflict"}
 	} else if err != nil {
@@ -557,10 +640,19 @@ func parseReceipt(wire []byte) (map[string]string, error) {
 }
 
 func readMarker(directory string) (map[string]string, error) {
-	if _, err := os.Lstat(filepath.Join(directory, markerName)); os.IsNotExist(err) {
+	root, err := local.OpenOwnedDirectory(directory)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	return readMarkerIn(root)
+}
+
+func readMarkerIn(directory local.AnchoredDirectory) (map[string]string, error) {
+	if _, err := directory.Lstat(markerName); os.IsNotExist(err) {
 		return nil, os.ErrNotExist
 	}
-	wire, err := local.ReadOwnedFile(directory, markerName, 4096)
+	wire, err := directory.ReadFile(markerName, 4096)
 	if err != nil {
 		return nil, err
 	}
@@ -597,7 +689,10 @@ func recordedSkills(marker map[string]string) map[string]string {
 // installer and the upgrade path refuse each other's interrupted state. It
 // also records each skill's authorized expected revision so a resumed upgrade
 // can prove ownership of skills an interruption left unpublished.
-func writeMarker(directory, archive, stage string, create bool, skills map[string]string) error {
+// writeMarker publishes the operation marker inside receiptDir, the same
+// anchored directory object Apply validated once and holds open for the rest
+// of the call, never by re-deriving ReceiptDir's pathname.
+func writeMarker(receiptDir local.AnchoredDirectory, archive, stage string, create bool, skills map[string]string) error {
 	var builder strings.Builder
 	fmt.Fprintf(&builder, "formatVersion=1\nstage=%s\narchiveSha256=%s\noperation=upgrade\n", stage, archive)
 	for _, name := range skillNames {
@@ -606,43 +701,42 @@ func writeMarker(directory, archive, stage string, create bool, skills map[strin
 		}
 	}
 	wire := []byte(builder.String())
-	path := filepath.Join(directory, markerName)
 	if create {
-		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW, 0o600)
-		if err != nil {
+		if err := receiptDir.CreateExclusive(markerName, wire, 0o600); err != nil {
 			return err
 		}
-		_, writeErr := file.Write(wire)
-		syncErr := file.Sync()
-		if err := errors.Join(writeErr, syncErr, file.Close()); err != nil {
+		if err := receiptDir.Sync(); err != nil {
 			return err
 		}
-		syncDirectory(directory)
-		return nil
+		return receiptDir.StillAtPath()
 	}
-	temporary := path + ".next"
-	file, err := os.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW, 0o600)
+	staged, err := receiptDir.Stage(markerName+".", wire, 0o600)
 	if err != nil {
 		return err
 	}
-	_, writeErr := file.Write(wire)
-	syncErr := file.Sync()
-	if err := errors.Join(writeErr, syncErr, file.Close()); err != nil {
-		_ = os.Remove(temporary)
+	committed := false
+	defer func() {
+		if !committed {
+			_ = receiptDir.Remove(staged)
+		}
+	}()
+	if err := receiptDir.Rename(staged, markerName); err != nil {
 		return err
 	}
-	if err := os.Rename(temporary, path); err != nil {
-		_ = os.Remove(temporary)
+	committed = true
+	if err := receiptDir.Sync(); err != nil {
 		return err
 	}
-	syncDirectory(directory)
-	return nil
+	return receiptDir.StillAtPath()
 }
 
-func stageLeftovers(target Target) []string {
+func stageLeftoversIn(target Target, binaryDir, receiptDir local.AnchoredDirectory) []string {
 	leftovers := []string{}
-	for _, check := range []struct{ directory, prefix string }{{target.BinaryDir, binaryStage}, {target.ReceiptDir, receiptStage}} {
-		entries, err := os.ReadDir(check.directory)
+	for _, check := range []struct {
+		directory, prefix string
+		root              local.AnchoredDirectory
+	}{{target.BinaryDir, binaryStage, binaryDir}, {target.ReceiptDir, receiptStage, receiptDir}} {
+		entries, err := check.root.ReadDir()
 		if err != nil {
 			continue
 		}
@@ -672,6 +766,8 @@ func statfsAvailable(path string) (uint64, error) {
 }
 
 // compareSemver implements SemVer 2.0.0 precedence; build metadata is ignored.
+// Numeric identifiers are compared as unbounded decimal strings so that values
+// beyond any machine integer keep their SemVer order.
 func compareSemver(left, right string) int {
 	split := func(value string) ([]string, []string) {
 		value, _, _ = strings.Cut(value, "+")
@@ -682,20 +778,11 @@ func compareSemver(left, right string) int {
 		}
 		return strings.Split(core, "."), identifiers
 	}
-	numeric := func(value string) (int, bool) {
-		number, err := strconv.Atoi(value)
-		return number, err == nil
-	}
 	leftCore, leftPre := split(left)
 	rightCore, rightPre := split(right)
 	for index := 0; index < 3; index++ {
-		a, _ := numeric(leftCore[index])
-		b, _ := numeric(rightCore[index])
-		if a != b {
-			if a < b {
-				return -1
-			}
-			return 1
+		if comparison := compareNumericIdentifier(leftCore[index], rightCore[index]); comparison != 0 {
+			return comparison
 		}
 	}
 	switch {
@@ -707,21 +794,20 @@ func compareSemver(left, right string) int {
 		return -1
 	}
 	for index := 0; index < len(leftPre) && index < len(rightPre); index++ {
-		a, aNumeric := numeric(leftPre[index])
-		b, bNumeric := numeric(rightPre[index])
+		a, b := leftPre[index], rightPre[index]
+		aNumeric, bNumeric := isNumericIdentifier(a), isNumericIdentifier(b)
 		switch {
-		case aNumeric && bNumeric && a != b:
-			if a < b {
-				return -1
+		case aNumeric && bNumeric:
+			if comparison := compareNumericIdentifier(a, b); comparison != 0 {
+				return comparison
 			}
-			return 1
 		case aNumeric != bNumeric:
 			if aNumeric {
 				return -1
 			}
 			return 1
-		case !aNumeric && leftPre[index] != rightPre[index]:
-			if leftPre[index] < rightPre[index] {
+		case a != b:
+			if a < b {
 				return -1
 			}
 			return 1
@@ -734,4 +820,31 @@ func compareSemver(left, right string) int {
 		return 1
 	}
 	return 0
+}
+
+// isNumericIdentifier reports whether value is a non-empty run of ASCII digits.
+func isNumericIdentifier(value string) bool {
+	if value == "" {
+		return false
+	}
+	for index := 0; index < len(value); index++ {
+		if value[index] < '0' || value[index] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// compareNumericIdentifier orders two digit strings by numeric value without
+// converting them to a bounded integer type. Leading zeros are ignored
+// defensively; SemVer forbids them but callers need not rely on that.
+func compareNumericIdentifier(left, right string) int {
+	left, right = strings.TrimLeft(left, "0"), strings.TrimLeft(right, "0")
+	switch {
+	case len(left) < len(right):
+		return -1
+	case len(left) > len(right):
+		return 1
+	}
+	return strings.Compare(left, right)
 }

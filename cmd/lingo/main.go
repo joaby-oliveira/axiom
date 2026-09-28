@@ -138,7 +138,7 @@ func composeWithProvenance(source provenance.Value) cli.Service {
 	}
 	references := local.NewWorkflowReferenceValidator(artifacts)
 	workflowService := workflow.New(workflowResolver{installation}, workflowWorkItems{workItemService}, workflows, github, references, source, nil, nil)
-	return lifecycleService{lifecycle: projectapp.NewLifecycle(store, manifest.Codec{}, local.IdentityAllocator{}), portable: store, installation: installation, codex: codex, workItems: workItemService, workflows: workflowService, projectsRoot: root, stateRoot: state, skillsRoot: codexSkillsRoot(), provenance: source}
+	return lifecycleService{lifecycle: projectapp.NewLifecycle(store, manifest.Codec{}, local.IdentityAllocator{}), portable: store, installation: installation, codex: codex, workItems: workItemService, workflows: workflowService, projectsRoot: root, stateRoot: state, skillsRoot: codexSkillsRoot(), runtimes: discoverRuntimeRoots(), provenance: source}
 }
 
 func codexSkillsRoot() string {
@@ -189,6 +189,7 @@ type lifecycleService struct {
 	projectsRoot           string
 	stateRoot              string
 	skillsRoot             string
+	runtimes               runtimeRoots
 	provenance             provenance.Value
 	beforeLocalPublication func()
 }
@@ -275,18 +276,21 @@ func (s lifecycleService) RuntimeCodexInstall(ctx context.Context) cli.Result {
 	return runtimeResult(s.codex.Install(ctx))
 }
 func (s lifecycleService) RuntimeCodexStatus(ctx context.Context) cli.Result {
-	result := s.codex.Inspect(ctx)
+	return runtimeStatus(s.codex.Inspect(ctx), "Codex", "codex", s.provenance)
+}
+
+func runtimeStatus(result codexruntime.Result, label, id string, source provenance.Value) cli.Result {
 	if result.Status == codexruntime.Ready {
-		response := canonicalCompletion(completion.Facts{Completed: true}, "Lingo and Codex skills are compatible", []string{"skill-set:" + result.SkillSetVersion}, "Run project configure with explicit Project inputs", s.provenance)
+		response := canonicalCompletion(completion.Facts{Completed: true}, "Lingo and "+label+" skills are compatible", []string{"skill-set:" + result.SkillSetVersion}, "Run project configure with explicit Project inputs", source)
 		response.Runtime = runtimeView(result)
 		return response
 	}
 	if result.Status == codexruntime.Incompatible || result.Status == codexruntime.Missing || result.Status == codexruntime.Partial {
-		response := canonicalCompletion(completion.Facts{ValidationFailed: true}, "Codex skill compatibility is not ready", nil, "Run runtime codex install, then project configure", s.provenance)
+		response := canonicalCompletion(completion.Facts{ValidationFailed: true}, label+" skill compatibility is not ready", nil, "Run runtime "+id+" install, then project configure", source)
 		response.Runtime = runtimeView(result)
 		return response
 	}
-	response := canonicalCompletion(completion.Facts{Failed: true}, "Codex compatibility inspection failed", nil, "Inspect the configured Codex skill root", s.provenance)
+	response := canonicalCompletion(completion.Facts{Failed: true}, label+" compatibility inspection failed", nil, "Inspect the configured "+label+" skill root", source)
 	response.Runtime = runtimeView(result)
 	return response
 }

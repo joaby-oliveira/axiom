@@ -124,22 +124,31 @@ receipts="$temporary/install/receipts"
 mkdir -p "$temporary/install" && chmod 700 "$temporary/install"
 mkdir -p "$temporary/extract" && tar -xzf "$old_archive" -C "$temporary/extract"
 installer=$(find "$temporary/extract" -name install.sh -type f | head -1)
+# Every installed binary below, including the candidate that the release
+# installer runs for an owned upgrade, must see only isolated roots: never the
+# operator's real HOME, Lingo state or Runtime skill roots.
+export HOME="$temporary/home" LINGO_PROJECTS_ROOT="$temporary/roots/projects" LINGO_STATE_ROOT="$temporary/roots/state" AXIOM_CODEX_SKILLS_ROOT="$temporary/roots/skills"
+unset CLAUDE_CONFIG_DIR XDG_STATE_HOME
+mkdir -p "$HOME" "$temporary/roots" && chmod 700 "$HOME" "$temporary/roots"
 step clean-install "$installer" --archive "$old_archive" --checksums "$temporary/r100/SHA256SUMS" --bin-dir "$bin" --receipt-dir "$receipts"
 step equivalent-reinstall-unchanged bash -c "'$installer' --archive '$old_archive' --checksums '$temporary/r100/SHA256SUMS' --bin-dir '$bin' --receipt-dir '$receipts' | grep -qx 'install_status=unchanged'"
-step installer-refuses-owned-upgrade bash -c "! '$installer' --archive '$new_archive' --checksums '$temporary/r110/SHA256SUMS' --bin-dir '$bin' --receipt-dir '$receipts'"
-export LINGO_PROJECTS_ROOT="$temporary/roots/projects" LINGO_STATE_ROOT="$temporary/roots/state" AXIOM_CODEX_SKILLS_ROOT="$temporary/roots/skills"
-mkdir -p "$temporary/roots" && chmod 700 "$temporary/roots"
+# T39: the release installer converges an older owned installation through the
+# protected upgrade path of the verified candidate (separate root).
+bin4="$temporary/install4/bin"
+receipts4="$temporary/install4/receipts"
+mkdir -p "$temporary/install4" && chmod 700 "$temporary/install4"
+step installer-owned-upgrade bash -c "'$installer' --archive '$old_archive' --checksums '$temporary/r100/SHA256SUMS' --bin-dir '$bin4' --receipt-dir '$receipts4' >/dev/null && '$installer' --archive '$new_archive' --checksums '$temporary/r110/SHA256SUMS' --bin-dir '$bin4' --receipt-dir '$receipts4' | grep -qx 'install_status=upgraded' && grep -qx 'version=1.1.0' '$receipts4/installation.receipt' && ! '$installer' --archive '$old_archive' --checksums '$temporary/r100/SHA256SUMS' --bin-dir '$bin4' --receipt-dir '$receipts4'"
 upgrade_args=(upgrade --archive "$new_archive" --checksums "$temporary/r110/SHA256SUMS" --bin-dir "$bin" --receipt-dir "$receipts")
-"$bin/lingo" --json "${upgrade_args[@]}" >"$temporary/preview.json" 2>/dev/null
+"$bin/axiom" --json "${upgrade_args[@]}" >"$temporary/preview.json" 2>/dev/null
 digest=$(sed -n 's/.*"references":\["upgrade:\([0-9a-f]\{64\}\)"\].*/\1/p' "$temporary/preview.json")
-old_binary_sha=$(shasum -a 256 "$bin/lingo" | awk '{print $1}')
-step upgrade-preview-read-only bash -c "[[ -n '$digest' ]] && grep -q '\"status\":\"success\"' '$temporary/preview.json' && grep -qx 'version=1.0.0' '$receipts/installation.receipt' && [[ \$(shasum -a 256 '$bin/lingo' | awk '{print \$1}') == '$old_binary_sha' ]]"
-step upgrade-stale-digest-denied bash -c "'$bin/lingo' --json ${upgrade_args[*]} --preview-digest $(printf '0%.0s' {1..64}) --authorize-local | grep -q '\"status\":\"denied_authority\"'"
-step upgrade-apply bash -c "'$bin/lingo' --json ${upgrade_args[*]} --preview-digest '$digest' --authorize-local | grep -q '\"status\":\"success\"'"
-step upgraded-version bash -c "grep -qx 'version=1.1.0' '$receipts/installation.receipt' && grep -qx \"sha256=\$(shasum -a 256 '$bin/lingo' | awk '{print \$1}')\" '$receipts/installation.receipt' && ! grep -qx 'sha256=$old_binary_sha' '$receipts/installation.receipt'"
-step upgrade-equivalent-no-op bash -c "'$bin/lingo' --json ${upgrade_args[*]} | grep -q 'Installation already matches the candidate'"
+old_binary_sha=$(shasum -a 256 "$bin/axiom" | awk '{print $1}')
+step upgrade-preview-read-only bash -c "[[ -n '$digest' ]] && grep -q '\"status\":\"success\"' '$temporary/preview.json' && grep -qx 'version=1.0.0' '$receipts/installation.receipt' && [[ \$(shasum -a 256 '$bin/axiom' | awk '{print \$1}') == '$old_binary_sha' ]]"
+step upgrade-stale-digest-denied bash -c "'$bin/axiom' --json ${upgrade_args[*]} --preview-digest $(printf '0%.0s' {1..64}) --authorize-local | grep -q '\"status\":\"denied_authority\"'"
+step upgrade-apply bash -c "'$bin/axiom' --json ${upgrade_args[*]} --preview-digest '$digest' --authorize-local | grep -q '\"status\":\"success\"'"
+step upgraded-version bash -c "grep -qx 'version=1.1.0' '$receipts/installation.receipt' && grep -qx \"sha256=\$(shasum -a 256 '$bin/axiom' | awk '{print \$1}')\" '$receipts/installation.receipt' && ! grep -qx 'sha256=$old_binary_sha' '$receipts/installation.receipt'"
+step upgrade-equivalent-no-op bash -c "'$bin/axiom' --json ${upgrade_args[*]} | grep -q 'Installation already matches the candidate'"
 step installer-accepts-upgraded-receipt bash -c "'$installer' --archive '$new_archive' --checksums '$temporary/r110/SHA256SUMS' --bin-dir '$bin' --receipt-dir '$receipts' | grep -qx 'install_status=unchanged'"
-step downgrade-refused bash -c "'$bin/lingo' --json upgrade --archive '$old_archive' --checksums '$temporary/r100/SHA256SUMS' --bin-dir '$bin' --receipt-dir '$receipts' | grep -q 'downgrade_refused'"
+step downgrade-refused bash -c "'$bin/axiom' --json upgrade --archive '$old_archive' --checksums '$temporary/r100/SHA256SUMS' --bin-dir '$bin' --receipt-dir '$receipts' | grep -q 'downgrade_refused'"
 
 # Partial resume on the native filesystem: binary committed, receipt pending.
 bin2="$temporary/install2/bin"
@@ -147,15 +156,15 @@ receipts2="$temporary/install2/receipts"
 mkdir -p "$temporary/install2" && chmod 700 "$temporary/install2"
 step resume-install-1.0.0 "$installer" --archive "$old_archive" --checksums "$temporary/r100/SHA256SUMS" --bin-dir "$bin2" --receipt-dir "$receipts2"
 new_sha=$(awk '{print $1}' <(grep " $(basename "$new_archive")\$" "$temporary/r110/SHA256SUMS"))
-cp "$bin/lingo" "$bin2/.axiom-lingo-stage.native" && chmod 700 "$bin2/.axiom-lingo-stage.native" && mv "$bin2/.axiom-lingo-stage.native" "$bin2/lingo"
+cp "$bin/axiom" "$bin2/.axiom-binary-stage.native" && chmod 700 "$bin2/.axiom-binary-stage.native" && mv "$bin2/.axiom-binary-stage.native" "$bin2/axiom"
 printf 'formatVersion=1\nstage=binary_committed\narchiveSha256=%s\noperation=upgrade\n' "$new_sha" >"$receipts2/.axiom-install-operation"
 chmod 600 "$receipts2/.axiom-install-operation"
 step installer-refuses-interrupted-upgrade bash -c "! '$installer' --archive '$old_archive' --checksums '$temporary/r100/SHA256SUMS' --bin-dir '$bin2' --receipt-dir '$receipts2'"
 resume_args=(upgrade --archive "$new_archive" --checksums "$temporary/r110/SHA256SUMS" --bin-dir "$bin2" --receipt-dir "$receipts2")
-"$bin2/lingo" --json "${resume_args[@]}" >"$temporary/resume.json" 2>/dev/null
+"$bin2/axiom" --json "${resume_args[@]}" >"$temporary/resume.json" 2>/dev/null
 resume_digest=$(sed -n 's/.*"references":\["upgrade:\([0-9a-f]\{64\}\)"\].*/\1/p' "$temporary/resume.json")
 step resume-preview-receipt-only bash -c "grep -q '\"resume\":true' '$temporary/resume.json' && [[ \$(grep -o '\"kind\":\"[a-z]*\"' '$temporary/resume.json' | sort -u | tr '\n' ' ') == '\"kind\":\"receipt\" ' ]]"
-step resume-apply bash -c "'$bin2/lingo' --json ${resume_args[*]} --preview-digest '$resume_digest' --authorize-local | grep -q '\"status\":\"success\"'"
+step resume-apply bash -c "'$bin2/axiom' --json ${resume_args[*]} --preview-digest '$resume_digest' --authorize-local | grep -q '\"status\":\"success\"'"
 step resume-marker-cleared bash -c "[[ ! -e '$receipts2/.axiom-install-operation' ]]"
 
 # Native skill publication: a known-legacy (historical POC) Axiom skill set is
@@ -171,14 +180,14 @@ for skill in "$repository_root"/internal/compatibility/testdata/poc-v0.1.0-poc.1
   cp "$skill/SKILL.md" "$skills3/$(basename "$skill")/SKILL.md" && chmod 600 "$skills3/$(basename "$skill")/SKILL.md"
 done
 skill_args=(upgrade --archive "$new_archive" --checksums "$temporary/r110/SHA256SUMS" --bin-dir "$bin3" --receipt-dir "$receipts3")
-AXIOM_CODEX_SKILLS_ROOT="$skills3" "$bin3/lingo" --json "${skill_args[@]}" >"$temporary/skills.json" 2>/dev/null
+AXIOM_CODEX_SKILLS_ROOT="$skills3" "$bin3/axiom" --json "${skill_args[@]}" >"$temporary/skills.json" 2>/dev/null
 skill_digest=$(sed -n 's/.*"references":\["upgrade:\([0-9a-f]\{64\}\)"\].*/\1/p' "$temporary/skills.json")
 step skills-preview-five-effects bash -c "[[ \$(grep -o '\"kind\":\"skill\"' '$temporary/skills.json' | wc -l | tr -d ' ') == 5 ]]"
-step skills-apply-partial-receipt-refresh bash -c "AXIOM_CODEX_SKILLS_ROOT='$skills3' '$bin3/lingo' --json ${skill_args[*]} --preview-digest '$skill_digest' --authorize-local | grep -q '\"skillReceipt\":\"refresh_required\"'"
+step skills-apply-partial-receipt-refresh bash -c "AXIOM_CODEX_SKILLS_ROOT='$skills3' '$bin3/axiom' --json ${skill_args[*]} --preview-digest '$skill_digest' --authorize-local | grep -q '\"skillReceipt\":\"refresh_required\"'"
 mkdir -p "$temporary/extract110" && tar -xzf "$new_archive" -C "$temporary/extract110"
 step skills-published-match-candidate bash -c "for skill in '$temporary'/extract110/*/skills/*; do cmp -s \"\$skill/SKILL.md\" '$skills3/'\$(basename \"\$skill\")/SKILL.md || exit 1; done"
 step skills-no-staging-or-marker bash -c "[[ -z \$(find '$skills3' -name '.axiom-upgrade-skill.*') && ! -e '$receipts3/.axiom-install-operation' ]]"
-step skills-receipt-refresh-by-upgraded-binary bash -c "AXIOM_CODEX_SKILLS_ROOT='$skills3' '$bin3/lingo' --json runtime codex install | grep -q '\"status\":\"success\"' && AXIOM_CODEX_SKILLS_ROOT='$skills3' '$bin3/lingo' --json runtime codex status | grep -q '\"status\":\"success\",\"result\":\"Lingo and Codex skills are compatible\"'"
+step skills-receipt-refresh-by-upgraded-binary bash -c "AXIOM_CODEX_SKILLS_ROOT='$skills3' '$bin3/axiom' --json runtime codex install | grep -q '\"status\":\"success\"' && AXIOM_CODEX_SKILLS_ROOT='$skills3' '$bin3/axiom' --json runtime codex status | grep -q '\"status\":\"success\",\"result\":\"Lingo and Codex skills are compatible\"'"
 
 printf 'failures=%d\n' "$failures"
 if ((failures)); then

@@ -1,0 +1,77 @@
+name: Release artifacts
+# Prepares and verifies the complete supported Axiom release artifact set from
+# one exact revision. Preparation only: this workflow never creates tags,
+# GitHub Releases or prereleases, never changes `latest`, and never writes to
+# the repository. Publication is a separately authorized step (T23).
+# Cross-built artifacts are not native target acceptance (T24).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Public release tag to prepare (vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-rc.N); no tag is created
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: release-artifacts-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Resolve exact version and source revision
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          ./scripts/release-tag-version.sh "$RELEASE_TAG" >"$RUNNER_TEMP/release-tag.txt"
+          version=$(awk -F= '$1 == "version" {print $2}' "$RUNNER_TEMP/release-tag.txt")
+          revision=$(git rev-parse --verify HEAD)
+          [[ "$revision" == "$GITHUB_SHA" ]]
+          [[ -z $(git status --porcelain --untracked-files=normal) ]]
+          {
+            printf 'RELEASE_VERSION=%s\n' "$version"
+            printf 'RELEASE_REVISION=%s\n' "$revision"
+          } >>"$GITHUB_ENV"
+      - name: Verify module sources
+        run: go mod verify
+      - name: Build supported release archives
+        run: ./scripts/build-release-archives.sh --version "$RELEASE_VERSION" --output "$RUNNER_TEMP/axiom-release/artifacts"
+      - name: Verify complete artifact set
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          evidence="$RUNNER_TEMP/axiom-release/release-evidence.txt"
+          {
+            printf 'tag=%s\n' "$RELEASE_TAG"
+            printf 'workflowRun=%s/%s/actions/runs/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            printf 'workflowRunAttempt=%s\n' "$GITHUB_RUN_ATTEMPT"
+            printf 'workflowRef=%s\n' "$GITHUB_WORKFLOW_REF"
+            printf 'go=%s\n' "$(go env GOVERSION)"
+            ./scripts/verify-release-artifacts.sh --dir "$RUNNER_TEMP/axiom-release/artifacts" --version "$RELEASE_VERSION" --revision "$RELEASE_REVISION"
+          } >"$evidence"
+          [[ -z $(git status --porcelain --untracked-files=normal) ]]
+          cat "$evidence" >>"$GITHUB_STEP_SUMMARY"
+      - name: Retain prepared artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: axiom-${{ env.RELEASE_VERSION }}-${{ env.RELEASE_REVISION }}
+          path: ${{ runner.temp }}/axiom-release
+          if-no-files-found: error
+          retention-days: 30

@@ -65,8 +65,9 @@ Axiom is under active development. This repository currently provides:
 - versioned Specifications, architecture decisions, and implementation
   Evidence.
 
-Current limitations include one supported Runtime (Codex), one Work Item
-provider (GitHub Issues), and a sequential single-agent workflow. The
+Current limitations include two supported Runtime integrations (Codex and
+Claude, configured by `axiom first-run`), one Work Item provider (GitHub
+Issues), and a sequential single-agent workflow. The
 [roadmap](docs/product/roadmap.md) describes direction. The
 [Specifications index](docs/specifications/README.md) owns detailed scope,
 approval, implementation, and acceptance state.
@@ -81,9 +82,8 @@ git clone https://github.com/rgomids/axiom.git
 cd axiom
 ./scripts/install-axiom.sh
 export PATH="$HOME/.local/bin:$PATH"
-lingo version
-lingo first-run
-lingo runtime codex install
+axiom version
+axiom first-run
 ./scripts/validate-repository.sh .
 go test ./...
 ```

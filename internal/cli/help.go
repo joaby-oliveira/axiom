@@ -2,15 +2,16 @@ package cli
 
 import "io"
 
-const helpText = `Lingo — Axiom local control plane
+const helpText = `Axiom — Lingo local control plane
 
 Usage:
-  lingo [--human|--json] <command>
-  lingo help
+  axiom [--human|--json] <command>
+  axiom help
 
 Commands:
   first-run
   runtime codex install|status
+  runtime claude install|status
   runtime profile validate
   project configure|show|resolve|init|validate|reopen|update|install
   work-item create|select|show|comment|complete
@@ -21,11 +22,16 @@ Commands:
   upgrade --archive <path> --checksums <path> --bin-dir <dir> --receipt-dir <dir>
 
 Stable Codex skill mapping:
-  $axiom-project-configure -> lingo --json project configure
-  $axiom-project-show      -> lingo --json project show
-  $axiom-work-item-create  -> lingo --json work-item create|select
-  $axiom-work-item-run     -> lingo --json workflow start|advance|resume|reconcile
-  $axiom-work-item-status  -> lingo --json workflow status|evidence
+  $axiom-project-configure -> axiom --json project configure
+  $axiom-project-show      -> axiom --json project show
+  $axiom-work-item-create  -> axiom --json work-item create|select
+  $axiom-work-item-run     -> axiom --json workflow start|advance|resume|reconcile
+  $axiom-work-item-status  -> axiom --json workflow status|evidence
+
+first-run finds Codex and Claude by their executables on PATH and installs or
+upgrades Axiom's user-global skills for each one found (Codex:
+$HOME/.agents/skills; Claude: <CLAUDE_CONFIG_DIR or ~/.claude>/skills). It never
+installs a Runtime or touches credentials; no Runtime found is success.
 
 Runtime profile validation reads local configuration without changing state,
 invoking a runtime, or probing authentication. It accepts no flags or arguments.

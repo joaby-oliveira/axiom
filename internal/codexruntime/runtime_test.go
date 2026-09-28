@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -109,7 +111,7 @@ func TestSkillSetV2KeepsSelectorsAndCanonicalResultThin(t *testing.T) {
 			t.Fatal(err)
 		}
 		text := string(content)
-		for _, required := range []string{"lingo --json", "`status`", "`result`", "`references`", "`next`", "`details`", "`provenance`"} {
+		for _, required := range []string{"axiom --json", "`status`", "`result`", "`references`", "`next`", "`details`", "`provenance`"} {
 			if !strings.Contains(text, required) {
 				t.Fatalf("%s missing thin adapter contract %q", name, required)
 			}
@@ -257,6 +259,39 @@ func TestReviewRemediatedV2SkillsRemainUpgradeable(t *testing.T) {
 	}
 }
 
+// T37 renamed the public executable in the thin entrypoints from lingo to
+// axiom; the previously installed owned skill set and its receipt must stay
+// recognized so the existing install and upgrade paths can replace them.
+func TestPreAxiomExecutableSkillsAndReceiptRemainUpgradeable(t *testing.T) {
+	prior := map[string]string{
+		"axiom-project-configure": "237da8ea6a57e9240ae464d85a1fd1ad2d8c4d19ba8160c24943ae4752b2885d",
+		"axiom-project-show":      "74abd548a0b352b9464efb2b1a6d5aca453bc1e88a164903d8a6043dfeebe8ab",
+		"axiom-work-item-create":  "7d69ac3036d16a66df106b82ca21e7753c98b3bb0d203fc40c090659bdd1bfea",
+		"axiom-work-item-run":     "5e1661d06a1caa7f7af6fd8c6253d3742f0cbb26df262a8c8357507e76f85f00",
+		"axiom-work-item-status":  "213c58a0b55e0b7d52ca97ea72b4d474b5c1577f0f473e4e8b4be8e07c3d9319",
+	}
+	for name, digest := range prior {
+		if !containsString(legacySkillDigests[name], digest) {
+			t.Fatalf("%s pre-axiom owned digest is not upgradeable", name)
+		}
+		content, err := fs.ReadFile(skillFiles, "skills/"+name+"/SKILL.md")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(content), "`lingo ") {
+			t.Fatalf("%s still invokes the lingo executable", name)
+		}
+	}
+	priorReceipt := []byte("formatVersion=1\nskillSetVersion=2\nbinaryCompatibility=2\nmanifestSha256=98b58d88e51ad9e5c907067248245a1e758d15b561bbf2d8dc99cc50924cb67d\n")
+	found := false
+	for _, wire := range legacyReceiptWires {
+		found = found || string(wire) == string(priorReceipt)
+	}
+	if !found {
+		t.Fatal("pre-axiom skill-set receipt is not upgradeable")
+	}
+}
+
 func TestPublishReceiptUpgradesOnlyExactPriorAxiomReceipt(t *testing.T) {
 	current, err := receiptBytes()
 	if err != nil {
@@ -264,20 +299,37 @@ func TestPublishReceiptUpgradesOnlyExactPriorAxiomReceipt(t *testing.T) {
 	}
 	prior := []byte("formatVersion=1\nskillSetVersion=2\nbinaryCompatibility=2\nmanifestSha256=aa50528dfd37acc2f5f95c2fc02937bc29cf6ea3cbdd51b8cd81c0a72d677adb\n")
 	root := t.TempDir()
+	if err := os.Chmod(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	path := filepath.Join(root, receiptName)
 	if err := os.WriteFile(path, prior, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if changed, published := publishReceipt(root, current); !changed || !published {
+	var identity anchor
+	openRoot := func() *os.Root {
+		opened, opening, err := anchoredRoot(root, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		identity = opening
+		return opened
+	}
+	anchored := openRoot()
+	verify := func() error { return identity.verify(anchored) }
+	if changed, published := codexIntegration.publishReceiptIn(anchored, root, current, verify); !changed || !published {
 		t.Fatalf("known prior receipt upgrade = changed %t published %t", changed, published)
 	}
+	anchored.Close()
 	if !matchesPrivateFile(path, current) {
 		t.Fatal("known prior receipt was not replaced with current receipt")
 	}
 	if err := os.WriteFile(path, []byte("foreign\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if changed, published := publishReceipt(root, current); changed || published {
+	anchored = openRoot()
+	defer anchored.Close()
+	if changed, published := codexIntegration.publishReceiptIn(anchored, root, current, verify); changed || published {
 		t.Fatalf("foreign receipt changed = changed %t published %t", changed, published)
 	}
 }
@@ -297,13 +349,13 @@ func TestEmbeddedSkillsUseSupportedNamesAndThinEntrypoints(t *testing.T) {
 		if !validName.MatchString(name) {
 			t.Fatalf("unsupported skill name: %q", name)
 		}
-		content, err := skillFiles.ReadFile("skills/" + name + "/SKILL.md")
+		content, err := fs.ReadFile(skillFiles, "skills/"+name+"/SKILL.md")
 		if err != nil {
 			t.Fatal(err)
 		}
 		text := string(content)
-		if !strings.Contains(text, "name: "+name) || !strings.Contains(text, "lingo --json") {
-			t.Fatalf("skill is not a named thin Lingo entrypoint: %s", name)
+		if !strings.Contains(text, "name: "+name) || !strings.Contains(text, "axiom --json") {
+			t.Fatalf("skill is not a named thin axiom entrypoint: %s", name)
 		}
 	}
 }
@@ -336,7 +388,7 @@ current working directory.
 		t.Fatalf("upgrade = %#v", got)
 	}
 	data, err := os.ReadFile(filepath.Join(directory, "SKILL.md"))
-	if err != nil || !strings.Contains(string(data), "lingo --json project show") {
+	if err != nil || !strings.Contains(string(data), "axiom --json project show") {
 		t.Fatalf("skill not upgraded: %q, %v", data, err)
 	}
 }
@@ -491,6 +543,93 @@ func TestInstallAndInspectRejectUnsafeRootPermissions(t *testing.T) {
 	}
 }
 
+// The skill root belongs to the Runtime and is commonly 0755. Only modes that
+// let group or other mutate it are refused; Axiom's own entries stay private.
+func TestSkillRootAcceptsModesWithoutGroupOrOtherWrite(t *testing.T) {
+	for _, test := range []struct {
+		mode os.FileMode
+		safe bool
+	}{
+		{0o700, true}, {0o750, true}, {0o755, true}, {0o705, true},
+		{0o720, false}, {0o702, false}, {0o770, false}, {0o775, false}, {0o757, false}, {0o777, false},
+	} {
+		t.Run(test.mode.String(), func(t *testing.T) {
+			for _, service := range []func(string) (Service, error){New, NewClaude} {
+				root := filepath.Join(t.TempDir(), "skills")
+				if err := os.Mkdir(root, 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Chmod(root, test.mode); err != nil {
+					t.Fatal(err)
+				}
+				runtime, err := service(root)
+				if err != nil {
+					t.Fatal(err)
+				}
+				unavailable := runtime.Runtime() + "_skill_root_unavailable"
+				got := runtime.Install(context.Background())
+				if !test.safe {
+					if got.Status != Failed || got.Category != unavailable {
+						t.Fatalf("%s install on %v = %#v", runtime.Runtime(), test.mode, got)
+					}
+					if inspected := runtime.Inspect(context.Background()); inspected.Status != Failed || inspected.Category != unavailable {
+						t.Fatalf("%s inspect on %v = %#v", runtime.Runtime(), test.mode, inspected)
+					}
+					entries, err := os.ReadDir(root)
+					if err != nil || len(entries) != 0 {
+						t.Fatalf("unsafe root written: %v, %v", entries, err)
+					}
+				} else {
+					if got.Status != Applied {
+						t.Fatalf("%s install on %v = %#v", runtime.Runtime(), test.mode, got)
+					}
+					if inspected := runtime.Inspect(context.Background()); inspected.Status != Ready {
+						t.Fatalf("%s inspect on %v = %#v", runtime.Runtime(), test.mode, inspected)
+					}
+					if again := runtime.Install(context.Background()); again.Status != Unchanged {
+						t.Fatalf("%s reinstall on %v = %#v", runtime.Runtime(), test.mode, again)
+					}
+					for _, name := range skillNames {
+						directory, err := os.Lstat(filepath.Join(root, name))
+						if err != nil || directory.Mode().Perm() != 0o700 {
+							t.Fatalf("skill directory %s = %v, %v", name, directory, err)
+						}
+						file, err := os.Lstat(filepath.Join(root, name, "SKILL.md"))
+						if err != nil || file.Mode().Perm() != 0o600 {
+							t.Fatalf("skill file %s = %v, %v", name, file, err)
+						}
+					}
+				}
+				info, err := os.Lstat(root)
+				if err != nil || info.Mode().Perm() != test.mode {
+					t.Fatalf("root mode changed: %v, %v", info, err)
+				}
+			}
+		})
+	}
+}
+
+func TestSkillRootRefusesSymlinkedRoot(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "skills")
+	if err := os.Mkdir(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(t.TempDir(), "skills")
+	if err := os.Symlink(target, root); err != nil {
+		t.Fatal(err)
+	}
+	service, err := NewClaude(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := service.Install(context.Background()); got.Status != Failed || got.Category != "claude_skill_root_unavailable" {
+		t.Fatalf("symlinked root = %#v", got)
+	}
+	if entries, err := os.ReadDir(target); err != nil || len(entries) != 0 {
+		t.Fatalf("symlink target written: %v, %v", entries, err)
+	}
+}
+
 func TestInstallRefusesConflictAndRollsBackCurrentAttempt(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "skills")
 	if err := os.MkdirAll(filepath.Join(root, "axiom-work-item-create"), 0o700); err != nil {
@@ -631,5 +770,42 @@ func TestInspectReportsBinaryCompatibilityAndPartialResume(t *testing.T) {
 	}
 	if got := incompatible.Inspect(context.Background()); got.Status != Incompatible || got.Category != "codex_binary_skill_incompatible" {
 		t.Fatalf("compatibility = %#v", got)
+	}
+}
+
+func TestClaudeIntegrationUpgradesOnlyRegisteredClaudeHistory(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "claude", "skills")
+	service, err := NewClaude(root)
+	if err != nil || service.Runtime() != "claude" {
+		t.Fatalf("service = %v, %v", service.Runtime(), err)
+	}
+	if got := service.Inspect(context.Background()); got.Status != Missing || got.Category != "claude_not_configured" {
+		t.Fatalf("inspect = %#v", got)
+	}
+	previous := []byte("---\nname: axiom-project-show\n---\nprevious Claude revision\n")
+	directory := filepath.Join(root, "axiom-project-show")
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "SKILL.md"), previous, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := service.Install(context.Background()); got.Status != Failed || got.Category != "claude_skill_conflict" {
+		t.Fatalf("unregistered content = %#v", got)
+	}
+	digest := sha256.Sum256(previous)
+	service.integration.legacySkills = map[string][]string{"axiom-project-show": {hex.EncodeToString(digest[:])}}
+	if got := service.Install(context.Background()); got.Status != Applied || got.Category != "claude_configured" {
+		t.Fatalf("registered history = %#v", got)
+	}
+	if got := service.Inspect(context.Background()); got.Status != Ready || got.Category != "claude_ready" {
+		t.Fatalf("inspect = %#v", got)
+	}
+	receipt, err := os.ReadFile(filepath.Join(root, receiptName))
+	if err != nil || !strings.HasPrefix(string(receipt), "formatVersion=1\nruntime=claude\nskillsRoot="+root+"\n") {
+		t.Fatalf("receipt = %q, %v", receipt, err)
+	}
+	if codexReceipt, _ := receiptBytes(); string(codexReceipt) == string(receipt) {
+		t.Fatal("Claude receipt is indistinguishable from the Codex receipt")
 	}
 }

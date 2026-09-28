@@ -26,24 +26,29 @@ func upgradeRoot(t *testing.T) (Service, string) {
 
 func TestPublishUpgradeSkillRequiresExpectedRevision(t *testing.T) {
 	service, root := upgradeRoot(t)
+	session, err := service.LockForUpgrade()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
 	name := skillNames[0]
-	if err := service.PublishUpgradeSkill(name, []byte("first\n"), ""); err != nil {
+	if err := session.PublishSkill(name, []byte("first\n"), ""); err != nil {
 		t.Fatalf("create absent skill: %v", err)
 	}
 	info, err := os.Stat(filepath.Join(root, name))
 	if err != nil || info.Mode().Perm() != 0o700 {
 		t.Fatalf("skill directory mode=%v err=%v", info.Mode(), err)
 	}
-	if err := service.PublishUpgradeSkill(name, []byte("second\n"), digestOf([]byte("other\n"))); err != ErrUpgradeConflict {
+	if err := session.PublishSkill(name, []byte("second\n"), digestOf([]byte("other\n"))); err != ErrUpgradeConflict {
 		t.Fatalf("mismatched expected revision published: %v", err)
 	}
-	if err := service.PublishUpgradeSkill(name, []byte("second\n"), ""); err != ErrUpgradeConflict {
+	if err := session.PublishSkill(name, []byte("second\n"), ""); err != ErrUpgradeConflict {
 		t.Fatalf("absent expectation replaced a present skill: %v", err)
 	}
-	if err := service.PublishUpgradeSkill("foreign-skill", []byte("x\n"), ""); err != ErrUpgradeConflict {
+	if err := session.PublishSkill("foreign-skill", []byte("x\n"), ""); err != ErrUpgradeConflict {
 		t.Fatalf("non-Axiom skill name accepted: %v", err)
 	}
-	if err := service.PublishUpgradeSkill(name, []byte("second\n"), digestOf([]byte("first\n"))); err != nil {
+	if err := session.PublishSkill(name, []byte("second\n"), digestOf([]byte("first\n"))); err != nil {
 		t.Fatalf("owned replacement: %v", err)
 	}
 	entries, err := os.ReadDir(filepath.Join(root, name))

@@ -33,6 +33,9 @@ type Service interface {
 	Install(context.Context, InstallInput) Result
 	RuntimeCodexInstall(context.Context) Result
 	RuntimeCodexStatus(context.Context) Result
+	RuntimeClaudeInstall(context.Context) Result
+	RuntimeClaudeStatus(context.Context) Result
+	FirstRun(context.Context) Result
 	Resolve(context.Context, ResolveInput) Result
 	Show(context.Context, ResolveInput) Result
 	Configure(context.Context, ConfigureInput) Result
@@ -123,6 +126,7 @@ type Result struct {
 	Completion *completion.Result
 	Setup      *projectapp.SetupPreview
 	Runtime    *RuntimeView
+	Bootstrap  *BootstrapView
 	Draft      *workitem.DraftPreview
 	Selection  *workitem.SelectionPreview
 	Questions  []workitem.Question
@@ -141,6 +145,25 @@ type RuntimeView struct {
 	SkillSetVersion     string             `json:"skillSetVersion"`
 	BinaryCompatibility string             `json:"binaryCompatibility"`
 	Skills              []RuntimeSkillView `json:"skills"`
+}
+
+// RuntimeBootstrapView is one supported Runtime in a first-run report.
+type RuntimeBootstrapView struct {
+	Runtime                        string             `json:"runtime"`
+	Executable                     string             `json:"executable"`
+	Present                        bool               `json:"present"`
+	ConfigurationWithoutExecutable bool               `json:"configurationWithoutExecutable"`
+	State                          string             `json:"state"`
+	Reason                         string             `json:"reason"`
+	SkillSetVersion                string             `json:"skillSetVersion,omitempty"`
+	Skills                         []RuntimeSkillView `json:"skills,omitempty"`
+}
+
+// BootstrapView reports every supported Runtime after first run.
+type BootstrapView struct {
+	Detected int                    `json:"detected"`
+	Failed   int                    `json:"failed"`
+	Runtimes []RuntimeBootstrapView `json:"runtimes"`
 }
 
 type RepositoryView struct {
@@ -323,6 +346,9 @@ func emitResponse(writer io.Writer, mode outputMode, operation action, response 
 		if response.Runtime != nil {
 			return emitRuntimeCompletion(writer, mode, *response.Completion, *response.Runtime)
 		}
+		if response.Bootstrap != nil {
+			return emitBootstrapCompletion(writer, mode, *response.Completion, *response.Bootstrap)
+		}
 		if response.Draft != nil || response.Selection != nil || response.WorkItem != nil || len(response.Questions) != 0 {
 			return emitWorkItemCompletion(writer, mode, *response.Completion, response)
 		}
@@ -359,6 +385,8 @@ const (
 	workflowReconcileAction action = "workflow_reconcile"
 	codexInstallAction      action = "runtime_codex_install"
 	codexStatusAction       action = "runtime_codex_status"
+	claudeInstallAction     action = "runtime_claude_install"
+	claudeStatusAction      action = "runtime_claude_status"
 	firstRunAction          action = "first_run"
 )
 
@@ -391,9 +419,9 @@ func request(args []string, service Service) (action, requestInput, *string) {
 	if len(args) == 1 && args[0] == "first-run" {
 		return firstRunAction, requestInput{}, nil
 	}
-	if len(args) == 3 && args[0] == "runtime" && args[1] == "codex" {
-		operation := action("runtime_codex_" + args[2])
-		if operation == codexInstallAction || operation == codexStatusAction {
+	if len(args) == 3 && args[0] == "runtime" && (args[1] == "codex" || args[1] == "claude") {
+		operation := action("runtime_" + args[1] + "_" + args[2])
+		if operation == codexInstallAction || operation == codexStatusAction || operation == claudeInstallAction || operation == claudeStatusAction {
 			return operation, requestInput{}, nil
 		}
 		return "unknown", requestInput{}, category("invalid_command")
@@ -781,8 +809,12 @@ func dispatch(ctx context.Context, operation action, input requestInput, service
 		return service.RuntimeCodexInstall(ctx)
 	case codexStatusAction:
 		return service.RuntimeCodexStatus(ctx)
+	case claudeInstallAction:
+		return service.RuntimeClaudeInstall(ctx)
+	case claudeStatusAction:
+		return service.RuntimeClaudeStatus(ctx)
 	case firstRunAction:
-		return service.RuntimeCodexStatus(ctx)
+		return service.FirstRun(ctx)
 	}
 	return Result{Status: Failed, Category: "invalid_command"}
 }
@@ -1113,6 +1145,9 @@ func (UnavailableService) Update(context.Context, UpdateInput) Result {
 func (UnavailableService) Install(context.Context, InstallInput) Result { return unavailable() }
 func (UnavailableService) RuntimeCodexInstall(context.Context) Result   { return unavailable() }
 func (UnavailableService) RuntimeCodexStatus(context.Context) Result    { return unavailable() }
+func (UnavailableService) RuntimeClaudeInstall(context.Context) Result  { return unavailable() }
+func (UnavailableService) RuntimeClaudeStatus(context.Context) Result   { return unavailable() }
+func (UnavailableService) FirstRun(context.Context) Result              { return unavailable() }
 func (UnavailableService) Resolve(context.Context, ResolveInput) Result { return unavailable() }
 func (s UnavailableService) Show(context.Context, ResolveInput) Result {
 	return s.canonicalUnavailable("Project inspection unavailable")

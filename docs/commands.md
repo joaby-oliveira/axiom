@@ -104,7 +104,7 @@ imports de produção; fixtures são sintéticas.
 JSON estrito, metadados locais, ausência versus corrupção e testes de fronteira.
 `go test ./internal/local` inclui matrizes, round-trips, inspeção estática do DTO/imports
 e integração com fake do port T02. Além do lifecycle portátil, este POC inclui
-`lingo project install`, que persiste `installation.json` em
+`axiom project install`, que persiste `installation.json` em
 `<state-root>/projects/<project-id>/installation.json`; `reopen` reconhece esse
 estado local quando disponível. Configuração portátil e estado local permanecem
 separados. Credenciais continuam externas no `gh`; recuperação automatizada e a
@@ -180,9 +180,9 @@ shell profiles:
 ```bash
 ./scripts/install-axiom.sh
 export PATH="$HOME/.local/bin:$PATH"
-command -v lingo
-lingo version
-lingo --json version
+command -v axiom
+axiom version
+axiom --json version
 ```
 
 For an isolated or custom user destination:
@@ -194,9 +194,12 @@ AXIOM_INSTALL_STATE_ROOT=/absolute/path/to/state \
 export PATH="/absolute/path/to/bin:$PATH"
 ```
 
-The installer is safe to rerun. It replaces only a prior binary whose exact
-checksum matches its protected receipt; an unrelated or modified destination is
-refused. `lingo version` reports `development` for source builds plus short revision
+The installed public executable is `axiom`; its source-install receipt is
+`axiom.receipt` in the state root. No shell alias is involved. A `lingo`
+executable left by an earlier source install is neither replaced nor removed;
+delete it yourself when no longer needed. The installer is safe to rerun. It
+replaces only a prior binary whose exact checksum matches its protected receipt;
+an unrelated or modified destination is refused. `axiom version` reports `development` for source builds plus short revision
 or `unavailable` and source state `clean`, `dirty`, or `unknown`; it never invents
 a release version. The receipt retains the full source commit and dirty flag. Test
 missing-PATH guidance, dirty metadata,
@@ -206,14 +209,74 @@ installation and unrelated-CWD invocation with:
 ./scripts/test-install-axiom.sh
 ```
 
-## Configure Codex Runtime
+## First run and Runtime integrations
 
-Install and inspect the global thin Axiom skills:
+`axiom first-run` is an idempotent bootstrap (S9/T40). It discovers each
+supported Runtime by resolving its executable from the current `PATH`
+(`codex`, `claude`); a configuration directory alone does not count, and the
+executable is never run. A Runtime whose executable is not on this process's
+`PATH` is reported absent (with `configurationWithoutExecutable` when its
+configuration directory exists); put it on `PATH` and rerun, or use the
+per-Runtime command below. For every Runtime found it installs or upgrades the
+five Axiom-owned user-global skills, then reports every supported Runtime:
 
 ```bash
-lingo runtime codex install
-lingo runtime codex status
-lingo first-run
+axiom first-run
+axiom --json first-run
+```
+
+| Runtime | Skill root | Receipt |
+|---|---|---|
+| Codex | `$HOME/.agents/skills` (`AXIOM_CODEX_SKILLS_ROOT` for isolated validation) | `.axiom-skill-set.receipt` (skill set and manifest digest) |
+| Claude | `<CLAUDE_CONFIG_DIR or ~/.claude>/skills/<skill>/SKILL.md` | `.axiom-skill-set.receipt` with `runtime=claude`, the skill root and each skill digest |
+
+Each detected Runtime converges independently: absent skills are installed,
+current content is a no-op, and only content that is a previous Axiom-owned
+revision for that Runtime is upgraded. Every skill set published through the
+shared Runtime integration (from this release on) is a known revision for every
+Runtime, so after `axiom upgrade` changes the skill text, the next `first-run`
+upgrades Claude as well as Codex; older Codex-only revisions are never adopted
+in a Claude root. Unknown, foreign, or modified content is preserved and fails
+that Runtime (`<runtime>_skill_conflict`); the receipt never authorizes
+overwriting changed content, and no skill is replaced beside a receipt that is
+not this Runtime's current or earlier Axiom receipt for that root. The skill root belongs to the Runtime, which commonly creates
+it `0755`: it must be a real directory (not a symlink) owned by you, not
+writable by group or other, and without extended ACL, otherwise that Runtime
+fails (`<runtime>_skill_root_unavailable`) without changes. So `0700`, `0750`
+and `0755` are accepted and `0770`, `0775` and `0777` are refused. Every
+ancestor directory up to `/` is checked the same way (owned by root or by
+you, no group/other write unless the sticky bit protects existing entries),
+since a mutable ancestor could otherwise let another principal replace the
+root itself between its check and its use; ordinary system directories and a
+`0755` home directory pass, and a `/tmp`-style sticky world-writable
+directory passes because of the sticky bit. Everything Axiom creates under
+the root stays `0700`/`0600`. A missing root is created `0700`. A relative `CLAUDE_CONFIG_DIR` fails Claude the same way.
+Axiom only reads `CLAUDE_CONFIG_DIR` from the process environment, not from
+Claude settings files. The install keeps its persistent `.axiom-skill-set.lock`
+in each skill root.
+
+| Detected | Result | Exit |
+|---|---|---|
+| none | `success`, no supported Runtime available, no effect | `0` |
+| all converge | `success` | `0` |
+| some converge, others fail | `partial`; converged results are kept | `1` |
+| all fail | `failure` | `1` |
+
+The JSON result carries `firstRun.detected`, `firstRun.failed` and one entry
+per Runtime with `present`, `configurationWithoutExecutable` (a stale
+configuration directory), `state` (`absent`, `configured`,
+`already_configured`, `failed`), `reason`, and the skill states. first-run never
+installs a Runtime, authenticates, reads or changes credentials, provisions
+secrets or touches subscriptions, and does not infer a Project.
+
+Per-Runtime commands install or inspect one integration regardless of
+discovery:
+
+```bash
+axiom runtime codex install
+axiom runtime codex status
+axiom runtime claude install
+axiom runtime claude status
 ```
 
 Codex standalone skill names accept lowercase letters, digits and hyphens, so
@@ -227,17 +290,14 @@ $axiom-work-item-run
 $axiom-work-item-status
 ```
 
-The default user-global root is `$HOME/.agents/skills`. For isolated validation:
+Claude invokes the same skills as `/axiom-project-configure` and so on, or
+selects them from their descriptions. For isolated validation:
 
 ```bash
-AXIOM_CODEX_SKILLS_ROOT=/absolute/test/root lingo runtime codex install
+AXIOM_CODEX_SKILLS_ROOT=/absolute/test/root axiom runtime codex install
+CLAUDE_CONFIG_DIR=/absolute/test/claude axiom runtime claude install
 ./scripts/test-codex-skills.sh
 ```
-
-Known prior Axiom skill content is upgraded atomically. Changed or unrelated
-content remains a conflict and is never overwritten. `first-run` reports binary
-compatibility plus the exact digest/state of each of the five skills, then directs
-the user to explicit Project setup. It does not invoke Codex or infer a Project.
 
 ## Validate the Runtime Profile store
 
@@ -245,8 +305,8 @@ Inspect the isolated S8 Runtime Profile configuration without creating, writing,
 or repairing anything:
 
 ```bash
-lingo runtime profile validate
-lingo --json runtime profile validate
+axiom runtime profile validate
+axiom --json runtime profile validate
 ```
 
 The command takes no flags; any extra argument is rejected before the store is
@@ -262,7 +322,7 @@ but structurally or semantically invalid configuration, both fail closed and
 return the canonical `validation_failure` completion with a sanitized category;
 neither case creates state or exposes internal error detail. Human output
 prints the concise status by default; prefix the command with `--json` for the
-structured event, as with other Lingo commands.
+structured event, as with other `axiom` commands.
 
 ## Build and install exact-version S2 archives
 
@@ -275,6 +335,13 @@ absolute output directory. It emits three checksummed archives plus
   --version 0.1.0 \
   --output /absolute/release
 ```
+
+Each archive holds one bundle directory with the canonical public executable
+`axiom`, `LICENSE`, the release installer `install.sh`, `release-metadata.txt`,
+`skills-manifest.txt`, the five Codex skills, and a complete `MANIFEST.sha256`.
+The installer publishes `<bin-dir>/axiom`. A receipt or binary from a pre-`axiom`
+archive (which shipped `lingo`) is not recognized as owned and is preserved;
+no migration from such an installation is performed.
 
 Supported archive rows are the exact approved baselines macOS 27.0/arm64,
 Ubuntu 26.04/amd64, and Ubuntu 26.04/arm64. Other macOS versions, Linux
@@ -289,15 +356,34 @@ archive matching the current host into explicit user-owned destinations:
   --receipt-dir /absolute/user-owned/state
 ```
 
-The install is checksum-first. Existing binary and receipt roots must be owned by
-the current user, mode `0700`, and free of extended ACLs; unsafe roots are
-preserved, not repaired. The closed receipt includes an RFC 3339 UTC
+The install is checksum-first. An existing receipt root is Axiom-owned state and
+must be owned by the current user, mode `0700`, and free of extended ACLs. An
+existing binary root may be a shared user directory such as `~/.local/bin`: it
+must be a real directory (not a symlink) owned by the current user that group
+and other cannot write and that has no extended ACL, so `0700`, `0750` and
+`0755` are accepted and `0702`, `0720`, `0770`, `0775` and `0777` are refused.
+Every ancestor of the binary and receipt roots, up to `/`, is checked the
+same way (owned by root or by you, no group/other write unless the sticky
+bit protects existing entries), since a mutable ancestor could otherwise let
+another principal replace the root itself; ordinary system directories and a
+`0755` home directory pass, and a `/tmp`-style sticky world-writable
+directory passes because of the sticky bit. A missing root is created `0700`,
+and the published `axiom` stays `0700` and the receipt `0600`. Unsafe roots
+are preserved, not repaired. The closed receipt includes an RFC 3339 UTC
 `installedAt` value created for the successful installation generation and
 preserved on equivalent reinstall. Exact owned reinstall is a no-op. Platform,
 ownership, permission, ACL, link, type, schema, and content conflicts fail closed.
-The installer never edits shell profiles or `PATH`. It deliberately refuses
-version upgrades; use the owned upgrade path in
-[Compatibility, cleanup, recovery, and upgrade](#compatibility-cleanup-recovery-and-upgrade).
+The installer never edits shell profiles or `PATH`. Refusals that need no lock
+(symlinked or unsafe existing roots, a binary without receipt) are decided
+before any directory is created, and a refused concurrent installer never
+releases the lock held by another operation. For an existing owned
+installation with a different binary, it runs the verified candidate's own
+[owned upgrade](#compatibility-cleanup-recovery-and-upgrade): a read-only
+preview, then apply under that exact preview digest, printing
+`install_status=upgraded`. A newer version upgrades; an older one is refused
+(`downgrade_refused`); a divergent same version is refused. An interrupted
+owned upgrade resumes only with the same archive; any other interrupted
+operation stays `recovery_required`.
 
 Validate archive structure, clean install, no-op, conflicts, interruption, and
 recovery markers with:
@@ -306,26 +392,134 @@ recovery markers with:
 ./scripts/test-release-archives.sh
 ```
 
+## Install a published release (S9/T39)
+
+`scripts/install.sh` is the remote bootstrap. It needs no checkout, Go or build;
+it requires `sh`, `bash`, `curl`, `tar`, `awk`, `grep`, `mktemp` and `sha256sum`
+or `shasum`. It requires a published release, so it fails until one exists:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh | sh -s -- --channel stable
+curl -fsSL https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh | sh -s -- --version v0.1.0-rc.2
+```
+
+Selection:
+
+- no selector or `--channel stable`: the latest published stable release, read
+  only from the `Location` of GitHub's `/releases/latest` redirect. It never
+  falls back to a release candidate; with no stable release it fails and names
+  `--version`.
+- `--version vX.Y.Z` or `--version vX.Y.Z-rc.N`: exactly that published tag.
+- release candidates: only by exact version, `--version vX.Y.Z-rc.N`. There is
+  no release-candidate channel; `--channel rc`, like any other unsupported
+  selector, is an input error with no effect.
+- `--channel` and `--version` are mutually exclusive and fail before any effect.
+
+The bootstrap detects the exact supported row (macOS 27.0/arm64, Ubuntu
+26.04/amd64, Ubuntu 26.04/arm64) before any download, fetches the release
+`SHA256SUMS` and the row's archive over HTTPS only, and verifies the digest
+before reading the archive. It then requires the bundle's `install.sh` and
+`release-metadata.txt` to match the bundle manifest and the metadata to be the
+resolved version and row of a clean release build, and runs that release
+installer. All installation effects, ownership checks, no-op reinstall,
+protected owned upgrade, downgrade refusal and recovery belong to that
+installer (see above). Defaults are `--bin-dir $HOME/.local/bin` and
+`--receipt-dir ${XDG_STATE_HOME:-$HOME/.local/state}/axiom/install`. An existing
+binary directory must be yours, not a symlink, not writable by group or other,
+and without extended ACLs (a usual `0755` `~/.local/bin` is accepted); an
+existing receipt directory must be yours, mode `0700` and without extended
+ACLs. Otherwise pass another absolute canonical directory. It prints the resolved identity
+(`install_tag`, `install_asset`, `install_asset_sha256`, `install_row`,
+`install_revision`, receipt path) and, when the binary directory is not on
+`PATH`, a `path_notice` with the export to run. It never uses `sudo`, edits
+shell profiles or `PATH`, installs Runtimes, or touches credentials. Release
+acceptance (T24) pins `--version vX.Y.Z-rc.N`.
+
+Test the matrix with a fake `curl` and local release fixtures (no live GitHub):
+
+```bash
+./scripts/test-install-bootstrap.sh
+```
+
+Selector, host and input refusals run on any host. Install, reinstall, upgrade,
+downgrade, foreign/modified/unsafe state, concurrency, interruption and network
+cases need a supported row and exit `78` elsewhere. On Linux,
+`AXIOM_TEST_SYNTHETIC_UBUNTU_ROW=1` reruns the suite in a private mount
+namespace declaring Ubuntu 26.04 (needs root or unprivileged user namespaces);
+that is synthetic Evidence, not native acceptance.
+
+## Prepare a release artifact set (S9/T38)
+
+Public release tags are `vMAJOR.MINOR.PATCH` (stable) or
+`vMAJOR.MINOR.PATCH-rc.N` (release candidate). Release metadata records the
+semantic version without the leading `v`:
+
+```bash
+./scripts/release-tag-version.sh v0.1.0-rc.2
+# tag=v0.1.0-rc.2
+# version=0.1.0-rc.2
+# channel=rc
+```
+
+The manually dispatched `Release artifacts` workflow
+(`.github/workflows/release-artifacts.yml`) takes one `tag` input, checks out the
+dispatched revision, requires it to be clean and equal to `GITHUB_SHA`, builds
+the three supported rows with `build-release-archives.sh`, verifies the complete
+set, and retains `artifacts/` plus `release-evidence.txt` as a workflow artifact.
+It has a read-only token and never creates tags, GitHub Releases, prereleases,
+or `latest`, and never writes to the repository. Cross-built artifacts are not
+native target acceptance; publication and native acceptance stay with T23/T24.
+
+Verify an artifact set locally from a clean checkout at its exact revision:
+
+```bash
+./scripts/verify-release-artifacts.sh \
+  --dir /absolute/release \
+  --version 0.1.0-rc.2 \
+  --revision "$(git rev-parse HEAD)"
+```
+
+The verifier requires exactly `SHA256SUMS` plus one archive per supported row,
+correct checksums, the closed bundle entry set with a `0700` `axiom` executable,
+a complete `MANIFEST.sha256`, exact release metadata, `LICENSE`, `install.sh`
+and skills identical to the source, the executable format of each row, and Go
+build information naming the exact revision with `vcs.modified=false`. The
+executable for the host's own row must report the exact provenance. It prints
+closed `key=value` Evidence ending in `publication=none` and `result=pass`.
+
+Test the tag contract, clean/dirty source, the full matrix, rerun equivalence,
+fail-closed incomplete or foreign sets, and the workflow's no-publication
+boundary (builds run in a clean clone of the committed `HEAD`):
+
+```bash
+./scripts/test-release-pipeline.sh
+```
+
+A rerun from the same revision yields identical bundle contents and
+executables; archive bytes (tar timestamps) may differ, so the published
+`SHA256SUMS` is the one produced by the run that is published.
+
 ## CLI output and help
 
 Direct Lingo use defaults to a concise human status. Skills and scripts use the
 stable JSON surface by putting `--json` before the command:
 
 ```bash
-lingo project show --selector my-project
-lingo --json project show --selector my-project
-lingo help
+axiom project show --selector my-project
+axiom --json project show --selector my-project
+axiom help
 ```
 
 Strict S5 workflow selectors are explicit and independent of current directory:
 
 ```bash
-lingo --json workflow start \
+axiom --json workflow start \
   --project <project-uuid-or-slug> \
   --repository <project-scoped-key> \
   --work-item 'github:<owner>/<repository>#<number>'
 
-lingo --json workflow status \
+axiom --json workflow status \
   --project <project-uuid-or-slug> \
   --repository <project-scoped-key> \
   --work-item 'github:<owner>/<repository>#<number>' \
@@ -346,11 +540,11 @@ typed payloads until their authorized MVP Tasks migrate them. Exit codes remain
 
 | Codex skill | Stable Lingo entrypoint |
 |---|---|
-| `$axiom-project-configure` | `lingo --json project configure` |
-| `$axiom-project-show` | `lingo --json project show --selector ...` |
-| `$axiom-work-item-create` | `lingo --json work-item create\|select ...` |
-| `$axiom-work-item-run` | `lingo --json workflow start\|advance\|fact\|resume\|reconcile ...` |
-| `$axiom-work-item-status` | `lingo --json workflow status\|evidence ...` |
+| `$axiom-project-configure` | `axiom --json project configure` |
+| `$axiom-project-show` | `axiom --json project show --selector ...` |
+| `$axiom-work-item-create` | `axiom --json work-item create\|select ...` |
+| `$axiom-work-item-run` | `axiom --json workflow start\|advance\|fact\|resume\|reconcile ...` |
+| `$axiom-work-item-status` | `axiom --json workflow status\|evidence ...` |
 
 Skills collect missing selectors conversationally, but Lingo retains validation,
 repository resolution, workflow ordering, and external-mutation authority.
@@ -360,8 +554,8 @@ repository resolution, workflow ordering, and external-mutation authority.
 Use a canonical Project UUID or installation-unique slug from any directory:
 
 ```bash
-lingo project resolve --selector my-project
-lingo project show --selector my-project
+axiom project resolve --selector my-project
+axiom project show --selector my-project
 ```
 
 Resolution reads protected machine-local state. It never searches the caller's
@@ -373,13 +567,13 @@ portable/repository locations.
 Guided CLI:
 
 ```bash
-lingo project configure
+axiom project configure
 ```
 
 Repeatable non-interactive form:
 
 ```bash
-lingo --json project configure \
+axiom --json project configure \
   --slug my-project \
   --name "My Project" \
   --repository main=/absolute/path/to/working-copy \
@@ -390,7 +584,7 @@ This first call is read-only and returns `setup.projectId` plus an exact
 `setup.digest`. After review, repeat the same facts with:
 
 ```bash
-lingo --json project configure \
+axiom --json project configure \
   --project-id <preview-project-id> \
   --slug my-project \
   --name "My Project" \
@@ -414,7 +608,7 @@ only missing fields, prints the exact draft/target/effects/digest, and accepts
 only the literal `yes` before the external effect:
 
 ```bash
-lingo work-item create \
+axiom work-item create \
   --project my-project \
   --repository main \
   --provider-repository owner/repository
@@ -423,7 +617,7 @@ lingo work-item create \
 For non-interactive use, provide all seven sections. The first call is read-only:
 
 ```bash
-lingo --json work-item create \
+axiom --json work-item create \
   --project my-project \
   --repository main \
   --provider-repository owner/repository \
@@ -440,7 +634,7 @@ After reviewing every preview fact, repeat the exact same fields with the return
 digest and explicit external authority:
 
 ```bash
-lingo --json work-item create \
+axiom --json work-item create \
   --project my-project \
   --repository main \
   --provider-repository owner/repository \
@@ -463,13 +657,13 @@ Selecting an existing Issue is a separate local-publication review. Preview the
 exact provider identity/state first, then repeat it with local authority:
 
 ```bash
-lingo --json work-item select \
+axiom --json work-item select \
   --project my-project \
   --repository main \
   --provider-repository owner/repository \
   --number 123
 
-lingo --json work-item select \
+axiom --json work-item select \
   --project my-project \
   --repository main \
   --provider-repository owner/repository \
@@ -477,7 +671,7 @@ lingo --json work-item select \
   --preview-digest <preview-digest> \
   --authorize-local
 
-lingo work-item show --project my-project --repository main --number 123
+axiom work-item show --project my-project --repository main --number 123
 ```
 
 The reviewed effect set includes the local create-attempt fence. Before POST,
@@ -497,8 +691,8 @@ and must not be treated as workflow progress or human acceptance.
 Start one workflow from an already linked Work Item:
 
 ```bash
-lingo workflow start --project my-project --repository main --number 123
-lingo workflow status --project my-project --repository main --number 123
+axiom workflow start --project my-project --repository main --number 123
+axiom workflow status --project my-project --repository main --number 123
 ```
 
 Advance gates in fixed order from the exact current revision. Optional references
@@ -508,7 +702,7 @@ Lingo re-reads and validates it before committing the transition. Repository
 resolution comes from Project state, not caller CWD.
 
 ```bash
-lingo workflow advance --project my-project --repository main --number 123 \
+axiom workflow advance --project my-project --repository main --number 123 \
   --expected-revision 1 --gate intake --outcome pass \
   --reference evidence:docs/intent.md:<sha256> --next "Review specification"
 ```
@@ -523,12 +717,12 @@ transition at the same stage. Resume requires the new exact revision. Neither
 operation closes the Work Item:
 
 ```bash
-lingo workflow advance --project my-project --repository main --number 123 \
+axiom workflow advance --project my-project --repository main --number 123 \
   --expected-revision 6 --gate implementation --outcome fail \
   --reference evidence:evidence/test-failure.txt:<sha256>
-lingo workflow resume --project my-project --repository main --number 123 \
+axiom workflow resume --project my-project --repository main --number 123 \
   --expected-revision 7
-lingo workflow evidence --project my-project --repository main --number 123
+axiom workflow evidence --project my-project --repository main --number 123
 ```
 
 The ten-stage Work Item lifecycle is derived from canonical gates plus explicit,
@@ -536,7 +730,7 @@ revisioned local facts; it is not a second state machine. Record one fact with a
 exact revision, a validated reference, and local authority:
 
 ```bash
-lingo --json workflow fact \
+axiom --json workflow fact \
   --project my-project --repository main --number 123 \
   --execution <execution-id> --expected-revision <revision> \
   --fact planning-authority --active \
@@ -555,7 +749,7 @@ Local completion is a local transition only. It requires the exact current
 revision and never closes the GitHub Issue:
 
 ```bash
-lingo workflow advance --project my-project --repository main --number 123 \
+axiom workflow advance --project my-project --repository main --number 123 \
   --expected-revision 10 --gate completion --outcome pass
 ```
 
@@ -564,7 +758,7 @@ Provider state and review the returned target, Execution revision, projection
 key, comment, exact effects, observation digest, and preview digest:
 
 ```bash
-lingo --json workflow reconcile \
+axiom --json workflow reconcile \
   --project my-project --repository main --number 123 \
   --expected-revision 2
 ```
@@ -573,7 +767,7 @@ Only after explicit review, repeat the same target/revision with the exact diges
 and external authority:
 
 ```bash
-lingo --json workflow reconcile \
+axiom --json workflow reconcile \
   --project my-project --repository main --number 123 \
   --expected-revision 2 \
   --preview-digest <preview-digest> \
@@ -605,7 +799,7 @@ Classify the configured roots (`LINGO_PROJECTS_ROOT`, `LINGO_STATE_ROOT`, and th
 Codex skill root) without creating, locking, or changing anything:
 
 ```bash
-lingo --json compatibility inspect
+axiom --json compatibility inspect
 ```
 
 The closed classifications are `absent_v1`, `valid_v1`, `recognized_poc`,
@@ -622,24 +816,24 @@ authorities, each writing only new private objects into an absent target on the
 same local filesystem as the source, outside every owned root:
 
 ```bash
-lingo --json compatibility backup --target /absolute/new/poc-backup
-lingo --json compatibility export --target /absolute/new/poc-export
+axiom --json compatibility backup --target /absolute/new/poc-backup
+axiom --json compatibility export --target /absolute/new/poc-export
 # after review, repeat each with --preview-digest <digest> --authorize-local
 ```
 
 Backup copies every recognized POC object; export copies only validated
 portable Project manifests to `<target>/projects`, which a separate clean
-`LINGO_STATE_ROOT` can then configure explicitly with `lingo project configure`.
+`LINGO_STATE_ROOT` can then configure explicitly with `axiom project configure`.
 `manifest.json` is written last; a target without it is incomplete and is never
 adopted. An equivalent completed target is reported as a no-op.
 
 Explicit, reference-aware artifact cleanup:
 
 ```bash
-lingo --json artifact cleanup
-lingo --json artifact cleanup --preview-digest <digest> --authorize-local
-lingo --json artifact retire --artifact <artifact-id>
-lingo --json artifact retire --artifact <artifact-id> --preview-digest <digest> --authorize-local
+axiom --json artifact cleanup
+axiom --json artifact cleanup --preview-digest <digest> --authorize-local
+axiom --json artifact retire --artifact <artifact-id>
+axiom --json artifact retire --artifact <artifact-id> --preview-digest <digest> --authorize-local
 ```
 
 Eligible: unreferenced `diagnostic` artifacts at least 30 days old, `evidence`
@@ -661,8 +855,8 @@ Capacity exhaustion never deletes anything.
 Guided recovery of interrupted local publication:
 
 ```bash
-lingo --json recovery inspect
-lingo --json recovery apply --preview-digest <plan-digest> --authorize-local
+axiom --json recovery inspect
+axiom --json recovery apply --preview-digest <plan-digest> --authorize-local
 ```
 
 Inspection lists each interrupted protocol directory, its marker, generations,
@@ -675,7 +869,7 @@ attempt markers remain `preserved_review`.
 Owned upgrade of a release installation made by `install-release.sh`:
 
 ```bash
-lingo --json upgrade \
+axiom --json upgrade \
   --archive /absolute/release/axiom-0.2.0-macos-27-arm64.tar.gz \
   --checksums /absolute/release/SHA256SUMS \
   --bin-dir /absolute/user-owned/bin \
@@ -690,7 +884,11 @@ refused), `absent_v1` or `valid_v1` state, and observed free space. The binary
 and then the receipt are published and re-read as separate confirmed effects;
 `installedAt` is preserved. A later failure is `partial`: the installer's
 `.axiom-install-operation` marker records the exact archive, so only the same
-archive can resume, and the installer refuses in the meantime. If installed
-Codex skills do not match the new version the result is `partial` and the next
-action is `lingo runtime codex install` with the upgraded binary. There is no
-automatic update, rollback, or cross-root transaction.
+archive can resume (through `axiom upgrade` or the release installer), and any
+other install is refused in the meantime. The upgrade publishes skill files
+only to the Codex root. If installed Codex skills do not match the new version
+the result is `partial` and the next action is `axiom first-run` with the
+upgraded binary (or `axiom runtime codex install` when Codex is not on `PATH`):
+it refreshes the Codex skill-set receipt and converges every other detected
+Runtime, such as Claude, from an earlier Axiom-owned revision to the new one.
+There is no automatic update, rollback, or cross-root transaction.

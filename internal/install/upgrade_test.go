@@ -27,6 +27,7 @@ type bundle struct {
 	files   map[string][]byte
 	links   map[string]string
 	skip    map[string]bool
+	drop    map[string]bool
 }
 
 func newBundle(version string, binary []byte) *bundle {
@@ -39,7 +40,7 @@ func newBundle(version string, binary []byte) *bundle {
 
 func (b *bundle) contents() map[string][]byte {
 	files := map[string][]byte{
-		"lingo":                b.binary,
+		binaryName:             b.binary,
 		"LICENSE":              []byte("license\n"),
 		"release-metadata.txt": []byte(fmt.Sprintf("formatVersion=1\nproduct=Axiom\nversion=%s\nrevision=123456789abc\nsourceState=clean\nrelease=true\nplatform=macos-27\ngoos=darwin\narchitecture=arm64\nskillSetVersion=1\n", b.version)),
 	}
@@ -51,6 +52,9 @@ func (b *bundle) contents() map[string][]byte {
 	files["skills-manifest.txt"] = []byte(manifest)
 	for name, wire := range b.files {
 		files[name] = wire
+	}
+	for name := range b.drop {
+		delete(files, name)
 	}
 	return files
 }
@@ -195,6 +199,12 @@ func TestLoadCandidateMirrorsInstallerVerification(t *testing.T) {
 		"injection version": func(b *bundle) { b.version = "1.1.0;$(touch pwned)" },
 		"skill manifest skewed": func(b *bundle) {
 			b.files["skills-manifest.txt"] = []byte("formatVersion=1\nskillSetVersion=2\nbinaryCompatibility=1\n")
+		},
+		// T37: the public executable is axiom; a pre-T37 bundle that only
+		// carries lingo is not a candidate for the axiom installation.
+		"pre-axiom executable entry": func(b *bundle) {
+			b.files["lingo"] = b.binary
+			b.drop = map[string]bool{binaryName: true}
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -661,12 +671,46 @@ func TestUpgradeRefusalsHaveZeroEffects(t *testing.T) {
 			writeFile(t, filepath.Join(workflows, "main-7.json"), wire, 0o600)
 			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
 		}, "state_incompatible"},
-		{"permissive target directory", func(t *testing.T, i *installation) Candidate {
-			if err := os.Chmod(i.target.BinaryDir, 0o755); err != nil {
+		{"pre-axiom lingo receipt destination", func(t *testing.T, i *installation) Candidate {
+			path := filepath.Join(i.target.ReceiptDir, receiptName)
+			wire := strings.Replace(read(t, path), "destination="+filepath.Join(i.target.BinaryDir, binaryName)+"\n", "destination="+filepath.Join(i.target.BinaryDir, "lingo")+"\n", 1)
+			writeFile(t, path, []byte(wire), 0o600)
+			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
+		}, "receipt_invalid"},
+		{"shared receipt directory", func(t *testing.T, i *installation) Candidate {
+			if err := os.Chmod(i.target.ReceiptDir, 0o755); err != nil {
 				t.Fatal(err)
 			}
 			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
 		}, "unsafe_target"},
+		{"symlinked binary directory", func(t *testing.T, i *installation) Candidate {
+			real := privateDirectory(t, filepath.Dir(i.target.BinaryDir), "real-bin")
+			if err := os.Rename(filepath.Join(i.target.BinaryDir, binaryName), filepath.Join(real, binaryName)); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Remove(i.target.BinaryDir); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(real, i.target.BinaryDir); err != nil {
+				t.Fatal(err)
+			}
+			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
+		}, "unsafe_target"},
+	}
+	// Any group or other write on the pre-existing binary directory lets
+	// another principal replace the binary: refused before any effect.
+	for _, mode := range []os.FileMode{0o702, 0o720, 0o770, 0o775, 0o777, 0o757} {
+		mode := mode
+		tests = append(tests, struct {
+			name   string
+			mutate func(*testing.T, *installation) Candidate
+			want   string
+		}{fmt.Sprintf("binary directory %04o", mode), func(t *testing.T, i *installation) Candidate {
+			if err := os.Chmod(i.target.BinaryDir, mode); err != nil {
+				t.Fatal(err)
+			}
+			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
+		}, "unsafe_target"})
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -678,6 +722,41 @@ func TestUpgradeRefusalsHaveZeroEffects(t *testing.T) {
 			}
 			if after := snapshot(t, filepath.Dir(installed.target.BinaryDir)); after != before {
 				t.Fatal("refused upgrade changed owned state")
+			}
+		})
+	}
+}
+
+// A pre-existing user binary directory such as ~/.local/bin is commonly 0755.
+// Only mutation by another principal matters there, so 0700, 0750 and 0755
+// upgrade; the directory mode is left alone and the binary and receipt Axiom
+// publishes stay owner-only.
+func TestUpgradeAcceptsBinaryDirectoryOnlyTheOwnerCanWrite(t *testing.T) {
+	for _, mode := range []os.FileMode{0o700, 0o750, 0o755} {
+		t.Run(fmt.Sprintf("%04o", mode), func(t *testing.T) {
+			installed := install(t, newBundle("1.0.0", []byte("old-binary\n")))
+			if err := os.Chmod(installed.target.BinaryDir, mode); err != nil {
+				t.Fatal(err)
+			}
+			next := newBundle("1.1.0", []byte("new-binary\n"))
+			service := NewService()
+			preview, err := service.Preview(context.Background(), installed.target, installed.candidate(t, next))
+			if err != nil {
+				t.Fatal(err)
+			}
+			authority, _ := Authorize(preview, preview.Digest)
+			if result, err := service.Apply(context.Background(), preview, authority); err != nil || result.Status != "success" {
+				t.Fatalf("result=%+v err=%v", result, err)
+			}
+			if read(t, filepath.Join(installed.target.BinaryDir, binaryName)) != string(next.binary) {
+				t.Fatal("binary not upgraded")
+			}
+			assertMode(t, installed.target.BinaryDir, mode)
+			assertMode(t, filepath.Join(installed.target.BinaryDir, binaryName), 0o700)
+			assertMode(t, filepath.Join(installed.target.ReceiptDir, receiptName), 0o600)
+			older := installed.candidate(t, newBundle("1.0.0", []byte("old-binary\n")))
+			if _, err := service.Preview(context.Background(), installed.target, older); category(err) != "downgrade_refused" {
+				t.Fatalf("downgrade error=%v", err)
 			}
 		})
 	}
@@ -707,6 +786,25 @@ func TestUpgradeStaleAuthorityAndSpaceHaveZeroEffects(t *testing.T) {
 	}
 }
 
+func TestUpgradeRefusesOverflowingReleaseCandidateDowngrade(t *testing.T) {
+	const older, newer = "1.0.0-rc.99999999999999999999", "1.0.0-rc.100000000000000000000"
+	installed := install(t, newBundle(newer, []byte("newer-binary\n")))
+	candidate := installed.candidate(t, newBundle(older, []byte("older-binary\n")))
+	before := snapshot(t, filepath.Dir(installed.target.BinaryDir))
+	if _, err := NewService().Preview(context.Background(), installed.target, candidate); category(err) != "downgrade_refused" {
+		t.Fatalf("error=%v want downgrade_refused", err)
+	}
+	if after := snapshot(t, filepath.Dir(installed.target.BinaryDir)); after != before {
+		t.Fatal("refused downgrade changed owned state")
+	}
+
+	upgradable := install(t, newBundle(older, []byte("older-binary\n")))
+	preview, err := NewService().Preview(context.Background(), upgradable.target, upgradable.candidate(t, newBundle(newer, []byte("newer-binary\n"))))
+	if err != nil || preview.SourceVersion != older {
+		t.Fatalf("upgrade preview=%+v err=%v", preview, err)
+	}
+}
+
 func TestSemverPrecedence(t *testing.T) {
 	for _, test := range []struct {
 		left, right string
@@ -715,6 +813,14 @@ func TestSemverPrecedence(t *testing.T) {
 		{"1.0.0", "1.0.0", 0}, {"1.0.1", "1.0.0", 1}, {"1.0.0-rc.1", "1.0.0", -1},
 		{"1.0.0-rc.2", "1.0.0-rc.10", -1}, {"1.0.0-alpha", "1.0.0-alpha.1", -1}, {"1.0.0-1", "1.0.0-alpha", -1},
 		{"2.0.0", "10.0.0", -1}, {"1.0.0+build", "1.0.0", 0},
+		{"1.0.0-rc.99999999999999999999", "1.0.0-rc.100000000000000000000", -1},
+		{"1.0.0-rc.100000000000000000000", "1.0.0-rc.99999999999999999999", 1},
+		{"1.0.0-rc.99999999999999999999", "1.0.0-rc.99999999999999999999", 0},
+		{"1.0.0-rc.9223372036854775808", "1.0.0-rc.9223372036854775807", 1},
+		{"1.0.0-rc.99999999999999999999", "1.0.0-rc.a", -1}, {"1.0.0-rc.010", "1.0.0-rc.9", 1},
+		{"1.0.0-rc.-1", "1.0.0-rc.1", 1},
+		{"99999999999999999999.0.0", "100000000000000000000.0.0", -1},
+		{"100000000000000000000.0.0", "99999999999999999999.0.0", 1},
 	} {
 		if got := compareSemver(test.left, test.right); got != test.want {
 			t.Fatalf("compare(%s,%s)=%d want %d", test.left, test.right, got, test.want)

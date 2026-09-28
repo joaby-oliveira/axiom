@@ -46,7 +46,7 @@ func (s Service) Inventory(ctx context.Context) (Inventory, error) {
 			result.Skills = append(result.Skills, InventorySkill{Name: name, State: "missing"})
 		}
 		return result, nil
-	} else if err != nil || !privateDirectory(s.root) {
+	} else if err != nil || !skillRootDirectory(s.root) {
 		result.State, result.Receipt = SkillSetForeign, "unavailable"
 		return result, nil
 	}
@@ -63,7 +63,7 @@ func (s Service) Inventory(ctx context.Context) (Inventory, error) {
 			case string(content) == string(expected):
 				skill.State = "current"
 				current++
-			case matchesLegacyInstalled(s.root, name):
+			case s.integration.matchesLegacyInstalled(s.root, name):
 				skill.State = "legacy"
 			default:
 				skill.State, foreign = "foreign", true
@@ -79,11 +79,11 @@ func (s Service) Inventory(ctx context.Context) (Inventory, error) {
 	}
 	receiptPath := filepath.Join(s.root, receiptName)
 	if _, err := os.Lstat(receiptPath); err == nil {
-		receipt, receiptErr := receiptBytes()
+		receipt, receiptErr := s.integration.receipt(s.root)
 		switch {
 		case receiptErr == nil && matchesPrivateFile(receiptPath, receipt):
 			result.Receipt = "current"
-		case matchesLegacyReceipt(receiptPath):
+		case s.integration.matchesLegacyReceipt(s.root):
 			result.Receipt = "legacy"
 		default:
 			result.Receipt, foreign = "foreign", true

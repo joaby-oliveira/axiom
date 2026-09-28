@@ -18,7 +18,7 @@ report_result() {
   printf '{"event":"axiom_install","result":"%s","version":"%s","commit":"%s","dirty":%s,"pathConfigured":%s}\n' \
     "$result" "$version" "$commit" "$dirty" "$path_configured"
   if [[ "$path_configured" == false ]]; then
-    printf 'path_notice: lingo is not on PATH; run: export PATH=%q:$PATH\n' "$binary_root" >&2
+    printf 'path_notice: axiom is not on PATH; run: export PATH=%q:$PATH\n' "$binary_root" >&2
   fi
 }
 
@@ -43,10 +43,10 @@ ensure_private_directory() {
 ensure_private_directory "$binary_root"
 ensure_private_directory "$state_root"
 
-destination="$binary_root/lingo"
-receipt="$state_root/lingo.receipt"
-stage=$(mktemp "$binary_root/.lingo-axiom-stage.XXXXXX")
-receipt_stage=$(mktemp "$state_root/.lingo-receipt-stage.XXXXXX")
+destination="$binary_root/axiom"
+receipt="$state_root/axiom.receipt"
+stage=$(mktemp "$binary_root/.axiom-source-stage.XXXXXX")
+receipt_stage=$(mktemp "$state_root/.axiom-source-receipt-stage.XXXXXX")
 cleanup() {
   rm -f -- "$stage" "$receipt_stage"
 }

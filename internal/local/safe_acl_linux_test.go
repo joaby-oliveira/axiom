@@ -48,4 +48,12 @@ func TestPrivateRootRejectsDefaultACLDespiteMode0700(t *testing.T) {
 	if !errors.Is(err, ErrUnsafe) {
 		t.Fatalf("default ACL accepted: %v", err)
 	}
+	// The publication-directory rule for a 0755 user directory refuses
+	// the same ACL.
+	if err := os.Chmod(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckPublicationDirectory(root); !errors.Is(err, ErrUnsafe) {
+		t.Fatalf("publication directory with ACL accepted: %v", err)
+	}
 }
