@@ -108,20 +108,77 @@ func (s Service) inspectUpgradeSkill(name string) (UpgradeSkill, error) {
 	return skill, nil
 }
 
-// LockForUpgrade takes the same exclusive skill-set lock as Install so a
-// concurrent runtime install cannot interleave with upgrade publication.
-func (s Service) LockForUpgrade() (func(), error) {
-	lock, category := acquireInstallLock(s.root)
-	if category != "" {
-		return nil, errors.New(category)
-	}
-	return func() { _ = lock.Close() }, nil
+// UpgradeSession holds the skill-set lock and an anchored handle to the
+// skill root, opened once by LockForUpgrade: every PublishSkill call for this
+// session resolves against that same validated directory object (and a
+// per-skill child directory opened from it), so a later replacement of the
+// root or a skill directory at its pathname cannot redirect a publication
+// (ADR-0005 property 3, controlled ancestor/leaf replacement).
+type UpgradeSession struct {
+	lock *os.File
+	root *os.Root
 }
 
-// PublishUpgradeSkill stages content privately inside the skill directory,
-// rechecks that SKILL.md still has the expected digest (empty means absent),
-// renames, and confirms the published digest. The caller holds LockForUpgrade.
-func (s Service) PublishUpgradeSkill(name string, content []byte, expected string) error {
+// LockForUpgrade takes the same exclusive skill-set lock as Install and opens
+// the skill root once, anchored: a real directory, owned by the current
+// user, without group/other write, without extended ACL, with every
+// container ancestor safe from replacement by another principal. The
+// returned session is what every PublishSkill call for this upgrade
+// operates through.
+func (s Service) LockForUpgrade() (*UpgradeSession, error) {
+	root, err := anchoredRoot(s.root, false)
+	if err != nil {
+		return nil, ErrUpgradeConflict
+	}
+	info, err := root.Stat(".")
+	if err != nil || info.Mode().Perm()&0o022 != 0 || !ownedByUser(info) {
+		root.Close()
+		return nil, ErrUpgradeConflict
+	}
+	directory, err := root.Open(".")
+	if err != nil {
+		root.Close()
+		return nil, ErrUpgradeConflict
+	}
+	aclErr := checkPrivateACL(directory)
+	directory.Close()
+	if aclErr != nil {
+		root.Close()
+		return nil, ErrUpgradeConflict
+	}
+	lock, category := acquireInstallLock(root)
+	if category != "" {
+		root.Close()
+		return nil, errors.New(category)
+	}
+	return &UpgradeSession{lock: lock, root: root}, nil
+}
+
+// Close releases the install lock and the anchored skill-root handle.
+func (u *UpgradeSession) Close() {
+	_ = u.lock.Close()
+	_ = u.root.Close()
+}
+
+// RemoveSkillLeftover removes a stray interrupted-stage artifact directly
+// inside name's skill directory, through this session's anchored skill-root
+// handle and a child directory opened from it once, never by re-deriving
+// either by pathname.
+func (u *UpgradeSession) RemoveSkillLeftover(name, leftoverName string) error {
+	child, err := privateChild(u.root, name)
+	if err != nil {
+		return err
+	}
+	defer child.Close()
+	return child.Remove(leftoverName)
+}
+
+// PublishSkill stages content privately inside name's skill directory
+// (creating it if absent and expected is ""), rechecks that SKILL.md still
+// has the expected digest, renames, and confirms the published digest,
+// entirely through this session's anchored skill-root handle and a child
+// directory opened from it once, never by re-deriving either by pathname.
+func (u *UpgradeSession) PublishSkill(name string, content []byte, expected string) error {
 	known := false
 	for _, candidate := range skillNames {
 		known = known || candidate == name
@@ -131,34 +188,30 @@ func (s Service) PublishUpgradeSkill(name string, content []byte, expected strin
 	}
 	nextDigest := sha256.Sum256(content)
 	next := hex.EncodeToString(nextDigest[:])
-	directory := filepath.Join(s.root, name)
-	if _, err := os.Lstat(directory); os.IsNotExist(err) && expected == "" {
-		if err := os.Mkdir(directory, 0o700); err != nil {
+	if _, err := u.root.Lstat(name); os.IsNotExist(err) && expected == "" {
+		if err := u.root.Mkdir(name, 0o700); err != nil {
 			return err
 		}
-		syncPath(s.root)
+		syncRootObject(u.root)
 	}
-	if !privateDirectory(directory) {
+	child, err := privateChild(u.root, name)
+	if err != nil {
 		return ErrUpgradeConflict
 	}
-	root, err := os.OpenRoot(directory)
-	if err != nil {
-		return err
-	}
-	defer root.Close()
+	defer child.Close()
 	var entropy [8]byte
 	if _, err := rand.Read(entropy[:]); err != nil {
 		return err
 	}
 	stage := UpgradeStagePrefix + hex.EncodeToString(entropy[:])
-	file, err := root.OpenFile(stage, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	file, err := child.OpenFile(stage, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return err
 	}
 	committed := false
 	defer func() {
 		if !committed {
-			_ = root.Remove(stage)
+			_ = child.Remove(stage)
 		}
 	}()
 	written, writeErr := file.Write(content)
@@ -168,38 +221,58 @@ func (s Service) PublishUpgradeSkill(name string, content []byte, expected strin
 	if err := errors.Join(writeErr, chmodErr, syncErr, closeErr); err != nil || written != len(content) {
 		return errors.New("skill stage write failed")
 	}
-	if staged, ok := readBoundedSkill(filepath.Join(directory, stage)); !ok || digestOf(staged) != next {
+	if staged, ok := readBoundedSkillIn(child, stage); !ok || digestOf(staged) != next {
 		return errors.New("skill stage verification failed")
 	}
-	if current := s.currentSkillDigest(name); current != expected {
+	if current := currentSkillDigestIn(child); current != expected {
 		return ErrUpgradeConflict
 	}
-	if err := root.Rename(stage, "SKILL.md"); err != nil {
+	if err := child.Rename(stage, "SKILL.md"); err != nil {
 		return err
 	}
 	committed = true
-	syncPath(directory)
-	if s.currentSkillDigest(name) != next {
+	syncRootObject(child)
+	if currentSkillDigestIn(child) != next {
 		return errors.New("skill publication uncertain")
 	}
 	return nil
 }
 
-// currentSkillDigest is "" for an absent SKILL.md and "unsafe" for anything
-// that is not a private regular file.
-func (s Service) currentSkillDigest(name string) string {
-	path := filepath.Join(s.root, name, "SKILL.md")
-	if _, err := os.Lstat(path); os.IsNotExist(err) {
+// currentSkillDigestIn is "" for an absent SKILL.md and "unsafe" for anything
+// that is not a private regular file, evaluated through child, the already
+// anchored skill directory.
+func currentSkillDigestIn(child *os.Root) string {
+	info, err := child.Lstat("SKILL.md")
+	if os.IsNotExist(err) {
 		return ""
 	}
-	if !privateRegularFile(path) {
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Size() > maxUpgradeSkillBytes {
 		return "unsafe"
 	}
-	content, ok := readBoundedSkill(path)
-	if !ok {
+	content, ok := privateRegularFileIn(child, "SKILL.md")
+	if !ok || int64(len(content)) > maxUpgradeSkillBytes {
 		return "unsafe"
 	}
 	return digestOf(content)
+}
+
+func readBoundedSkillIn(child *os.Root, name string) ([]byte, bool) {
+	info, err := child.Lstat(name)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > maxUpgradeSkillBytes {
+		return nil, false
+	}
+	content, err := child.ReadFile(name)
+	return content, err == nil && len(content) <= maxUpgradeSkillBytes
+}
+
+// syncRootObject fsyncs the anchored directory itself, to surface a reported
+// I/O error and make a preceding create/rename/remove durable against the
+// directory entry.
+func syncRootObject(root *os.Root) {
+	if directory, err := root.Open("."); err == nil {
+		_ = directory.Sync()
+		_ = directory.Close()
+	}
 }
 
 func readBoundedSkill(path string) ([]byte, bool) {

@@ -226,16 +226,16 @@ func TestCodexAndClaudeConvergeTogetherAfterUpgrade(t *testing.T) {
 		t.Fatal(err)
 	}
 	contents := nextRelease(t)
-	unlock, err := codex.LockForUpgrade()
+	session, err := codex.LockForUpgrade()
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range skillNames {
-		if err := codex.PublishUpgradeSkill(name, contents[name], previous.skills[name]); err != nil {
+		if err := session.PublishSkill(name, contents[name], previous.skills[name]); err != nil {
 			t.Fatalf("upgrade publish %s: %v", name, err)
 		}
 	}
-	unlock()
+	session.Close()
 	if got := codex.Inspect(context.Background()); got.Status != Partial {
 		t.Fatalf("codex after upgrade = %#v, want stale receipt", got)
 	}

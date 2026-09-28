@@ -299,20 +299,34 @@ func TestPublishReceiptUpgradesOnlyExactPriorAxiomReceipt(t *testing.T) {
 	}
 	prior := []byte("formatVersion=1\nskillSetVersion=2\nbinaryCompatibility=2\nmanifestSha256=aa50528dfd37acc2f5f95c2fc02937bc29cf6ea3cbdd51b8cd81c0a72d677adb\n")
 	root := t.TempDir()
+	if err := os.Chmod(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	path := filepath.Join(root, receiptName)
 	if err := os.WriteFile(path, prior, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if changed, published := codexIntegration.publishReceipt(root, current); !changed || !published {
+	openRoot := func() *os.Root {
+		opened, err := anchoredRoot(root, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return opened
+	}
+	anchored := openRoot()
+	if changed, published := codexIntegration.publishReceiptIn(anchored, root, current); !changed || !published {
 		t.Fatalf("known prior receipt upgrade = changed %t published %t", changed, published)
 	}
+	anchored.Close()
 	if !matchesPrivateFile(path, current) {
 		t.Fatal("known prior receipt was not replaced with current receipt")
 	}
 	if err := os.WriteFile(path, []byte("foreign\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if changed, published := codexIntegration.publishReceipt(root, current); changed || published {
+	anchored = openRoot()
+	defer anchored.Close()
+	if changed, published := codexIntegration.publishReceiptIn(anchored, root, current); changed || published {
 		t.Fatalf("foreign receipt changed = changed %t published %t", changed, published)
 	}
 }
