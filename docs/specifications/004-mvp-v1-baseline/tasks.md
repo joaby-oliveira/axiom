@@ -35,7 +35,8 @@ authority.**
 2026-09-28 to proceed in parallel with S8/T36; S8/T36 remains the gate for
 entering RC/acceptance (T23–T25). T37–T39 are implemented and locally validated
 on `integration/s9-productization` (not pushed or merged); T39 release
-candidates are exact-version only by human decision 2026-09-28. T40 and T23–T25
+candidates are exact-version only by human decision 2026-09-28. T40 was then
+implemented and locally validated under the 2026-09-28 T40 decisions. T23–T25
 are not started. See [S9 Evidence](evidence-s9.md).**
 
 Approved artifact: `main` at `c7f756209c608ff1f1a88947dcc425d07daaa831`, merge
@@ -86,7 +87,8 @@ Specification 004 — Approved
    -> T30–T36 — Partial; real T36 run separately gated and not executed
 -> S9 Release candidate acceptance (T23–T25, with T24/T25 reconciled for S8) — Not authorized
    -> T37–T39 — implemented and locally validated (unmerged); Ubuntu Evidence synthetic, macOS 27 not exercised; native acceptance remains T24
-   -> T40, T23–T25 — Not started
+   -> T40 — implemented and locally validated (unmerged); no native row exercised
+   -> T23–T25 — Not started
 ```
 
 The accepted POC and current Go packages are implementation inputs and historical
@@ -1073,6 +1075,19 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
 - **Completion criteria:** One `axiom first-run` configures all and only supported
   detected Runtimes and leaves the machine in truthful usable/blocked state for
   S8 Runtime resolution.
+- **Decisions (human, 2026-09-28):** presence = executable resolves (`codex`,
+  `claude`) via deterministic lookup; configuration directories alone are
+  absence and only reported diagnostically. `axiom first-run` discovers,
+  converges every detected Runtime's Axiom-owned user-global integration and
+  reports every supported Runtime; exit `0` when every detected Runtime
+  converges (including none), `1` when any cannot be safely configured, with no
+  cross-Runtime rollback and per-Runtime results; invalid usage keeps the CLI's
+  existing usage error. Claude destination is
+  `<CLAUDE_CONFIG_DIR or ~/.claude>/skills/<skill>/SKILL.md`; absent installs,
+  current is a no-op, only registered previous Axiom-owned revisions upgrade (none
+  exist for Claude yet), unknown/modified content is preserved and fails that
+  Runtime, and the receipt (Runtime, root, skill digests) never authorizes
+  overwriting changed content.
 - **Risks / gates:** Each future supported Runtime must declare and validate its
   Runtime-native user-global skill root before product support; no Project-local
   fallback is allowed merely because a global integration is unavailable or
@@ -1430,6 +1445,6 @@ acceptance is not inferred.**
 **S9 (proposed T37–T40 plus historical T23–T25) — Productization,
 distribution, Runtime bootstrap and release acceptance. Product scope recorded
 2026-09-27; Task amendment pending human approval. T37–T39 were implemented
-locally under explicit operator authority (2026-09-28) and are recorded in
-[S9 Evidence](evidence-s9.md); T40 and T23–T25, publication and acceptance are
-not authorized or started.**
+locally under explicit operator authority (2026-09-28), followed by T40 under
+the 2026-09-28 T40 decisions; all are recorded in [S9 Evidence](evidence-s9.md).
+T23–T25, publication and acceptance are not authorized or started.**

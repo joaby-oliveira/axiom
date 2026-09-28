@@ -844,7 +844,16 @@ Plan/release declaration before distribution.
   user-global skills. MVP acceptance MUST cover Codex-only, Claude-only,
   Codex+Claude and no-Runtime cases. First run MUST NOT silently install a
   Runtime, provision/mutate Runtime credentials, purchase subscriptions or invent
-  availability.
+  availability. Human decision 2026-09-28: a Runtime is present only when its
+  executable (`codex`, `claude`) resolves from the process environment; a
+  configuration directory alone never counts. Absence is a valid state. First
+  run succeeds when every detected Runtime converges, including when none is
+  detected, and fails when any detected Runtime cannot be safely configured,
+  keeping the other Runtimes' confirmed results without rollback. Each Runtime's
+  Axiom skills follow fail-closed ownership: absent is installed, current is a
+  no-op, only a revision registered as previously Axiom-owned for that Runtime
+  is upgraded, and unknown or modified content is preserved and fails that
+  Runtime; an ownership receipt never authorizes overwriting changed content.
 - **FR-067 Self-hosted acceptance path:** after S8, S9 acceptance MUST include
   real Axiom engineering/delivery work coordinated through Axiom itself, using the
   approved parent/child Execution Graph, Codex and Claude Runtime paths,

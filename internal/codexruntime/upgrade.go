@@ -98,7 +98,7 @@ func (s Service) inspectUpgradeSkill(name string) (UpgradeSkill, error) {
 			digest := sha256.Sum256(content)
 			skill.SHA256 = hex.EncodeToString(digest[:])
 			embedded, embeddedErr := fs.ReadFile(skillFiles, "skills/"+name+"/SKILL.md")
-			skill.Owned = embeddedErr == nil && string(embedded) == string(content) || knownLegacyDigest(name, skill.SHA256)
+			skill.Owned = embeddedErr == nil && string(embedded) == string(content) || s.integration.knownDigest(name, skill.SHA256)
 		case strings.HasPrefix(entry.Name(), UpgradeStagePrefix) && privateRegularFile(path):
 			skill.Leftovers = append(skill.Leftovers, path)
 		default:
@@ -209,15 +209,6 @@ func readBoundedSkill(path string) ([]byte, bool) {
 	}
 	content, err := os.ReadFile(path)
 	return content, err == nil && len(content) <= maxUpgradeSkillBytes
-}
-
-func knownLegacyDigest(name, digest string) bool {
-	for _, known := range legacySkillDigests[name] {
-		if digest == known {
-			return true
-		}
-	}
-	return false
 }
 
 func digestOf(content []byte) string {

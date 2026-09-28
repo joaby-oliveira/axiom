@@ -11,6 +11,7 @@ Usage:
 Commands:
   first-run
   runtime codex install|status
+  runtime claude install|status
   project configure|show|resolve|init|validate|reopen|update|install
   work-item create|select|show|comment|complete
   workflow start|advance|fact|resume|status|evidence|reconcile
@@ -25,6 +26,11 @@ Stable Codex skill mapping:
   $axiom-work-item-create  -> axiom --json work-item create|select
   $axiom-work-item-run     -> axiom --json workflow start|advance|resume|reconcile
   $axiom-work-item-status  -> axiom --json workflow status|evidence
+
+first-run finds Codex and Claude by their executables on PATH and installs or
+upgrades Axiom's user-global skills for each one found (Codex:
+$HOME/.agents/skills; Claude: <CLAUDE_CONFIG_DIR or ~/.claude>/skills). It never
+installs a Runtime or touches credentials; no Runtime found is success.
 
 Maintenance commands are read-only previews unless repeated with the exact
 --preview-digest and --authorize-local. Backup/export targets must be absent

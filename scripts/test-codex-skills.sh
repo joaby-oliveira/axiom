@@ -12,5 +12,5 @@ else
   printf '%s\n' 'WARN: bundled Codex validator dependency unavailable; Go contract validation remains active' >&2
 fi
 
-go test ./internal/codexruntime ./cmd/lingo ./internal/cli
+go test ./internal/codexruntime ./internal/runtimebootstrap ./cmd/lingo ./internal/cli
 printf '%s\n' 'PASS: Codex runtime skills and delegation surface are valid'

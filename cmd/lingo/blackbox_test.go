@@ -290,7 +290,12 @@ func TestExecutableMinimalLifecycleAndFailurePaths(t *testing.T) {
 	state := filepath.Join(t.TempDir(), "state")
 	skills := filepath.Join(t.TempDir(), "skills")
 	unrelatedCWD := t.TempDir()
-	environment := append(os.Environ(), "LINGO_PROJECTS_ROOT="+portable, "LINGO_STATE_ROOT="+state, "AXIOM_CODEX_SKILLS_ROOT="+skills)
+	// Runtime discovery reads PATH, HOME and CLAUDE_CONFIG_DIR: isolate all
+	// three so first-run can never see or touch the host's real Runtimes.
+	home := t.TempDir()
+	runtimeBin := t.TempDir()
+	executed := filepath.Join(t.TempDir(), "runtime-executed")
+	environment := append(os.Environ(), "HOME="+home, "PATH="+runtimeBin, "CLAUDE_CONFIG_DIR=", "LINGO_PROJECTS_ROOT="+portable, "LINGO_STATE_ROOT="+state, "AXIOM_CODEX_SKILLS_ROOT="+skills)
 	run := func(wantCode int, wantStatus, wantCategory string, args ...string) cliEvent {
 		t.Helper()
 		command := exec.Command(binary, append([]string{"--json"}, args...)...)
@@ -337,10 +342,25 @@ func TestExecutableMinimalLifecycleAndFailurePaths(t *testing.T) {
 		}
 		return event
 	}
-	runCanonical(1, "validation_failure", "Codex skill compatibility is not ready", "first-run")
-	run(0, "success", "codex_configured", "runtime", "codex", "install")
+	runCanonical(0, "success", "No supported Runtime is currently available", "first-run")
+	if _, err := os.Lstat(skills); !os.IsNotExist(err) {
+		t.Fatal("first-run without a Runtime touched the Codex skill root")
+	}
+	runCanonical(1, "validation_failure", "Codex skill compatibility is not ready", "runtime", "codex", "status")
+	// A Runtime is present when its executable resolves; it is never run.
+	if err := os.WriteFile(filepath.Join(runtimeBin, "codex"), []byte("#!/bin/sh\ntouch "+executed+"\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	runCanonical(0, "success", "Axiom integration is configured for every detected Runtime", "first-run")
 	runCanonical(0, "success", "Lingo and Codex skills are compatible", "runtime", "codex", "status")
-	runCanonical(0, "success", "Lingo and Codex skills are compatible", "first-run")
+	run(0, "success", "codex_already_configured", "runtime", "codex", "install")
+	runCanonical(0, "success", "Axiom integration is configured for every detected Runtime", "first-run")
+	if _, err := os.Lstat(executed); !os.IsNotExist(err) {
+		t.Fatal("first-run executed the Runtime")
+	}
+	if _, err := os.Lstat(filepath.Join(home, ".claude")); !os.IsNotExist(err) {
+		t.Fatal("first-run touched the absent Claude configuration")
+	}
 	installed, err := filepath.Glob(filepath.Join(skills, "axiom-*", "SKILL.md"))
 	if err != nil || len(installed) != 5 {
 		t.Fatalf("installed Codex skills = %v, %v", installed, err)

@@ -969,7 +969,16 @@ four bounded units:
    configured Claude config directory). Project-local Runtime skills are not the
    product default. Codex-only, Claude-only, both and neither are explicit states.
    It never silently installs a Runtime, changes credentials, buys capacity or
-   invents availability.
+   invents availability. Decided 2026-09-28: discovery resolves the `codex` and
+   `claude` executables only (a configuration directory is a diagnostic, not
+   presence); first-run is the idempotent bootstrap, converging each detected
+   Runtime independently with exit `0` when all detected converge (including
+   none) and `1` otherwise; Claude's root is `CLAUDE_CONFIG_DIR` (documented by
+   Claude Code) or `~/.claude`, with skills at `skills/<name>/SKILL.md` and a
+   receipt recording Runtime, root and each skill digest. Codex and Claude reuse
+   one Runtime-neutral skill set and the existing Codex ownership mechanics,
+   each with its own history of previously owned revisions (none yet for
+   Claude).
 
 S9 should reuse existing deterministic install/upgrade ownership and recovery
 logic rather than implement a second unsafe installer model. The remote bootstrap
