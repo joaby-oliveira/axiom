@@ -148,8 +148,8 @@ Human review on 2026-09-26 approved FR-045–FR-061, AC-32–AC-43,
 [ADR-0009](../decisions/0009-parent-child-execution-graph.md), the amended Plan and
 T30–T36 decomposition. Codex and Claude are the concrete S8 acceptance Runtime
 paths; concrete models remain local Model Profiles, and token/cost budget governance
-is future work. The amended DAG contains 36 Tasks across S1–S9. S8/T30–T36
-implementation was authorized on 2026-09-27 by explicit human decision in
+is future work. The approved S8 amendment DAG contains 36 Tasks across S1–S9.
+S8/T30–T36 implementation was authorized on 2026-09-27 by explicit human decision in
 [Issue #97 comment #5852650410](https://github.com/rgomids/axiom/issues/97#issuecomment-5852650410);
 that authority does not extend to the real T36 Runtime run beyond its own gate,
 push, merge, Provider mutation, release, deploy, credential provisioning, S9 or
@@ -160,6 +160,18 @@ technically complete. The separately operator-authorized real Codex + Claude
 `real_run_recorded` Evidence after the clean-state coordination fix. The corrected
 local candidate is **S8 ready for human review**. Human acceptance and S9 release
 work remain separately gated.
+
+Issue [#81](https://github.com/rgomids/axiom/issues/81) now records the explicit
+2026-09-27 S9 product-scope direction: public `axiom` CLI identity, automated
+supported-platform release artifacts, a stable verified remote installer with
+idempotent reinstall/safe owned upgrade, Codex + Claude first-run bootstrap, and
+Axiom dogfooding through the S8 graph before RC acceptance. The proposed
+Specification/Plan/Tasks amendment adds T37–T40 ahead of historical T23–T25,
+bringing the proposed DAG to 40 Tasks, and reconciles the #81 release-selection
+policy: latest stable by default, exact `--version` pins, exact-version-only
+release candidates and no automatic downgrade. Product scope is recorded; the Task
+amendment, implementation, prerelease publication and final MVP acceptance remain
+separately gated.
 
 Issue [#62](https://github.com/rgomids/axiom/issues/62) originally authorized
 Specification and reconciliation only. After PR #70 resolved that gate, the
@@ -215,5 +227,5 @@ Ubuntu 26.04 native Evidence deferred to T24, now S9,
 Provider mutation outside an exact authorized run, prerelease/release publication,
 and final MVP acceptance remain separately gated. Accepted operational Slice
 trackers are #75–#79 for S1–S5, #94 for S6, and #80 for S7. Issue #97 is the
-approved S8 scope tracker; #81 becomes S9 only through separately authorized Provider
-reconciliation.
+approved S8 scope tracker; #81 is the S9 tracker with the 2026-09-27
+product-scope expansion recorded.

@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-09-28]
+
+- docs: reconcile the Issue #81 S9 release-selection and version policy into
+  Specification 004 FR-064/FR-065, AC-44/AC-46/AC-48, Plan §13 and Tasks
+  T39/T23–T25: stable `vX.Y.Z` and RC `vX.Y.Z-rc.N` tags; latest stable by
+  default and `--channel stable` without RC fallback; exact `--version` pins;
+  release candidates selected only by exact version; mutually exclusive
+  selectors; no automatic downgrade; T24 pins the exact RC. No implementation,
+  release or acceptance authority is implied.
+
 ## [2026-09-27]
 
 - implementation: add read-only `lingo runtime profile validate`, with strict
@@ -11,6 +21,15 @@
 - fix: structured coordination can publish its first record on a clean local
   installation. Missing store directories are treated as an empty stream;
   unsafe directories still fail closed.
+
+- docs: expand MVP S9 from release-candidate validation alone into productization,
+  distribution, Runtime bootstrap and final acceptance. Record the public
+  `axiom` CLI contract, automated supported-platform release artifacts, stable
+  idempotent remote installation with protected owned upgrade, Codex + Claude
+  first-run bootstrap, and Axiom self-dogfooding before historical T23–T25.
+- docs: propose T37–T40 ahead of T23–T25 while preserving historical Task IDs and
+  keeping S9 implementation, Runtime/Provider effects, release publication and
+  final MVP acceptance separately gated.
 
 ## [2026-09-26]
 
