@@ -280,9 +280,17 @@ preserved, not repaired. The closed receipt includes an RFC 3339 UTC
 `installedAt` value created for the successful installation generation and
 preserved on equivalent reinstall. Exact owned reinstall is a no-op. Platform,
 ownership, permission, ACL, link, type, schema, and content conflicts fail closed.
-The installer never edits shell profiles or `PATH`. It deliberately refuses
-version upgrades; use the owned upgrade path in
-[Compatibility, cleanup, recovery, and upgrade](#compatibility-cleanup-recovery-and-upgrade).
+The installer never edits shell profiles or `PATH`. Refusals that need no lock
+(symlinked or unsafe existing roots, a binary without receipt) are decided
+before any directory is created, and a refused concurrent installer never
+releases the lock held by another operation. For an existing owned
+installation with a different binary, it runs the verified candidate's own
+[owned upgrade](#compatibility-cleanup-recovery-and-upgrade): a read-only
+preview, then apply under that exact preview digest, printing
+`install_status=upgraded`. A newer version upgrades; an older one is refused
+(`downgrade_refused`); a divergent same version is refused. An interrupted
+owned upgrade resumes only with the same archive; any other interrupted
+operation stays `recovery_required`.
 
 Validate archive structure, clean install, no-op, conflicts, interruption, and
 recovery markers with:
@@ -290,6 +298,61 @@ recovery markers with:
 ```bash
 ./scripts/test-release-archives.sh
 ```
+
+## Install a published release (S9/T39)
+
+`scripts/install.sh` is the remote bootstrap. It needs no checkout, Go or build;
+it requires `sh`, `bash`, `curl`, `tar`, `awk`, `grep`, `mktemp` and `sha256sum`
+or `shasum`. It requires a published release, so it fails until one exists:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh | sh -s -- --channel stable
+curl -fsSL https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh | sh -s -- --version v0.1.0-rc.2
+```
+
+Selection:
+
+- no selector or `--channel stable`: the latest published stable release, read
+  only from the `Location` of GitHub's `/releases/latest` redirect. It never
+  falls back to a release candidate; with no stable release it fails and names
+  `--version`.
+- `--version vX.Y.Z` or `--version vX.Y.Z-rc.N`: exactly that published tag.
+- `--channel rc`: **not available yet**. Selecting the newest release
+  candidate needs a deterministic channel index (a decision is pending); the
+  bootstrap refuses rather than scrape HTML or parse API JSON. Use `--version`.
+- `--channel` and `--version` are mutually exclusive and fail before any effect.
+
+The bootstrap detects the exact supported row (macOS 27.0/arm64, Ubuntu
+26.04/amd64, Ubuntu 26.04/arm64) before any download, fetches the release
+`SHA256SUMS` and the row's archive over HTTPS only, and verifies the digest
+before reading the archive. It then requires the bundle's `install.sh` and
+`release-metadata.txt` to match the bundle manifest and the metadata to be the
+resolved version and row of a clean release build, and runs that release
+installer. All installation effects, ownership checks, no-op reinstall,
+protected owned upgrade, downgrade refusal and recovery belong to that
+installer (see above). Defaults are `--bin-dir $HOME/.local/bin` and
+`--receipt-dir ${XDG_STATE_HOME:-$HOME/.local/state}/axiom/install`; an existing
+directory must be owned by you, mode `0700` and without extended ACLs, or pass
+another absolute canonical directory. It prints the resolved identity
+(`install_tag`, `install_asset`, `install_asset_sha256`, `install_row`,
+`install_revision`, receipt path) and, when the binary directory is not on
+`PATH`, a `path_notice` with the export to run. It never uses `sudo`, edits
+shell profiles or `PATH`, installs Runtimes, or touches credentials. Release
+acceptance (T24) pins `--version vX.Y.Z-rc.N`.
+
+Test the matrix with a fake `curl` and local release fixtures (no live GitHub):
+
+```bash
+./scripts/test-install-bootstrap.sh
+```
+
+Selector, host and input refusals run on any host. Install, reinstall, upgrade,
+downgrade, foreign/modified/unsafe state, concurrency, interruption and network
+cases need a supported row and exit `78` elsewhere. On Linux,
+`AXIOM_TEST_SYNTHETIC_UBUNTU_ROW=1` reruns the suite in a private mount
+namespace declaring Ubuntu 26.04 (needs root or unprivileged user namespaces);
+that is synthetic Evidence, not native acceptance.
 
 ## Prepare a release artifact set (S9/T38)
 
@@ -726,7 +789,8 @@ refused), `absent_v1` or `valid_v1` state, and observed free space. The binary
 and then the receipt are published and re-read as separate confirmed effects;
 `installedAt` is preserved. A later failure is `partial`: the installer's
 `.axiom-install-operation` marker records the exact archive, so only the same
-archive can resume, and the installer refuses in the meantime. If installed
+archive can resume (through `axiom upgrade` or the release installer), and any
+other install is refused in the meantime. If installed
 Codex skills do not match the new version the result is `partial` and the next
 action is `axiom runtime codex install` with the upgraded binary. There is no
 automatic update, rollback, or cross-root transaction.

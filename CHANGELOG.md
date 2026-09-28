@@ -11,6 +11,20 @@
   packages, `cmd/lingo`, `LINGO_*` variables and state roots are unchanged. A
   prior `lingo` executable or pre-`axiom` release receipt is preserved, not
   migrated.
+- implementation (S9/T39): `scripts/install.sh` remote bootstrap installs a
+  published release without checkout or build: latest stable by default (never
+  an RC), `--channel stable`, or an exact `--version vX.Y.Z[-rc.N]`; the two
+  selectors are mutually exclusive. It detects the exact supported row,
+  verifies the archive against the release `SHA256SUMS` before reading it,
+  checks bundle metadata, and runs the bundle's release installer. `--channel
+  rc` is refused until a deterministic channel index is decided.
+- implementation (S9/T39): `install-release.sh` converges an older owned
+  installation through the verified candidate's protected `axiom upgrade`
+  (preview, exact digest, apply), refuses downgrade and divergent same
+  version, and resumes only an interrupted owned upgrade of the same archive.
+- fix: a refused concurrent `install-release.sh` no longer removes the lock of
+  the running installer, and lock-free refusals (unsafe roots, binary without
+  receipt) happen before any directory is created.
 - implementation (S9/T38): manually dispatched `Release artifacts` workflow
   prepares the complete macOS 27/arm64, Ubuntu 26.04/amd64 and Ubuntu
   26.04/arm64 set from one exact clean revision and one tag

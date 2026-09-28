@@ -297,6 +297,8 @@ if [[ -n "$native" ]]; then
   fi
   grep -Fq 'concurrent installation refused' "$temporary/locked.stderr"
   [[ ! -e "$temporary/locked-bin/axiom" ]]
+  # A refused installer never releases the lock held by another operation.
+  [[ -d "$temporary/locked-receipt/.axiom-install.lock" && ! -e "$temporary/locked-bin" ]]
 
   [[ $(wc -l <"$temporary/receipt/installation.receipt" | tr -d ' ') == 15 ]]
   for field in formatVersion destination sha256 product version revision sourceState release platform goos architecture skillSetVersion archiveSha256 skillManifestSha256 installedAt; do
