@@ -12,6 +12,7 @@ Commands:
   first-run
   runtime codex install|status
   runtime claude install|status
+  runtime profile validate
   project configure|show|resolve|init|validate|reopen|update|install
   work-item create|select|show|comment|complete
   workflow start|advance|fact|resume|status|evidence|reconcile
@@ -31,6 +32,9 @@ first-run finds Codex and Claude by their executables on PATH and installs or
 upgrades Axiom's user-global skills for each one found (Codex:
 $HOME/.agents/skills; Claude: <CLAUDE_CONFIG_DIR or ~/.claude>/skills). It never
 installs a Runtime or touches credentials; no Runtime found is success.
+
+Runtime profile validation reads local configuration without changing state,
+invoking a runtime, or probing authentication. It accepts no flags or arguments.
 
 Maintenance commands are read-only previews unless repeated with the exact
 --preview-digest and --authorize-local. Backup/export targets must be absent

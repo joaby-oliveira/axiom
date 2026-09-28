@@ -26,8 +26,13 @@ published Axiom release; T24 owns native clean-environment acceptance.
 | T39 stable remote installer and owned upgrade | technically complete locally; release candidates exact-version only by human decision | `eb88832` plus the RC-decision and row-selection reconciliation on the integration branch |
 | T40 Codex + Claude first-run bootstrap | technically complete locally under the 2026-09-28 T40 decisions; no native row exercised | `721acd0` |
 
-The integration branch is based on `main` at
-`d3e0a7a8ebe038b3b801bbcf339486a859da5d5a` (unchanged since T37 started).
+T37–T39 started from `main` at `d3e0a7a8ebe038b3b801bbcf339486a859da5d5a`.
+After T40, `main` advanced to `b66cc256357ac59cc70acf1237d870cab4581a06`
+(PR #105, S8/T36 "ready for human review") and was merged into the integration
+branch. Conflicts in CHANGELOG, `help.go`, `docs/commands.md`, the
+Specification and the index were resolved by keeping both S8 and S9 content;
+the new `runtime profile validate` documentation uses the public `axiom`
+name.
 
 ## T37 — public `axiom` executable
 
@@ -299,11 +304,10 @@ Findings and limits:
   be added whenever the shared skill text changes.
 - First-run reports integration readiness only. It does not probe
   authentication, Model Profiles or Project setup (S8/T36 finding 2 on the
-  unmerged `agent/t36-real-runtime-evidence` branch). Doing so is outside the
+  T36 Evidence, merged via PR #105). Doing so is outside the
   no-authentication decision.
 - Real Codex/Claude invocation and native rows were not exercised.
 
-The unmerged S8 branch `agent/t36-real-runtime-evidence` (no pull request)
-also edits `internal/cli/cli.go`/`help.go` (`runtime profile validate`) and
-still documents `lingo`; integrating it with this branch needs the T37 `axiom`
-wording and a merge of both CLI command additions.
+After merging `main` (PR #105), `axiom help` lists `runtime claude
+install|status` beside S8's `runtime profile validate`, and both command sets
+are tested together.

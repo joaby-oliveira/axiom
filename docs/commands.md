@@ -283,6 +283,31 @@ CLAUDE_CONFIG_DIR=/absolute/test/claude axiom runtime claude install
 ./scripts/test-codex-skills.sh
 ```
 
+## Validate the Runtime Profile store
+
+Inspect the isolated S8 Runtime Profile configuration without creating, writing,
+or repairing anything:
+
+```bash
+axiom runtime profile validate
+axiom --json runtime profile validate
+```
+
+The command takes no flags; any extra argument is rejected before the store is
+read. It loads `local.RuntimeProfileStore` from the absolute `LINGO_STATE_ROOT`
+and calls `runtimeprofile.Validate` against the published configuration. It is
+strictly read-only: it never creates or repairs state, and it never invokes or
+authenticates a Runtime/model adapter. It does not perform capability discovery;
+it validates only the shape of the persisted configuration.
+
+A published, well-formed configuration returns the canonical `success`
+completion. A missing store or missing published configuration, and a present
+but structurally or semantically invalid configuration, both fail closed and
+return the canonical `validation_failure` completion with a sanitized category;
+neither case creates state or exposes internal error detail. Human output
+prints the concise status by default; prefix the command with `--json` for the
+structured event, as with other `axiom` commands.
+
 ## Build and install exact-version S2 archives
 
 A release build requires a clean checkout, an exact semantic version, and an

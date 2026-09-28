@@ -1,0 +1,443 @@
+{
+  "scope": "native macOS positive journey; deterministic controlled negatives; not CI or cross-platform certification",
+  "baselineOriginal": [
+    {
+      "argv": [
+        "go",
+        "test",
+        "./...",
+        "-count=1"
+      ],
+      "exit": 0,
+      "start": 1790560403.421966,
+      "end": 1790560441.3777092,
+      "log": "logs/baseline-0.txt"
+    },
+    {
+      "argv": [
+        "go",
+        "test",
+        "-race",
+        "./..."
+      ],
+      "exit": 0,
+      "start": 1790560441.377982,
+      "end": 1790560490.70992,
+      "log": "logs/baseline-1.txt"
+    },
+    {
+      "argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "exit": 0,
+      "start": 1790560490.71038,
+      "end": 1790560492.188168,
+      "log": "logs/baseline-2.txt"
+    },
+    {
+      "argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "exit": 0,
+      "start": 1790560492.188585,
+      "end": 1790560493.101921,
+      "log": "logs/baseline-3.txt"
+    },
+    {
+      "argv": [
+        "go",
+        "mod",
+        "verify"
+      ],
+      "exit": 0,
+      "start": 1790560493.102304,
+      "end": 1790560493.234708,
+      "log": "logs/baseline-4.txt"
+    },
+    {
+      "argv": [
+        "./scripts/validate-repository.sh",
+        "."
+      ],
+      "exit": 0,
+      "start": 1790560493.235216,
+      "end": 1790560499.6891708,
+      "log": "logs/baseline-5.txt"
+    },
+    {
+      "argv": [
+        "./scripts/check-sensitive-files.sh",
+        "."
+      ],
+      "exit": 0,
+      "start": 1790560499.689436,
+      "end": 1790560501.660523,
+      "log": "logs/baseline-6.txt"
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "start": 1790560501.66072,
+      "end": 1790560501.669898,
+      "log": "logs/baseline-7.txt"
+    },
+    {
+      "argv": [
+        "gitleaks",
+        "dir",
+        ".",
+        "--redact",
+        "--no-banner"
+      ],
+      "exit": 0,
+      "start": 1790560501.670144,
+      "end": 1790560502.260853,
+      "log": "logs/baseline-8.txt"
+    }
+  ],
+  "baselineCorrected": [
+    {
+      "argv": [
+        "go",
+        "test",
+        "./...",
+        "-count=1"
+      ],
+      "exit": 0,
+      "started": 1790561275.855241,
+      "ended": 1790561304.727498,
+      "log": "LAB/logs/baseline-patched-0.txt"
+    },
+    {
+      "argv": [
+        "go",
+        "test",
+        "-race",
+        "./..."
+      ],
+      "exit": 0,
+      "started": 1790561304.7277608,
+      "ended": 1790561345.567528,
+      "log": "LAB/logs/baseline-patched-1.txt"
+    },
+    {
+      "argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "exit": 0,
+      "started": 1790561345.5678542,
+      "ended": 1790561346.0795982,
+      "log": "LAB/logs/baseline-patched-2.txt"
+    },
+    {
+      "argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "exit": 0,
+      "started": 1790561346.0798452,
+      "ended": 1790561346.9502552,
+      "log": "LAB/logs/baseline-patched-3.txt"
+    },
+    {
+      "argv": [
+        "go",
+        "mod",
+        "verify"
+      ],
+      "exit": 0,
+      "started": 1790561346.950475,
+      "ended": 1790561347.073268,
+      "log": "LAB/logs/baseline-patched-4.txt"
+    },
+    {
+      "argv": [
+        "./scripts/validate-repository.sh",
+        "."
+      ],
+      "exit": 0,
+      "started": 1790561347.073469,
+      "ended": 1790561351.404055,
+      "log": "LAB/logs/baseline-patched-5.txt"
+    },
+    {
+      "argv": [
+        "./scripts/check-sensitive-files.sh",
+        "."
+      ],
+      "exit": 0,
+      "started": 1790561351.404269,
+      "ended": 1790561352.938315,
+      "log": "LAB/logs/baseline-patched-6.txt"
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "started": 1790561352.9385211,
+      "ended": 1790561352.946404,
+      "log": "LAB/logs/baseline-patched-7.txt"
+    },
+    {
+      "argv": [
+        "gitleaks",
+        "dir",
+        ".",
+        "--redact",
+        "--no-banner"
+      ],
+      "exit": 0,
+      "started": 1790561352.946646,
+      "ended": 1790561353.406786,
+      "log": "LAB/logs/baseline-patched-8.txt"
+    }
+  ],
+  "combined": [
+    {
+      "CommandReference": "go-test",
+      "ExitCode": 0,
+      "OutputDigest": "22dc29139a6d20b0381dd4d063dda938ac97979910cad4f0b74cf48162f4a447"
+    },
+    {
+      "CommandReference": "go-race",
+      "ExitCode": 0,
+      "OutputDigest": "64b4bb3df8ba31a376c94e4baa7cc22ef7a7515601cbbcac809f87c7ecd408ba"
+    },
+    {
+      "CommandReference": "go-vet",
+      "ExitCode": 0,
+      "OutputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "CommandReference": "go-build",
+      "ExitCode": 0,
+      "OutputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "CommandReference": "go-mod-verify",
+      "ExitCode": 0,
+      "OutputDigest": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+    },
+    {
+      "CommandReference": "repository",
+      "ExitCode": 0,
+      "OutputDigest": "04d4a10c2787183c4f48d835caca7684b9bf57682d28fff72355cb9dd2d59f7a"
+    },
+    {
+      "CommandReference": "sensitive-files",
+      "ExitCode": 0,
+      "OutputDigest": "22a7b3658bc40132308671af3ddcdc6f021c651a57901eb0f89f17b185d5d7a7"
+    },
+    {
+      "CommandReference": "diff-check",
+      "ExitCode": 0,
+      "OutputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "CommandReference": "gitleaks",
+      "ExitCode": 0,
+      "OutputDigest": "357e228ef43024636a91f7f0f69c5988895ece00e0182aae990fb13516f8dba0"
+    }
+  ],
+  "blackbox": [
+    {
+      "case": "version",
+      "argv": [
+        "LAB/bin/lingo-integrated",
+        "version"
+      ],
+      "overrides": {},
+      "exit": 0,
+      "stdout": "status: success\nresult: Axiom build information\nprovenance: Axiom development revision=unavailable source=unknown\n",
+      "stderr": ""
+    },
+    {
+      "case": "valid-json",
+      "argv": [
+        "LAB/bin/lingo-integrated",
+        "--json",
+        "runtime",
+        "profile",
+        "validate"
+      ],
+      "overrides": {},
+      "exit": 0,
+      "stdout": "{\"status\":\"success\",\"result\":\"Runtime profile configuration is valid\",\"provenance\":{\"product\":\"Axiom\",\"version\":\"development\",\"revision\":\"unavailable\",\"sourceState\":\"unknown\"}}\n",
+      "stderr": ""
+    },
+    {
+      "case": "valid-human",
+      "argv": [
+        "LAB/bin/lingo-integrated",
+        "--human",
+        "runtime",
+        "profile",
+        "validate"
+      ],
+      "overrides": {},
+      "exit": 0,
+      "stdout": "status: success\nresult: Runtime profile configuration is valid\nprovenance: Axiom development revision=unavailable source=unknown\n",
+      "stderr": ""
+    },
+    {
+      "case": "missing-store",
+      "argv": [
+        "LAB/bin/lingo-integrated",
+        "--json",
+        "runtime",
+        "profile",
+        "validate"
+      ],
+      "overrides": {
+        "LINGO_STATE_ROOT": "LAB/artifacts/blackbox/missing"
+      },
+      "exit": 1,
+      "stdout": "{\"status\":\"validation_failure\",\"result\":\"Runtime profile configuration is missing or invalid\",\"next\":\"Provide valid local runtime profile configuration and retry validation\",\"provenance\":{\"product\":\"Axiom\",\"version\":\"development\",\"revision\":\"unavailable\",\"sourceState\":\"unknown\"}}\n",
+      "stderr": ""
+    },
+    {
+      "case": "invalid-store",
+      "argv": [
+        "LAB/bin/lingo-integrated",
+        "--json",
+        "runtime",
+        "profile",
+        "validate"
+      ],
+      "overrides": {
+        "LINGO_STATE_ROOT": "LAB/artifacts/blackbox/invalid"
+      },
+      "exit": 1,
+      "stdout": "{\"status\":\"validation_failure\",\"result\":\"Runtime profile configuration is missing or invalid\",\"next\":\"Provide valid local runtime profile configuration and retry validation\",\"provenance\":{\"product\":\"Axiom\",\"version\":\"development\",\"revision\":\"unavailable\",\"sourceState\":\"unknown\"}}\n",
+      "stderr": ""
+    },
+    {
+      "case": "extra-argument",
+      "argv": [
+        "LAB/bin/lingo-integrated",
+        "--json",
+        "runtime",
+        "profile",
+        "validate",
+        "--authorize-local"
+      ],
+      "overrides": {},
+      "exit": 1,
+      "stdout": "{\"status\":\"validation_failure\",\"result\":\"Runtime profile validation input is invalid\",\"next\":\"Run runtime profile validate without flags or arguments\",\"provenance\":{\"product\":\"Axiom\",\"version\":\"development\",\"revision\":\"unavailable\",\"sourceState\":\"unknown\"}}\n",
+      "stderr": ""
+    },
+    {
+      "case": "misplaced-output-flag",
+      "argv": [
+        "LAB/bin/lingo-integrated",
+        "runtime",
+        "profile",
+        "validate",
+        "--json"
+      ],
+      "overrides": {},
+      "exit": 1,
+      "stdout": "status: validation_failure\nresult: Runtime profile validation input is invalid\nnext: Run runtime profile validate without flags or arguments\nprovenance: Axiom development revision=unavailable source=unknown\n",
+      "stderr": ""
+    }
+  ],
+  "additionalNegatives": [
+    {
+      "Time": "2026-09-27T23:12:16.357902-03:00",
+      "Action": "pass",
+      "Package": "github.com/rgomids/axiom/t36lab/negative",
+      "Test": "TestMaximumAttemptsBlocksExplicitRetryBeforeAnyEffect",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-09-27T23:12:16.358178-03:00",
+      "Action": "pass",
+      "Package": "github.com/rgomids/axiom/t36lab/negative",
+      "Test": "TestMissingAuthorityCannotPublishGraph/parent",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-09-27T23:12:16.358276-03:00",
+      "Action": "pass",
+      "Package": "github.com/rgomids/axiom/t36lab/negative",
+      "Test": "TestMissingAuthorityCannotPublishGraph/child",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-09-27T23:12:16.358367-03:00",
+      "Action": "pass",
+      "Package": "github.com/rgomids/axiom/t36lab/negative",
+      "Test": "TestMissingAuthorityCannotPublishGraph/reference",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-09-27T23:12:16.358385-03:00",
+      "Action": "pass",
+      "Package": "github.com/rgomids/axiom/t36lab/negative",
+      "Test": "TestMissingAuthorityCannotPublishGraph",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-09-27T23:12:16.358628-03:00",
+      "Action": "pass",
+      "Package": "github.com/rgomids/axiom/t36lab/negative",
+      "Test": "TestExactProfilesNoMatchAndNoFallback/runtime_unavailable",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-09-27T23:12:16.358706-03:00",
+      "Action": "pass",
+      "Package": "github.com/rgomids/axiom/t36lab/negative",
+      "Test": "TestExactProfilesNoMatchAndNoFallback/profile_not_allowlisted",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-09-27T23:12:16.358769-03:00",
+      "Action": "pass",
+      "Package": "github.com/rgomids/axiom/t36lab/negative",
+      "Test": "TestExactProfilesNoMatchAndNoFallback/capability_incompatible",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-09-27T23:12:16.358797-03:00",
+      "Action": "pass",
+      "Package": "github.com/rgomids/axiom/t36lab/negative",
+      "Test": "TestExactProfilesNoMatchAndNoFallback/no_implicit_fallback",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-09-27T23:12:16.358814-03:00",
+      "Action": "pass",
+      "Package": "github.com/rgomids/axiom/t36lab/negative",
+      "Test": "TestExactProfilesNoMatchAndNoFallback",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-09-27T23:12:16.359305-03:00",
+      "Action": "pass",
+      "Package": "github.com/rgomids/axiom/t36lab/negative",
+      "Elapsed": 0.27
+    }
+  ],
+  "sourceArtifactsSHA256": {
+    "negative-and-compatibility-tests.jsonl": "c3e16ef8b10b6f0d371e5ebd7a6158d9cc94b0a1ecb5040588c870902f06c618",
+    "additional-negatives.jsonl": "e813531e923f1e69bbcc11eb74a887bb105a5451a14e4754467f9279457591a8",
+    "baseline.json": "f66f060ae450e41a6116c164b0bf5c750d4699dcb68bf4e04217c4cfb9da98f7",
+    "baseline-patched.json": "82e74732e5994a7198164a6e57d8deaeec52b4d82db88ef85a8f4f1419243605",
+    "integrated-blackbox.json": "73277625362ebd6f186f70686452a25b2abce00cfad4736b451a0e0e95b1468b"
+  }
+}

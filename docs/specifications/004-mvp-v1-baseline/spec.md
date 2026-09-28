@@ -11,8 +11,11 @@
 **Issue #97 S8 amendment: Approved by explicit human decision on 2026-09-26. It
 adds multi-runtime Agent Planning and parent/child Execution Graph behavior before
 the release-candidate slice, accepts ADR-0009, and approves the amended Plan and
-Tasks. This approval does not authorize T30–T36 implementation, Runtime dispatch
-or external effects.**
+Tasks. S8/T30–T36 implementation was separately authorized on 2026-09-27. The
+T36 Runtime run then received its own exact authority and produced the recorded
+real Codex + Claude Evidence. The corrected candidate is **S8 ready for human
+review**; human acceptance, S9/T23–T25, merge, release, deploy and Provider
+mutation remain separate.**
 
 **Issue #81 S9 product-scope amendment: product direction recorded by explicit
 human decision on 2026-09-27. S9 now includes productization before RC acceptance:
@@ -1140,8 +1143,9 @@ reconciled and expanded to validate and close Evidence for the new S8 product st
 The S8 graph behavior, ADR-0009, amended Plan and Tasks were explicitly approved on
 2026-09-26. T30–T36 implementation was explicitly authorized on 2026-09-27 through
 Issue #97 comment #5852650410. That authority covers implementation only.
-The real T36 Runtime run remains separately gated; validation, commit or merge
-do not supply that separate authority.
+The real T36 Runtime run later received separate exact authority, was executed,
+and produced the recorded T36 Evidence. Validation, commit or merge do not infer
+human acceptance or authorize S9, release, deploy or Provider mutation.
 
 Issue #81 records the 2026-09-27 S9 product-scope expansion. Before T23 may
 identify/publish an RC, S9 must provide the canonical public `axiom` executable,
@@ -1157,7 +1161,7 @@ does not itself authorize implementation or publication.
 |---|---|
 | Requirement | Observable journeys, FR/AC contracts, failure states, invariants, Evidence, and preserved boundaries above, including FR-038–FR-061/AC-25–AC-43 from the approved S8 amendment and the 2026-09-27 S9 product-scope direction FR-062–FR-067/AC-44–AC-49 proposed for canonical amendment approval. |
 | Implementation detail deferred to Plan | CLI framework, concrete Go packages/interfaces, exact JSON schema, prompt UI, filesystem syscalls, migration algorithm, installer implementation, artifact filename rendering, lifecycle/graph-record encoding, scheduler mechanism, concrete Runtime adapters, concrete model names and metadata-policy schema. GitHub label spelling is fixed only for the Issue #94 adapter projection. |
-| Human decisions recorded | HD-1 through HD-4 and complete original Specification approval were recorded on 2026-09-20. ADR-0005/0006 directly formalize HD-3/HD-2. The Issue #94 amendment, FR-038–FR-044, AC-25–AC-31, S6 placement, and Specification 002 policy-reference clarification were explicitly approved on 2026-09-24. On 2026-09-26 human review approved FR-045–FR-061, AC-32–AC-43, ADR-0009, the amended Plan/Tasks, Codex plus Claude as concrete S8 acceptance paths, observational-only usage/cost telemetry, and the local T36 authority boundary. Implementation was separately gated at that time; S8/T30–T36 implementation was authorized on 2026-09-27 (Issue #97 comment #5852650410), and the real T36 Runtime run remains separately gated. On 2026-09-27 the human also recorded the S9 product direction: public `axiom` CLI, automated native release artifacts, stable idempotent remote install/owned upgrade, Codex+Claude first-run bootstrap and self-hosted Axiom dogfooding. The canonical S9 Plan/Tasks amendment remains subject to review before implementation. |
+| Human decisions recorded | HD-1 through HD-4 and complete original Specification approval were recorded on 2026-09-20. ADR-0005/0006 directly formalize HD-3/HD-2. The Issue #94 amendment, FR-038–FR-044, AC-25–AC-31, S6 placement, and Specification 002 policy-reference clarification were explicitly approved on 2026-09-24. On 2026-09-26 human review approved FR-045–FR-061, AC-32–AC-43, ADR-0009, the amended Plan/Tasks, Codex plus Claude as concrete S8 acceptance paths, observational-only usage/cost telemetry, and the local T36 authority boundary. Implementation was separately gated at that time; S8/T30–T36 implementation was authorized on 2026-09-27 (Issue #97 comment #5852650410). The real T36 Runtime run later received its own exact authority, was executed, and produced `real_run_recorded` Evidence. The technical outcome is S8 ready for human review; human acceptance and S9 remain separate. On 2026-09-27 the human also recorded the S9 product direction: public `axiom` CLI, automated native release artifacts, stable idempotent remote install/owned upgrade, Codex+Claude first-run bootstrap and self-hosted Axiom dogfooding. The canonical S9 Plan/Tasks amendment remains subject to review before implementation. On 2026-09-28 the operator authorized local T37–T40 implementation in parallel with S8/T36 (S8/T36 gates RC/acceptance T23–T25) and decided release candidates as exact-version only and the T40 discovery, first-run and Claude-ownership contract (FR-066, Plan §13, Tasks T39/T40). |
 
 ## Human decisions recorded — 2026-09-20
 
@@ -1334,12 +1338,14 @@ This approval does not authorize S8 implementation, Runtime execution, external
 mutation, release publication or final acceptance.
 
 **S8/T30–T36 implementation authorized on 2026-09-27 (Issue #97 comment
-#5852650410). Next gates: the separate real T36 Runtime run authority and, after
-technical completion, human acceptance.**
+#5852650410). The real T36 Runtime run later received its own exact authority,
+was executed, and produced the recorded Evidence. Technical outcome: S8 ready
+for human review. Human acceptance remains pending.**
 
 The concrete T36 activity may be selected during preparation, but it MUST be a
 small real Axiom engineering change and satisfy AC-32–AC-43. Model Profile values
 remain local configuration, with no concrete model names in the domain. T30–T36
 implementation is authorized by its exact authority (Issue #97 comment
-#5852650410); the later T36 real run remains separately gated by its own exact
-authority.
+#5852650410). The later T36 real run was separately authorized and executed;
+that execution does not authorize human acceptance, S9/T23–T25, merge, release,
+deploy or Provider mutation.

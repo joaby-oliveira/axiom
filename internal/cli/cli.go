@@ -52,6 +52,14 @@ type Service interface {
 	WorkflowReconcile(context.Context, WorkflowInput) Result
 }
 
+// RuntimeProfileService is optional so existing presentation services and mocks
+// need not implement runtime profile validation.
+type RuntimeProfileService interface {
+	RuntimeProfileValidate(context.Context) Result
+}
+
+const runtimeProfileValidateAction action = "runtime_profile_validate"
+
 type InitInput struct {
 	Slug string
 	Name string
@@ -215,6 +223,16 @@ func RunInteractive(ctx context.Context, args []string, service Service, source 
 	if service == nil {
 		return emit(stdout, mode, event{Operation: "unknown", Status: Failed, Category: "application_unavailable"})
 	}
+	if len(args) >= 3 && args[0] == "runtime" && args[1] == "profile" && args[2] == "validate" {
+		if len(args) != 3 {
+			return emitParserFailure(stdout, mode, runtimeProfileValidateAction, "invalid_input", source)
+		}
+		profiles, ok := service.(RuntimeProfileService)
+		if !ok {
+			return emit(stdout, mode, event{Operation: runtimeProfileValidateAction, Status: Failed, Category: "application_unavailable"})
+		}
+		return emitResponse(stdout, mode, runtimeProfileValidateAction, profiles.RuntimeProfileValidate(ctx))
+	}
 	if operation, rest, ok := maintenanceAction(args); ok {
 		return runMaintenance(ctx, mode, operation, rest, service, source, stdout)
 	}
@@ -289,6 +307,9 @@ func emitParserFailure(writer io.Writer, mode outputMode, operation action, issu
 }
 
 func parserFailureText(operation action, issue string) (string, string) {
+	if operation == runtimeProfileValidateAction {
+		return "Runtime profile validation input is invalid", "Run runtime profile validate without flags or arguments"
+	}
 	if issue == "invalid_input" && (operation == showAction || operation == resolveAction || operation == configureAction) {
 		return "Explicit selector input is invalid", "Remove unknown, duplicate, or conflicting inputs and retry"
 	}
