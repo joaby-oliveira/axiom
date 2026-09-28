@@ -29,7 +29,7 @@ var skillNames = []string{
 
 var legacySkillDigests = map[string][]string{
 	"axiom-project-configure": {"d481dc61ecd7a9afd1ffd0a79908515f15f04a75002a7d501eea5517f1f4844e", "87dc55d4a459d4abf70bb53c7f91695da9cbae18da3a5afd6112f964062b5b9c", "b9d55306f7f4e1b33b7606c4327f94cf18dd12287536be7f27d61f8f9a95dc1e", "05d8e420f440529df3bd75a521f3d9493d5cefe3d9fc16ddb1da9ffeed553cd1", "d5271f6a24676c2f8111776cc797232784ad7e75318aca500f6ad73274510b60", "237da8ea6a57e9240ae464d85a1fd1ad2d8c4d19ba8160c24943ae4752b2885d"},
-	"axiom-project-show":      {"a80b3038c497fe3f3b817e5d5d28bca68de96d9ceaf76630f08ad1e34c5db0f4", "594fc02985f5884c780b2c584c6774424bb63c5234ee2f32e5800002cd3c5c02", "d7f86666dd2036b53a4cdbe2d6b67d096936f59b164ae9573806fbb9a40d97fd", "2542254b45ef2c1ac67e09ae1d1924fd0648787836b9bbbe60480a6f09646bcc", "74abd548a0b352b9464efb2b1a6d5aca453bc1e88a164903d8a6043dfeebe8ab"},
+	"axiom-project-show":      {"a80b3038c497fe3f3b817e5d5d28bca68de96d9ceaf76630f08ad1e34c5db0f4", "594fc02985f5884c780b2c584c6774424bb63c5234ee2f32e5800002cd3c5c02", "d7f86666dd2036b53a4cdbe2d6b67d096936f59b164ae9573806fbb9a40d97fd", "2542254b45ef2c1ac67e09ae1d1924fd0648787836b9bbbe60480a6f09646bcc", "74abd548a0b352b9464efb2b1a6d5aca453bc1e88a164903d8a6043dfeebe8ab", "93030842cc6bb1bba159e52f571d1bf1c4e52defce31d4d3998ccd47c1b34c01"},
 	"axiom-work-item-create":  {"fe9c6ce1817f5246e749c7ab03d74cf41db07ed5678a07065d90940572dc12d3", "556fff5e6b38d204bd4acd6a37f74a23da33c88409a7fbc91c9ccfaf3d70c493", "6750abfe6cb817ff4f011d7c6b59a27e4b12832a7c1bbae68a9357bee249d4bd", "9b6d28569d02a97ff0273d08a9abd6bc70ec573050c2bd9f3cc5dd40e984fcaf", "8ecdd0553a999372522f7bc7ad0663e8474af7045f997c718e9c82e4799c5db3", "7d69ac3036d16a66df106b82ca21e7753c98b3bb0d203fc40c090659bdd1bfea"},
 	"axiom-work-item-run":     {"a75f21684d38f325840461fbe8e959ed9fd2b925ac630c7d471147fdfef124dd", "35bf4d66efa1a182479579f882a408f9b394c32e5b0e02d7dfbf8ef9d129c59b", "49d269602abedde05dc357135dc9262f6146bccc87cb97784790659f5eed37a4", "b5ca1ecf4dd136ba5baa6c647b19080d2d129d539e31b27573e43694ae40982f", "5e1661d06a1caa7f7af6fd8c6253d3742f0cbb26df262a8c8357507e76f85f00"},
 	"axiom-work-item-status":  {"4fbb6fda699dc50af88f96355cb9cbed05dbebf34a7ed3218bc26b72b7fd60c7", "009ab0f59c2992c79ca7732a2d451f2b652e4afd94697afd02572bb75ec3db0b", "9f4d5063347eb47ef38d7c7789f27fb13f3a224880e53915080b0ba9bbe8ec5d", "9fcfd0f9caf3a208e54d65cefab81d372cf1fa79c32ba3e1fe8efbc63d7f1990", "213c58a0b55e0b7d52ca97ea72b4d474b5c1577f0f473e4e8b4be8e07c3d9319"},
@@ -44,6 +44,7 @@ var legacyReceiptWires = [][]byte{
 	[]byte("formatVersion=1\nskillSetVersion=2\nbinaryCompatibility=2\nmanifestSha256=38c044c2f82de2dd26e4296a6e22db7f16b87f8c3478790323473fdf44a281d2\n"),
 	[]byte("formatVersion=1\nskillSetVersion=2\nbinaryCompatibility=2\nmanifestSha256=aa50528dfd37acc2f5f95c2fc02937bc29cf6ea3cbdd51b8cd81c0a72d677adb\n"),
 	[]byte("formatVersion=1\nskillSetVersion=2\nbinaryCompatibility=2\nmanifestSha256=98b58d88e51ad9e5c907067248245a1e758d15b561bbf2d8dc99cc50924cb67d\n"),
+	[]byte("formatVersion=1\nskillSetVersion=2\nbinaryCompatibility=2\nmanifestSha256=46949cb5d6bb778069b5f065305f216e26101051198f583008711ee2a30a3fb9\n"),
 }
 
 type Status string
@@ -73,6 +74,7 @@ type Result struct {
 type Service struct {
 	root                string
 	binaryCompatibility string
+	integration         integration
 	afterSkill          func(string)
 }
 
@@ -80,7 +82,7 @@ func New(root string) (Service, error) {
 	if !filepath.IsAbs(root) || filepath.Clean(root) == string(filepath.Separator) {
 		return Service{}, errors.New("unsafe Codex skill root")
 	}
-	return Service{root: filepath.Clean(root), binaryCompatibility: BinaryCompatibility}, nil
+	return Service{root: filepath.Clean(root), binaryCompatibility: BinaryCompatibility, integration: codexIntegration}, nil
 }
 
 func NewForBinary(root, compatibility string) (Service, error) {
@@ -97,9 +99,12 @@ func (s Service) Install(ctx context.Context) Result {
 		return Result{Status: Failed, Category: "cancelled"}
 	}
 	if err := ensureRoot(s.root); err != nil {
-		return Result{Status: Failed, Category: "codex_skill_root_unavailable"}
+		return Result{Status: Failed, Category: s.integration.category("skill_root_unavailable")}
 	}
 	lock, category := acquireInstallLock(s.root)
+	if category == "skill_install_concurrent" {
+		category = s.integration.category(category)
+	}
 	if category != "" {
 		return s.inspectResult(Failed, category)
 	}
@@ -107,24 +112,24 @@ func (s Service) Install(ctx context.Context) Result {
 	for _, name := range skillNames {
 		content, err := fs.ReadFile(skillFiles, "skills/"+name+"/SKILL.md")
 		if err != nil {
-			return Result{Status: Failed, Category: "codex_skill_package_invalid"}
+			return Result{Status: Failed, Category: s.integration.category("skill_package_invalid")}
 		}
-		if !installableOne(s.root, name, content) {
-			return s.inspectResult(Failed, "codex_skill_conflict")
+		if !s.integration.installableOne(s.root, name, content) {
+			return s.inspectResult(Failed, s.integration.category("skill_conflict"))
 		}
 	}
 	changed := false
 	for _, name := range skillNames {
 		if err := ctx.Err(); err != nil {
-			return s.inspectResult(Partial, "codex_skill_install_partial")
+			return s.inspectResult(Partial, s.integration.category("skill_install_partial"))
 		}
 		content, err := fs.ReadFile(skillFiles, "skills/"+name+"/SKILL.md")
 		if err != nil {
-			return Result{Status: Failed, Category: "codex_skill_package_invalid"}
+			return Result{Status: Failed, Category: s.integration.category("skill_package_invalid")}
 		}
-		changedOne, createdOne, err := installOne(s.root, name, content)
+		changedOne, createdOne, err := s.integration.installOne(s.root, name, content)
 		if err != nil {
-			return s.inspectResult(Partial, "codex_skill_install_partial")
+			return s.inspectResult(Partial, s.integration.category("skill_install_partial"))
 		}
 		_ = createdOne
 		if changedOne {
@@ -134,22 +139,22 @@ func (s Service) Install(ctx context.Context) Result {
 			s.afterSkill(name)
 		}
 	}
-	receipt, err := receiptBytes()
+	receipt, err := s.integration.receipt(s.root)
 	if err != nil {
-		return s.inspectResult(Partial, "codex_skill_receipt_incomplete")
+		return s.inspectResult(Partial, s.integration.category("skill_receipt_incomplete"))
 	}
-	receiptChanged, receiptPublished := publishReceipt(s.root, receipt)
+	receiptChanged, receiptPublished := s.integration.publishReceipt(s.root, receipt)
 	if !receiptPublished {
-		return s.inspectResult(Partial, "codex_skill_receipt_incomplete")
+		return s.inspectResult(Partial, s.integration.category("skill_receipt_incomplete"))
 	}
 	changed = changed || receiptChanged
 	if !changed {
-		return s.inspectResult(Unchanged, "codex_already_configured")
+		return s.inspectResult(Unchanged, s.integration.category("already_configured"))
 	}
-	return s.inspectResult(Applied, "codex_configured")
+	return s.inspectResult(Applied, s.integration.category("configured"))
 }
 
-func installableOne(root, name string, content []byte) bool {
+func (i integration) installableOne(root, name string, content []byte) bool {
 	info, err := os.Lstat(filepath.Join(root, name))
 	if os.IsNotExist(err) {
 		return true
@@ -160,7 +165,7 @@ func installableOne(root, name string, content []byte) bool {
 	if !privateDirectory(filepath.Join(root, name)) {
 		return false
 	}
-	return matchesInstalled(root, name, content) || matchesLegacyInstalled(root, name)
+	return matchesInstalled(root, name, content) || i.matchesLegacyInstalled(root, name)
 }
 
 func (s Service) Inspect(ctx context.Context) Result {
@@ -169,25 +174,25 @@ func (s Service) Inspect(ctx context.Context) Result {
 	}
 	_, err := os.Lstat(s.root)
 	if os.IsNotExist(err) {
-		return s.inspectResult(Missing, "codex_not_configured")
+		return s.inspectResult(Missing, s.integration.category("not_configured"))
 	}
 	if err != nil || !privateDirectory(s.root) {
-		return Result{Status: Failed, Category: "codex_skill_root_unavailable"}
+		return Result{Status: Failed, Category: s.integration.category("skill_root_unavailable")}
 	}
 	if s.binaryCompatibility != BinaryCompatibility {
-		return s.inspectResult(Incompatible, "codex_binary_skill_incompatible")
+		return s.inspectResult(Incompatible, s.integration.category("binary_skill_incompatible"))
 	}
 	for _, name := range skillNames {
 		content, readErr := fs.ReadFile(skillFiles, "skills/"+name+"/SKILL.md")
 		if readErr != nil || !matchesInstalled(s.root, name, content) {
-			return s.inspectResult(Missing, "codex_skills_missing_or_changed")
+			return s.inspectResult(Missing, s.integration.category("skills_missing_or_changed"))
 		}
 	}
-	receipt, err := receiptBytes()
+	receipt, err := s.integration.receipt(s.root)
 	if err != nil || !matchesPrivateFile(filepath.Join(s.root, receiptName), receipt) {
-		return s.inspectResult(Partial, "codex_skill_receipt_incomplete")
+		return s.inspectResult(Partial, s.integration.category("skill_receipt_incomplete"))
 	}
-	return s.inspectResult(Ready, "codex_ready")
+	return s.inspectResult(Ready, s.integration.category("ready"))
 }
 
 func (s Service) inspectResult(status Status, category string) Result {
@@ -198,7 +203,7 @@ func (s Service) inspectResult(status Status, category string) Result {
 		state := "missing"
 		if matchesInstalled(s.root, name, content) {
 			state = "equivalent"
-		} else if matchesLegacyInstalled(s.root, name) {
+		} else if s.integration.matchesLegacyInstalled(s.root, name) {
 			state = "owned_older"
 		} else if _, err := os.Lstat(filepath.Join(s.root, name)); err == nil {
 			state = "modified_or_foreign"
@@ -208,16 +213,16 @@ func (s Service) inspectResult(status Status, category string) Result {
 	return result
 }
 
-func publishReceipt(root string, content []byte) (bool, bool) {
+func (i integration) publishReceipt(root string, content []byte) (bool, bool) {
 	path := filepath.Join(root, receiptName)
 	if matchesPrivateFile(path, content) {
 		return false, true
 	}
 	if _, err := os.Lstat(path); err == nil {
-		if !matchesLegacyReceipt(path) {
+		if !i.matchesLegacyReceipt(path) {
 			return false, false
 		}
-		return replaceKnownReceipt(root, content)
+		return i.replaceKnownReceipt(root, content)
 	} else if !os.IsNotExist(err) {
 		return false, false
 	}
@@ -247,8 +252,8 @@ func publishReceipt(root string, content []byte) (bool, bool) {
 	return true, true
 }
 
-func matchesLegacyReceipt(path string) bool {
-	for _, wire := range legacyReceiptWires {
+func (i integration) matchesLegacyReceipt(path string) bool {
+	for _, wire := range i.legacyReceipts {
 		if matchesPrivateFile(path, wire) {
 			return true
 		}
@@ -256,7 +261,7 @@ func matchesLegacyReceipt(path string) bool {
 	return false
 }
 
-func replaceKnownReceipt(root string, content []byte) (bool, bool) {
+func (i integration) replaceKnownReceipt(root string, content []byte) (bool, bool) {
 	directory, err := os.OpenRoot(root)
 	if err != nil {
 		return false, false
@@ -274,7 +279,7 @@ func replaceKnownReceipt(root string, content []byte) (bool, bool) {
 	if writeErr != nil || syncErr != nil || closeErr != nil || written != len(content) {
 		return false, false
 	}
-	if !matchesLegacyReceipt(filepath.Join(root, receiptName)) {
+	if !i.matchesLegacyReceipt(filepath.Join(root, receiptName)) {
 		return false, false
 	}
 	if err := directory.Rename(temporary, receiptName); err != nil {
@@ -355,7 +360,7 @@ func acquireInstallLock(root string) (*os.File, string) {
 	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		file.Close()
 		if errors.Is(err, syscall.EWOULDBLOCK) {
-			return nil, "codex_skill_install_concurrent"
+			return nil, "skill_install_concurrent"
 		}
 		return nil, "recovery_required"
 	}
@@ -421,7 +426,7 @@ func ownedByUser(info os.FileInfo) bool {
 	return ok && stat.Uid == uint32(os.Getuid())
 }
 
-func installOne(root, name string, content []byte) (bool, bool, error) {
+func (i integration) installOne(root, name string, content []byte) (bool, bool, error) {
 	directory := filepath.Join(root, name)
 	info, err := os.Lstat(directory)
 	if err == nil {
@@ -431,7 +436,7 @@ func installOne(root, name string, content []byte) (bool, bool, error) {
 		if matchesInstalled(root, name, content) {
 			return false, false, nil
 		}
-		if !matchesLegacyInstalled(root, name) || replaceKnownSkill(directory, name, content) != nil {
+		if !i.matchesLegacyInstalled(root, name) || i.replaceKnownSkill(directory, name, content) != nil {
 			return false, false, errors.New("skill conflict")
 		}
 		return true, false, nil
@@ -456,14 +461,14 @@ func installOne(root, name string, content []byte) (bool, bool, error) {
 	return true, true, nil
 }
 
-func matchesLegacyInstalled(root, name string) bool {
+func (i integration) matchesLegacyInstalled(root, name string) bool {
 	content, ok := singleSkillContent(filepath.Join(root, name))
 	if !ok {
 		return false
 	}
 	digest := sha256.Sum256(content)
 	value := hex.EncodeToString(digest[:])
-	for _, known := range legacySkillDigests[name] {
+	for _, known := range i.legacySkills[name] {
 		if value == known {
 			return true
 		}
@@ -471,7 +476,7 @@ func matchesLegacyInstalled(root, name string) bool {
 	return false
 }
 
-func replaceKnownSkill(directory, name string, content []byte) error {
+func (i integration) replaceKnownSkill(directory, name string, content []byte) error {
 	root, err := os.OpenRoot(directory)
 	if err != nil {
 		return err
@@ -496,7 +501,7 @@ func replaceKnownSkill(directory, name string, content []byte) error {
 	}
 	digest := sha256.Sum256(current)
 	known := false
-	for _, expected := range legacySkillDigests[name] {
+	for _, expected := range i.legacySkills[name] {
 		if hex.EncodeToString(digest[:]) == expected {
 			known = true
 		}

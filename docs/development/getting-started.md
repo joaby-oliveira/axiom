@@ -60,8 +60,9 @@ Execute também os checks locais de segurança:
    para o destino padrão: `export PATH="$HOME/.local/bin:$PATH"`. O installer não
    altera arquivos de shell/profile.
 3. Confirme `command -v axiom` e `axiom version` fora do checkout.
-4. Execute `axiom first-run`, depois `axiom runtime codex install` e confirme
-   novamente com `axiom first-run`.
+4. Execute `axiom first-run`. Ele detecta `codex` e `claude` no `PATH` e instala
+   ou atualiza as skills globais do Axiom para cada Runtime encontrado; sem
+   Runtime, apenas informa e termina com sucesso. Repetir é idempotente.
 5. Configure um Project com `axiom project configure`; revise o preview e confirme
    a mesma proposta. O modo completo exige `--project-id`, `--preview-digest` e
    `--authorize-local` na segunda chamada.

@@ -169,7 +169,9 @@ amendment, implementation, prerelease publication and final MVP acceptance remai
 separately gated. T37–T39 were then implemented locally under explicit operator
 authority and are recorded, with their limits, in
 [S9 Evidence](004-mvp-v1-baseline/evidence-s9.md); release candidates are
-exact-version only (human decision 2026-09-28).
+exact-version only (human decision 2026-09-28). T40 (Codex + Claude first-run
+bootstrap) followed locally under the 2026-09-28 T40 decisions; T23–T25 are not
+started.
 
 Issue [#62](https://github.com/rgomids/axiom/issues/62) originally authorized
 Specification and reconciliation only. After PR #70 resolved that gate, the

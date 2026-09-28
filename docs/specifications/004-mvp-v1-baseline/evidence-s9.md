@@ -24,6 +24,7 @@ published Axiom release; T24 owns native clean-environment acceptance.
 | T37 public `axiom` CLI and distribution identity | technically complete locally | `096acb0`, `e4361fa` |
 | T38 automated release artifact pipeline | technically complete locally; workflow not run on GitHub | `90f1eab` |
 | T39 stable remote installer and owned upgrade | technically complete locally; release candidates exact-version only by human decision | `eb88832` plus the RC-decision and row-selection reconciliation on the integration branch |
+| T40 Codex + Claude first-run bootstrap | technically complete locally under the 2026-09-28 T40 decisions; no native row exercised | `721acd0` |
 
 The integration branch is based on `main` at
 `d3e0a7a8ebe038b3b801bbcf339486a859da5d5a` (unchanged since T37 started).
@@ -136,18 +137,19 @@ any request. HOME stayed empty.
 
 ## Validation
 
-Run on the integration branch after the PR #104 reconciliation and RC
-decision (the commit recording this line), Ubuntu 24.04 container, Go 1.26.0,
-as root unless stated:
+Last full run on T40 commit `721acd0` (integration branch plus T40), Ubuntu
+24.04 container, Go 1.26.0, as root unless stated. Earlier revisions passed the
+same set before T40.
 
 | Command | Result |
 |---|---|
 | `go test -race ./...` | pass as an unprivileged user; as root only `internal/local` `TestPortableStoreRejectsUserSymlinkAncestor` fails, identically on unmodified `main` (a root-owned symlink counts as system-owned) |
 | `go vet ./...`, `go build ./...`, `go mod verify`, `gofmt -l .` | pass |
 | `./scripts/validate-repository.sh .` | pass |
-| `./scripts/test-release-archives.sh` | pass (native install section also passes on the synthetic row) |
+| `./scripts/test-release-archives.sh` | pass (native install section, including the installed binary's first-run of both Runtimes, also passes on the synthetic row) |
 | `./scripts/test-release-pipeline.sh` | pass |
-| `./scripts/test-install-axiom.sh`, `./scripts/test-codex-skills.sh`, `./scripts/dogfood-poc.sh` | pass |
+| `./scripts/test-install-axiom.sh`, `./scripts/test-codex-skills.sh` (now including `internal/runtimebootstrap`), `./scripts/dogfood-poc.sh` | pass |
+| `go test ./internal/runtimebootstrap ./internal/codexruntime ./cmd/lingo` (T40 unit and executable matrices) | pass, also under `-race` |
 | `./scripts/test-install-bootstrap.sh` | selector/host tier pass, then `78` blocked natively; 48/48 on the synthetic row with `dash` and `bash --posix` |
 | `./scripts/test-s7-native.sh` (synthetic row) | every install and upgrade step passes, including `installer-owned-upgrade`; only the root-only test above fails |
 
@@ -200,6 +202,7 @@ upgrade, so a `noexec` temporary directory fails the upgrade before any effect.
 | Ubuntu 26.04/arm64 and macOS 27/arm64 | asset selection only (shimmed); installation **untested** |
 | `/releases/latest` behavior with no stable release; unpublished RC `SHA256SUMS` 404 | confirmed by live read-only requests |
 | Release workflow on GitHub Actions, artifact upload | **untested** (no dispatch authority) |
+| T40 discovery and Codex/Claude integration convergence | confirmed by executed deterministic tests with fake Runtime executables; real Codex/Claude never run |
 | Native Ubuntu 26.04 amd64/arm64 and macOS 27 acceptance | **blocked** (T24; see below) |
 
 ## T24 native acceptance — blocked
@@ -218,28 +221,89 @@ S8/T36 technical completion (the gate for entering RC/acceptance), and T23 with
 explicit publication authority. The S7 Ubuntu 26.04 native rows deferred to T24
 remain mandatory. Synthetic results above do not satisfy any T24 row.
 
-## Next S9 task — T40 needs a decision
+## T40 — Codex + Claude first-run bootstrap
 
-T40 (Codex + Claude first-run bootstrap) is the next executable Task in the
-DAG and was not started. Today `axiom first-run` is a read-only alias of
-`runtime codex status`, and no Runtime discovery exists (S8 Runtime
-observations are supplied by configuration). Before implementation, these
-contract points need a human decision; the Issue #81 review already listed the
-"exact Claude product-integration install/status contract" as open, and PR #104
-fixed only the Claude skill root:
+Human decisions of 2026-09-28 resolved the open T40 contract points
+(discovery signal, first-run behavior and exit codes, Claude ownership). They
+are recorded in FR-066, Plan §13 and Task T40.
 
-1. the discovery signal for "Runtime present" (executable on `PATH`, the
-   Runtime's user configuration root, or both);
-2. whether `first-run` itself writes Runtime integrations (FR-066 wording) or
-   stays a preview that `runtime <id> install` applies, and its terminal status
-   and exit code for Codex-only, Claude-only, both and neither;
-3. the Claude integration ownership contract: reuse of the five thin skills
-   (currently Runtime-neutral except one "Codex's current working directory"
-   phrase), a skill-set receipt and known-digest upgrade set like Codex, and
-   conflict handling under `~/.claude/skills` or `CLAUDE_CONFIG_DIR/skills`.
+- `internal/runtimebootstrap`: a Runtime is present only when `codex` or
+  `claude` resolves through `exec.LookPath` to an absolute path (a match only
+  through a relative `PATH` entry is absence). The executable is never run. A
+  configuration directory without executable is reported
+  (`configurationWithoutExecutable`) and never configured. Each detected
+  Runtime converges independently; one failure keeps the other's confirmed
+  result, without cross-Runtime rollback.
+- `internal/codexruntime`: a per-Runtime integration descriptor (Runtime ID for
+  categories, previously owned digests and receipts, receipt format) lets
+  Claude reuse the existing install lock, private-path checks and
+  known-revision upgrade instead of a copy. Codex categories, receipt and
+  history are unchanged. Claude starts with no registered history. Its receipt
+  records `runtime=claude`, the skill root, skill-set version, manifest digest
+  and each skill digest. The one Codex-specific skill sentence became
+  Runtime-neutral, and the previous Codex revision and receipt stay owned.
+- Claude root: `CLAUDE_CONFIG_DIR` (documented by Claude Code as the override
+  of `~/.claude`, confirmed in its environment-variable reference) or
+  `~/.claude`, with skills at `skills/<skill>/SKILL.md` as the Claude Code
+  skills documentation describes. Only the process environment is read. A
+  relative or multi-line value fails Claude only.
+- CLI: `axiom first-run` returns canonical `success` (none detected, or all
+  converge, exit `0`), `partial` (some converge, exit `1`), `failure` (all
+  detected fail, exit `1`) or `interrupted`, with `firstRun.detected`,
+  `firstRun.failed` and per-Runtime `present`, `configurationWithoutExecutable`,
+  `state`, `reason` and skill states. `first-run --unexpected` keeps the
+  existing `invalid_command` error. New `axiom runtime claude install|status`.
 
-The unmerged S8 branch `agent/t36-real-runtime-evidence` (no pull request) adds
-`runtime profile validate` and records first-run readiness findings that T40
-should consume; a trial merge into this branch conflicts only in
-`CHANGELOG.md`, but its help and docs text still say `lingo` and will need the
-T37 `axiom` wording when integrated.
+Tests (all passing):
+
+| Case | Where |
+|---|---|
+| neither Runtime: success, no effect, both absent | `runtimebootstrap` `TestNeitherRuntimeIsAValidStateWithNoEffects`; executable matrix `neither`; `dogfood-poc.sh` |
+| Codex only / Claude only | `TestCodexOnly…`, `TestClaudeOnly…`; executable matrix; `dogfood-poc.sh` (Codex) |
+| both, idempotent rerun with unchanged tree | `TestBothRuntimesConvergeIndependentlyAndRerunIsIdempotent`; executable matrix; installed archive binary in `test-release-archives.sh` (synthetic row) |
+| configuration directory without executable | `TestConfigurationDirectoryWithoutExecutableIsAbsentAndUntouched`; executable matrix |
+| executable without configuration directory | `TestExecutableWithoutConfigurationDirectoryIsPresent`; executable matrix (Claude only) |
+| first install and receipt content | `TestClaudeOnly…`, `TestClaudeIntegrationUpgradesOnlyRegisteredClaudeHistory` |
+| partial prior owned install converges | `TestPartialPriorOwnedInstallConverges` |
+| recognized previous owned revision upgrades | `TestRecognizedPreviousCodexSkillIsUpgraded`; Claude mechanism with injected history in `TestClaudeIntegrationUpgradesOnlyRegisteredClaudeHistory` |
+| no invented Claude history | `TestClaudeHasNoInventedHistory` (a previous Codex revision in the Claude root is a conflict) |
+| unknown/foreign skill preserved | `TestForeignSkillIsPreservedAndFailsThatRuntimeOnly`; executable matrix |
+| modified owned skill refused despite receipt | `TestModifiedOwnedSkillIsNotRepairedDespiteReceipt` |
+| one Runtime converges while the other conflicts | runtimebootstrap foreign case; executable matrix (`partial`, exit `1`); unsafe `CLAUDE_CONFIG_DIR` case |
+| `CLAUDE_CONFIG_DIR` honored and validated | executable matrix; `TestClaudeConfigurationRootResolution` |
+| no Runtime execution, install or credential effect | fake `codex`/`claude` executables that would leave a mark are never run; HOME contains only the Axiom skill roots afterwards (executable matrix, `dogfood-poc.sh`, `test-release-archives.sh`) |
+
+The installed archive binary, on the synthetic Ubuntu row, configured both
+Runtimes with skill digests equal to the archive's `skills-manifest.txt`.
+
+Findings and limits:
+
+- The persistent `.axiom-skill-set.lock` (the existing flock contract) is
+  created in a detected Runtime's skill root even when that Runtime then
+  fails on a conflict. Conflicting and foreign content is never changed.
+- **Skill roots must be private.** The existing ownership invariant requires
+  a skill root owned by the user with mode `0700` and no extended ACL. This
+  container's real `~/.claude/skills` is `0755`, so Claude fails there with
+  `claude_skill_root_unavailable` and no change. Users with such a root must
+  `chmod 700` it or set `CLAUDE_CONFIG_DIR`. The invariant was not weakened.
+- Test isolation: once `first-run` writes Runtime integrations, any test that
+  inherits the host `PATH`/`HOME` could configure a developer's real Codex or
+  Claude. The Go executable tests, `dogfood-poc.sh` and
+  `test-release-archives.sh` now pin `PATH`, `HOME` and `CLAUDE_CONFIG_DIR`. An
+  early unisolated run here detected the real `/opt/node22/bin/claude` and
+  failed closed on the `0755` root without writing; `~/.claude/skills` was
+  verified unchanged.
+- `axiom upgrade` still publishes skill files only to the Codex root. After a
+  binary upgrade, Claude skills converge on the next `first-run` only if their
+  prior content is registered as a previous Claude revision. That history must
+  be added whenever the shared skill text changes.
+- First-run reports integration readiness only. It does not probe
+  authentication, Model Profiles or Project setup (S8/T36 finding 2 on the
+  unmerged `agent/t36-real-runtime-evidence` branch). Doing so is outside the
+  no-authentication decision.
+- Real Codex/Claude invocation and native rows were not exercised.
+
+The unmerged S8 branch `agent/t36-real-runtime-evidence` (no pull request)
+also edits `internal/cli/cli.go`/`help.go` (`runtime profile validate`) and
+still documents `lingo`; integrating it with this branch needs the T37 `axiom`
+wording and a merge of both CLI command additions.

@@ -26,6 +26,9 @@ func TestRunDelegatesEachLifecycleOperation(t *testing.T) {
 		{"update", []string{"project", "update", "--slug", "alpha", "--name", "Renamed"}, "update:alpha:Renamed"},
 		{"runtime install", []string{"runtime", "codex", "install"}, "runtime-install"},
 		{"runtime status", []string{"runtime", "codex", "status"}, "runtime-status"},
+		{"claude install", []string{"runtime", "claude", "install"}, "runtime-claude-install"},
+		{"claude status", []string{"runtime", "claude", "status"}, "runtime-claude-status"},
+		{"first run", []string{"first-run"}, "first-run"},
 		{"resolve", []string{"project", "resolve", "--selector", "alpha"}, "resolve:alpha"},
 		{"show", []string{"project", "show", "--selector", "alpha"}, "resolve:alpha"},
 		{"configure", []string{"project", "configure", "--slug", "alpha", "--name", "Alpha", "--repository", "main=/tmp/alpha"}, "configure:alpha:Alpha:main:/tmp/alpha"},
@@ -43,9 +46,12 @@ func TestRunDelegatesEachLifecycleOperation(t *testing.T) {
 			if service.call != test.call {
 				t.Fatalf("call = %q, want %q", service.call, test.call)
 			}
-			operation := test.args[1]
+			operation := "first_run"
+			if len(test.args) > 1 {
+				operation = test.args[1]
+			}
 			if test.args[0] == "runtime" {
-				operation = "runtime_codex_" + test.args[2]
+				operation = "runtime_" + test.args[1] + "_" + test.args[2]
 			}
 			if test.args[0] == "work-item" {
 				operation = "work_item_" + test.args[1]
@@ -334,6 +340,18 @@ func (s *recordingService) RuntimeCodexInstall(context.Context) Result {
 }
 func (s *recordingService) RuntimeCodexStatus(context.Context) Result {
 	s.call = "runtime-status"
+	return Result{Status: Succeeded, Category: "applied"}
+}
+func (s *recordingService) RuntimeClaudeInstall(context.Context) Result {
+	s.call = "runtime-claude-install"
+	return Result{Status: Succeeded, Category: "applied"}
+}
+func (s *recordingService) RuntimeClaudeStatus(context.Context) Result {
+	s.call = "runtime-claude-status"
+	return Result{Status: Succeeded, Category: "applied"}
+}
+func (s *recordingService) FirstRun(context.Context) Result {
+	s.call = "first-run"
 	return Result{Status: Succeeded, Category: "applied"}
 }
 func (s *recordingService) Resolve(_ context.Context, input ResolveInput) Result {

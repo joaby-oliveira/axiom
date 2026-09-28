@@ -114,7 +114,7 @@ if [[ -n "$native" ]]; then
   installed_at=$(awk -F= '$1 == "installedAt" {print $2}' "$temporary/receipt/installation.receipt")
   [[ "$installed_at" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]
   "$temporary/bin/axiom" --json version | grep -Fq '"version":"development"'
-  if AXIOM_CODEX_SKILLS_ROOT="$temporary/runtime-skills" "$temporary/bin/axiom" --json first-run >"$temporary/first-run.json"; then
+  if AXIOM_CODEX_SKILLS_ROOT="$temporary/runtime-skills" "$temporary/bin/axiom" --json runtime codex status >"$temporary/first-run.json"; then
     exit 1
   fi
   grep -Fq '"status":"validation_failure"' "$temporary/first-run.json"
@@ -133,6 +133,27 @@ if [[ -n "$native" ]]; then
     esac
   done <"$archived_skills_manifest"
   [[ "$skill_count" == 5 ]]
+
+  # T40: the installed axiom first-run configures every detected Runtime from
+  # an isolated PATH/HOME; the fake Runtimes are resolved, never executed.
+  mkdir -p "$temporary/first-run-bin" "$temporary/first-run-home"
+  printf '#!/bin/sh\ntouch %s\n' "$temporary/runtime-executed" >"$temporary/first-run-bin/codex"
+  cp "$temporary/first-run-bin/codex" "$temporary/first-run-bin/claude"
+  chmod 700 "$temporary/first-run-bin/codex" "$temporary/first-run-bin/claude"
+  env -u CLAUDE_CONFIG_DIR HOME="$temporary/first-run-home" PATH="$temporary/first-run-bin" AXIOM_CODEX_SKILLS_ROOT="$temporary/first-run-codex" \
+    "$temporary/bin/axiom" --json first-run >"$temporary/first-run-both.json"
+  grep -Fq '"status":"success","result":"Axiom integration is configured for every detected Runtime"' "$temporary/first-run-both.json"
+  [[ ! -e "$temporary/runtime-executed" ]]
+  while IFS='=' read -r key hash; do
+    case "$key" in
+      skill.*)
+        name=${key#skill.}
+        [[ $(digest_file "$temporary/first-run-codex/$name/SKILL.md") == "$hash" ]]
+        [[ $(digest_file "$temporary/first-run-home/.claude/skills/$name/SKILL.md") == "$hash" ]]
+        ;;
+    esac
+  done <"$archived_skills_manifest"
+  grep -Fxq 'runtime=claude' "$temporary/first-run-home/.claude/skills/.axiom-skill-set.receipt"
 
   AXIOM_CODEX_SKILLS_ROOT="$temporary/runtime-skills" "$temporary/bin/axiom" --json runtime codex install >"$temporary/runtime-install.json"
   grep -Fq '"status":"success","category":"codex_configured"' "$temporary/runtime-install.json"

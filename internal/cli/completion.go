@@ -194,6 +194,48 @@ func emitRuntimeCompletion(writer io.Writer, mode outputMode, result completion.
 	return completionExitCode(result.Status())
 }
 
+type bootstrapCompletionEvent struct {
+	completionEvent
+	FirstRun BootstrapView `json:"firstRun"`
+}
+
+func emitBootstrapCompletion(writer io.Writer, mode outputMode, result completion.Result, bootstrap BootstrapView) int {
+	if writer == nil || !result.Valid() {
+		return ExitFailure
+	}
+	var content []byte
+	if mode == humanOutput {
+		content = renderCompletionHuman(result)
+		var extra bytes.Buffer
+		for _, runtime := range bootstrap.Runtimes {
+			fmt.Fprintf(&extra, "runtime: %s present=%t state=%s reason=%s", runtime.Runtime, runtime.Present, runtime.State, runtime.Reason)
+			if runtime.ConfigurationWithoutExecutable {
+				extra.WriteString(" note=configuration_without_executable")
+			}
+			extra.WriteString("\n")
+			for _, skill := range runtime.Skills {
+				fmt.Fprintf(&extra, "  skill: %s sha256=%s state=%s\n", skill.Name, skill.SHA256, skill.State)
+			}
+		}
+		content = append(content, extra.Bytes()...)
+	} else {
+		base := completionEvent{Status: result.Status(), Result: result.Result().String(), References: result.References(), Next: result.Next().String(), Details: result.Details(), Provenance: provenanceEvent{Product: result.Provenance().Product(), Version: result.Provenance().Version(), Revision: result.Provenance().Revision(), SourceState: result.Provenance().SourceState()}}
+		encoded, err := json.Marshal(bootstrapCompletionEvent{completionEvent: base, FirstRun: bootstrap})
+		if err != nil {
+			return ExitFailure
+		}
+		content = append(encoded, '\n')
+	}
+	if len(content) > MaxCompletionOutputBytes {
+		return ExitFailure
+	}
+	written, err := writer.Write(content)
+	if err != nil || written != len(content) {
+		return ExitFailure
+	}
+	return completionExitCode(result.Status())
+}
+
 func emitRuntimeHuman(writer io.Writer, runtime RuntimeView) {
 	fmt.Fprintf(writer, "skill-set: %s binary-compatibility=%s\n", runtime.SkillSetVersion, runtime.BinaryCompatibility)
 	for _, skill := range runtime.Skills {

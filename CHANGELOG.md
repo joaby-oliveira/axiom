@@ -2,6 +2,17 @@
 
 ## [2026-09-28]
 
+- implementation (S9/T40): `axiom first-run` is now the idempotent Runtime
+  bootstrap. It finds Codex and Claude only by resolving `codex`/`claude` on
+  `PATH` (never running them), installs or upgrades Axiom's user-global skills
+  for each one found, and reports every supported Runtime; no Runtime is
+  success, and any detected Runtime that cannot be configured makes the run fail
+  while keeping the others' results. Claude skills go to
+  `<CLAUDE_CONFIG_DIR or ~/.claude>/skills/<skill>/SKILL.md` with a receipt that
+  records the Runtime, root and skill digests, under the same fail-closed
+  ownership as Codex (no previous Claude revisions are registered). New
+  `axiom runtime claude install|status`. The shared skill text is now
+  Runtime-neutral; the previous Codex revision stays recognized as owned.
 - implementation (S9/T37): the canonical public executable is `axiom`. Release
   archives, `MANIFEST.sha256`, the release installer, the owned upgrade path,
   and the source installer publish `axiom` (receipts, destinations and staging

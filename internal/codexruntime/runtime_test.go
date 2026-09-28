@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -301,7 +303,7 @@ func TestPublishReceiptUpgradesOnlyExactPriorAxiomReceipt(t *testing.T) {
 	if err := os.WriteFile(path, prior, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if changed, published := publishReceipt(root, current); !changed || !published {
+	if changed, published := codexIntegration.publishReceipt(root, current); !changed || !published {
 		t.Fatalf("known prior receipt upgrade = changed %t published %t", changed, published)
 	}
 	if !matchesPrivateFile(path, current) {
@@ -310,7 +312,7 @@ func TestPublishReceiptUpgradesOnlyExactPriorAxiomReceipt(t *testing.T) {
 	if err := os.WriteFile(path, []byte("foreign\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if changed, published := publishReceipt(root, current); changed || published {
+	if changed, published := codexIntegration.publishReceipt(root, current); changed || published {
 		t.Fatalf("foreign receipt changed = changed %t published %t", changed, published)
 	}
 }
@@ -664,5 +666,42 @@ func TestInspectReportsBinaryCompatibilityAndPartialResume(t *testing.T) {
 	}
 	if got := incompatible.Inspect(context.Background()); got.Status != Incompatible || got.Category != "codex_binary_skill_incompatible" {
 		t.Fatalf("compatibility = %#v", got)
+	}
+}
+
+func TestClaudeIntegrationUpgradesOnlyRegisteredClaudeHistory(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "claude", "skills")
+	service, err := NewClaude(root)
+	if err != nil || service.Runtime() != "claude" {
+		t.Fatalf("service = %v, %v", service.Runtime(), err)
+	}
+	if got := service.Inspect(context.Background()); got.Status != Missing || got.Category != "claude_not_configured" {
+		t.Fatalf("inspect = %#v", got)
+	}
+	previous := []byte("---\nname: axiom-project-show\n---\nprevious Claude revision\n")
+	directory := filepath.Join(root, "axiom-project-show")
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "SKILL.md"), previous, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := service.Install(context.Background()); got.Status != Failed || got.Category != "claude_skill_conflict" {
+		t.Fatalf("unregistered content = %#v", got)
+	}
+	digest := sha256.Sum256(previous)
+	service.integration.legacySkills = map[string][]string{"axiom-project-show": {hex.EncodeToString(digest[:])}}
+	if got := service.Install(context.Background()); got.Status != Applied || got.Category != "claude_configured" {
+		t.Fatalf("registered history = %#v", got)
+	}
+	if got := service.Inspect(context.Background()); got.Status != Ready || got.Category != "claude_ready" {
+		t.Fatalf("inspect = %#v", got)
+	}
+	receipt, err := os.ReadFile(filepath.Join(root, receiptName))
+	if err != nil || !strings.HasPrefix(string(receipt), "formatVersion=1\nruntime=claude\nskillsRoot="+root+"\n") {
+		t.Fatalf("receipt = %q, %v", receipt, err)
+	}
+	if codexReceipt, _ := receiptBytes(); string(codexReceipt) == string(receipt) {
+		t.Fatal("Claude receipt is indistinguishable from the Codex receipt")
 	}
 }

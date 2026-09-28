@@ -81,13 +81,30 @@ fi
 axiom --json version >"$temporary/version.json"
 assert_canonical "$temporary/version.json" success "Axiom build information"
 
-if axiom --json first-run >"$temporary/first-run-missing.json"; then
+# first-run discovers Runtimes from PATH, HOME and CLAUDE_CONFIG_DIR; isolate
+# them so the host's real Codex or Claude is never seen or touched.
+runtime_bin="$temporary/runtime-bin"
+runtime_home="$temporary/runtime-home"
+mkdir -p "$runtime_bin" "$runtime_home"
+first_run() {
+  env -u CLAUDE_CONFIG_DIR HOME="$runtime_home" PATH="$runtime_bin:$binary_root" axiom --json first-run
+}
+first_run >"$temporary/first-run-none.json"
+assert_canonical "$temporary/first-run-none.json" success "No supported Runtime is currently available"
+if axiom --json runtime codex status >"$temporary/first-run-missing.json"; then
   exit 1
 fi
 assert_canonical "$temporary/first-run-missing.json" validation_failure "Codex skill compatibility is not ready"
-run_success codex_configured "$temporary/runtime-install.json" runtime codex install
-axiom --json first-run >"$temporary/runtime-status.json"
+printf '#!/bin/sh\nexit 99\n' >"$runtime_bin/codex"
+chmod 700 "$runtime_bin/codex"
+first_run >"$temporary/runtime-install.json"
+assert_canonical "$temporary/runtime-install.json" success "Axiom integration is configured for every detected Runtime"
+grep -q '"runtime":"codex","executable":"codex","present":true,"configurationWithoutExecutable":false,"state":"configured","reason":"codex_configured"' "$temporary/runtime-install.json"
+axiom --json runtime codex status >"$temporary/runtime-status.json"
 assert_canonical "$temporary/runtime-status.json" success "Lingo and Codex skills are compatible"
+if [[ -n $(find "$runtime_home" -mindepth 1 -print -quit) ]]; then
+  exit 1
+fi
 skill_count=$(find "$skills_root" -name SKILL.md -type f | wc -l | tr -d ' ')
 if [[ "$skill_count" != 5 ]]; then
   exit 1

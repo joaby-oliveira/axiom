@@ -65,8 +65,9 @@ Axiom está em desenvolvimento ativo. Este repositório oferece atualmente:
 - Specifications, decisões de arquitetura e Evidence de implementação
   versionadas.
 
-As limitações atuais incluem um Runtime suportado (Codex), um Work Item provider
-(GitHub Issues) e um workflow sequencial executado por um único agente. O
+As limitações atuais incluem duas integrações de Runtime suportadas (Codex e
+Claude, configuradas por `axiom first-run`), um Work Item provider (GitHub
+Issues) e um workflow sequencial executado por um único agente. O
 [roadmap](product/roadmap.md) descreve a direção. O
 [índice de Specifications](specifications/README.md) é responsável pelo
 estado detalhado de escopo, aprovação, implementação e aceite.
@@ -83,7 +84,6 @@ cd axiom
 export PATH="$HOME/.local/bin:$PATH"
 axiom version
 axiom first-run
-axiom runtime codex install
 ./scripts/validate-repository.sh .
 go test ./...
 ```

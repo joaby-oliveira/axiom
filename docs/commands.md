@@ -209,14 +209,58 @@ installation and unrelated-CWD invocation with:
 ./scripts/test-install-axiom.sh
 ```
 
-## Configure Codex Runtime
+## First run and Runtime integrations
 
-Install and inspect the global thin Axiom skills:
+`axiom first-run` is an idempotent bootstrap (S9/T40). It discovers each
+supported Runtime by resolving its executable from the current `PATH`
+(`codex`, `claude`); a configuration directory alone does not count, and the
+executable is never run. For every Runtime found it installs or upgrades the
+five Axiom-owned user-global skills, then reports every supported Runtime:
+
+```bash
+axiom first-run
+axiom --json first-run
+```
+
+| Runtime | Skill root | Receipt |
+|---|---|---|
+| Codex | `$HOME/.agents/skills` (`AXIOM_CODEX_SKILLS_ROOT` for isolated validation) | `.axiom-skill-set.receipt` (skill set and manifest digest) |
+| Claude | `<CLAUDE_CONFIG_DIR or ~/.claude>/skills/<skill>/SKILL.md` | `.axiom-skill-set.receipt` with `runtime=claude`, the skill root and each skill digest |
+
+Each detected Runtime converges independently: absent skills are installed,
+current content is a no-op, and only content registered as a previous
+Axiom-owned revision for that Runtime is upgraded. Claude has no previous
+revisions yet. Unknown, foreign, or modified content is preserved and fails that
+Runtime (`<runtime>_skill_conflict`); the receipt never authorizes overwriting
+changed content. A skill root must be owned by you with mode `0700` and no
+extended ACL, otherwise that Runtime fails (`<runtime>_skill_root_unavailable`)
+without changes; a relative `CLAUDE_CONFIG_DIR` fails Claude the same way.
+Axiom only reads `CLAUDE_CONFIG_DIR` from the process environment, not from
+Claude settings files. The install keeps its persistent `.axiom-skill-set.lock`
+in each skill root.
+
+| Detected | Result | Exit |
+|---|---|---|
+| none | `success`, no supported Runtime available, no effect | `0` |
+| all converge | `success` | `0` |
+| some converge, others fail | `partial`; converged results are kept | `1` |
+| all fail | `failure` | `1` |
+
+The JSON result carries `firstRun.detected`, `firstRun.failed` and one entry
+per Runtime with `present`, `configurationWithoutExecutable` (a stale
+configuration directory), `state` (`absent`, `configured`,
+`already_configured`, `failed`), `reason`, and the skill states. first-run never
+installs a Runtime, authenticates, reads or changes credentials, provisions
+secrets or touches subscriptions, and does not infer a Project.
+
+Per-Runtime commands install or inspect one integration regardless of
+discovery:
 
 ```bash
 axiom runtime codex install
 axiom runtime codex status
-axiom first-run
+axiom runtime claude install
+axiom runtime claude status
 ```
 
 Codex standalone skill names accept lowercase letters, digits and hyphens, so
@@ -230,17 +274,14 @@ $axiom-work-item-run
 $axiom-work-item-status
 ```
 
-The default user-global root is `$HOME/.agents/skills`. For isolated validation:
+Claude invokes the same skills as `/axiom-project-configure` and so on, or
+selects them from their descriptions. For isolated validation:
 
 ```bash
 AXIOM_CODEX_SKILLS_ROOT=/absolute/test/root axiom runtime codex install
+CLAUDE_CONFIG_DIR=/absolute/test/claude axiom runtime claude install
 ./scripts/test-codex-skills.sh
 ```
-
-Known prior Axiom skill content is upgraded atomically. Changed or unrelated
-content remains a conflict and is never overwritten. `first-run` reports binary
-compatibility plus the exact digest/state of each of the five skills, then directs
-the user to explicit Project setup. It does not invoke Codex or infer a Project.
 
 ## Build and install exact-version S2 archives
 
