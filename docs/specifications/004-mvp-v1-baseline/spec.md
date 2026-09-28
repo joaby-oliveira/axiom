@@ -14,6 +14,14 @@ the release-candidate slice, accepts ADR-0009, and approves the amended Plan and
 Tasks. This approval does not authorize T30–T36 implementation, Runtime dispatch
 or external effects.**
 
+**Issue #81 S9 product-scope amendment: product direction recorded by explicit
+human decision on 2026-09-27. S9 now includes productization before RC acceptance:
+the public `axiom` CLI identity, automated supported-platform release artifacts,
+a stable idempotent remote installer with safe owned upgrade, Codex + Claude
+first-run bootstrap, and Axiom dogfooding through its own S8 orchestration path.
+This scope decision does not by itself authorize S9 implementation, prerelease
+publication, Runtime/Provider effects, or final MVP acceptance.**
+
 Tracked by [#62](https://github.com/rgomids/axiom/issues/62) under the
 [MVP tracker #15](https://github.com/rgomids/axiom/issues/15). Human approval of
 this Specification was recorded on 2026-09-20. That approval fixed the original
@@ -806,7 +814,44 @@ Plan/release declaration before distribution.
   implementation authorization. Automated planning or green validation cannot
   satisfy those decisions.
 
-### S8 security requirements
+### S9 productization requirements
+
+- **FR-062 Public CLI identity:** the canonical installed product entrypoint MUST
+  be `axiom`. Public documentation and acceptance journeys MUST use `axiom`.
+  Internal Lingo packages/concepts MAY remain, but the installed contract MUST NOT
+  depend on a user-created shell alias as the primary `axiom` entrypoint.
+- **FR-063 Automated release artifacts:** one clean revision MUST produce the
+  supported native release artifacts, closed manifest/checksum metadata and exact
+  version/revision provenance through repeatable automation. Artifact preparation
+  MUST remain separate from authority to publish a prerelease/release.
+- **FR-064 Stable remote installation:** supported macOS/Linux users MUST be able
+  to install from one stable remote bootstrap command without cloning the
+  repository or building from source. The canonical versioned bootstrap source
+  MUST be `scripts/install.sh` in this repository. The bootstrap MUST detect the
+  supported OS/architecture, select the matching published artifact, verify
+  integrity before installation and install only into an owned safe destination.
+- **FR-065 Convergent reinstall/upgrade:** rerunning the supported bootstrap MUST
+  be idempotent for an equivalent owned installation and MUST converge an older
+  owned installation to the selected newer version through the existing
+  ownership/preview/recovery safety contracts. Foreign, modified, unsafe,
+  ambiguous or unsupported state MUST fail closed and MUST NOT be silently
+  overwritten.
+- **FR-066 Multi-runtime first run:** `axiom first-run` MUST inspect supported
+  Runtimes already present on the machine and configure every supported detected
+  Axiom integration. Runtime skills/integration files installed by Axiom MUST use
+  that Runtime's user-global scope, never a Project-local scope as the product
+  default. For the MVP this includes Codex user-global skills and Claude
+  user-global skills. MVP acceptance MUST cover Codex-only, Claude-only,
+  Codex+Claude and no-Runtime cases. First run MUST NOT silently install a
+  Runtime, provision/mutate Runtime credentials, purchase subscriptions or invent
+  availability.
+- **FR-067 Self-hosted acceptance path:** after S8, S9 acceptance MUST include
+  real Axiom engineering/delivery work coordinated through Axiom itself, using the
+  approved parent/child Execution Graph, Codex and Claude Runtime paths,
+  Integration/Reconciliation and structured Evidence rather than treating the
+  Runtimes as unrelated direct-prompt development surfaces.
+
+### S8/S9 security requirements
 
 - Credentials remain Runtime/Integration-owned machine-local references. A parent
   or child receives only the minimum credential capability needed for its effects;
@@ -830,6 +875,9 @@ Plan/release declaration before distribution.
 - Runtime/model fallback, child authority escalation, child-created children and
   timeout/attempt expansion are denied unless a new explicit operator decision
   grants the exact changed envelope.
+- Axiom-owned Runtime skills are confined to the current user's Runtime-native
+  global skill/configuration root. Project-local Runtime skill installation is
+  not a fallback for missing or unsafe global state.
 
 ## Failure cases and invariants
 
@@ -854,7 +902,12 @@ The MVP MUST handle at least:
 - missing/corrupt/newer/older persisted schema;
 - interrupted publication or migration, insufficient space, permission denial,
   collision, unsafe links, concurrent writer, and recovery-required state;
-- incompatible binary/Runtime skill versions and partial upgrade.
+- incompatible binary/Runtime skill versions and partial upgrade;
+- unsupported installer platform/architecture, checksum mismatch, unavailable
+  artifact, foreign/modified install target, unsafe owned state or ambiguous
+  bootstrap/upgrade result;
+- Codex-only, Claude-only, Codex+Claude and no-supported-Runtime first-run state,
+  including partial Runtime integration configuration that must remain truthful;
 - invalid/cyclic graph, unresolved dependency, incompatible child scope, or stale
   graph revision;
 - no operator-allowed Runtime/Model Profile satisfying required capabilities;
@@ -971,6 +1024,12 @@ Global invariants:
 | AC-41 | Required child failure, blocker, cancellation or unknown result produces deterministic partial/non-success parent truth while preserving successful sibling results and confirmed effects. |
 | AC-42 | Parent Evidence traces graph revision, lineage, authority, execution controls, coordination, artifacts, validations, child attempts/results and observed usage without secrets, unrestricted reasoning or raw chat. |
 | AC-43 | Existing sequential Executions remain readable/resumable with unchanged identity and semantics after graph support is introduced. |
+| AC-44 | A clean supported environment installs a checksum-verified published Axiom binary without source checkout/build and invokes it through the canonical `axiom` executable. |
+| AC-45 | The release automation produces the complete supported native artifact/checksum/provenance set from one clean revision without implying publication authority. |
+| AC-46 | Re-running the stable remote installer is a no-op for an equivalent owned installation, safely upgrades an older owned installation, and refuses foreign/modified/unsafe/ambiguous targets with no silent overwrite. |
+| AC-47 | `axiom first-run` configures all supported Runtimes detected on the machine and truthfully covers Codex-only, Claude-only, Codex+Claude and no-Runtime cases without installing Runtimes or mutating credentials. |
+| AC-48 | The exact RC clean-environment journey uses the public `axiom` CLI and remote installer on every supported release row before Project/workflow/runtime acceptance. |
+| AC-49 | At least one real Axiom engineering activity in S9 is coordinated through Axiom with Codex and Claude child Executions, Integration/Reconciliation and inspectable parent/child Evidence. |
 
 ## Required acceptance Evidence
 
@@ -980,6 +1039,16 @@ Release-candidate Evidence MUST include:
   Provider adapter versions;
 - clean-environment construction and prerequisite inventory;
 - installation and upgrade commands with exit statuses and installed checksums;
+- stable remote-installer identity plus platform-selection, download, checksum,
+  owned-target, reinstall/no-op, owned-upgrade and foreign/unsafe refusal Evidence;
+- public CLI identity proving the installed executable is invoked as `axiom`
+  without a required user-created alias;
+- release-automation Evidence binding one clean revision to all supported native
+  artifacts, manifests/checksums and version/revision provenance without implying
+  publication authority;
+- first-run Runtime discovery/bootstrap matrix for Codex-only, Claude-only,
+  Codex+Claude and no-Runtime states, including zero credential/subscription/
+  Runtime-install effects;
 - CLI/Runtime semantic-equivalence matrix for every terminal status;
 - Project portable/local separation and multi-repository observations;
 - Work Item draft/authority and Provider projection references;
@@ -1004,6 +1073,8 @@ Release-candidate Evidence MUST include:
   cross-Runtime normalization or token/cost enforcement;
 - one real authorized acceptance graph in which Codex and Claude each execute at
   least one independent child;
+- one S9 dogfood activity in which Axiom engineering work is coordinated through
+  Axiom itself and produces integrated parent/child Evidence;
 - sequential ADR-0008 compatibility observations;
 - provenance observations on each supported generated surface;
 - filesystem fault/recovery and compatibility-transition matrix tied to the
@@ -1035,7 +1106,9 @@ before final acceptance. Every external mutation remains explicitly authorized.
          |
          +--> #97 multi-runtime Agent Planning + Execution Graph
                 |
-                +--> #68 clean RC dogfood + docs + human acceptance
+                +--> #81 S9 productization + distribution + Runtime bootstrap
+                       |
+                       +--> #68 clean RC dogfood + docs + human acceptance
 ```
 
 If authorized after the human decisions and required reconciliations, a future
@@ -1061,13 +1134,21 @@ Issue #97 comment #5852650410. That authority covers implementation only.
 The real T36 Runtime run remains separately gated; validation, commit or merge
 do not supply that separate authority.
 
+Issue #81 records the 2026-09-27 S9 product-scope expansion. Before T23 may
+identify/publish an RC, S9 must provide the canonical public `axiom` executable,
+automated supported-platform release artifacts, a stable verified remote
+installer with idempotent reinstall/safe owned upgrade, and multi-runtime first
+run for Codex and Claude. The existing T23–T25 IDs remain historical RC work; new
+productization Tasks are appended for traceability. This recorded scope decision
+does not itself authorize implementation or publication.
+
 ## Requirements, details, and open questions
 
 | Classification | This Specification |
 |---|---|
-| Requirement | Observable journeys, FR/AC contracts, failure states, invariants, Evidence, and preserved boundaries above, including approved FR-038–FR-061/AC-25–AC-43. |
+| Requirement | Observable journeys, FR/AC contracts, failure states, invariants, Evidence, and preserved boundaries above, including FR-038–FR-061/AC-25–AC-43 from the approved S8 amendment and the 2026-09-27 S9 product-scope direction FR-062–FR-067/AC-44–AC-49 proposed for canonical amendment approval. |
 | Implementation detail deferred to Plan | CLI framework, concrete Go packages/interfaces, exact JSON schema, prompt UI, filesystem syscalls, migration algorithm, installer implementation, artifact filename rendering, lifecycle/graph-record encoding, scheduler mechanism, concrete Runtime adapters, concrete model names and metadata-policy schema. GitHub label spelling is fixed only for the Issue #94 adapter projection. |
-| Human decisions recorded | HD-1 through HD-4 and complete original Specification approval were recorded on 2026-09-20. ADR-0005/0006 directly formalize HD-3/HD-2. The Issue #94 amendment, FR-038–FR-044, AC-25–AC-31, S6 placement, and Specification 002 policy-reference clarification were explicitly approved on 2026-09-24. On 2026-09-26 human review approved FR-045–FR-061, AC-32–AC-43, ADR-0009, the amended Plan/Tasks, Codex plus Claude as concrete S8 acceptance paths, observational-only usage/cost telemetry, and the local T36 authority boundary. Implementation was separately gated at that time; S8/T30–T36 implementation was authorized on 2026-09-27 (Issue #97 comment #5852650410), and the real T36 Runtime run remains separately gated. |
+| Human decisions recorded | HD-1 through HD-4 and complete original Specification approval were recorded on 2026-09-20. ADR-0005/0006 directly formalize HD-3/HD-2. The Issue #94 amendment, FR-038–FR-044, AC-25–AC-31, S6 placement, and Specification 002 policy-reference clarification were explicitly approved on 2026-09-24. On 2026-09-26 human review approved FR-045–FR-061, AC-32–AC-43, ADR-0009, the amended Plan/Tasks, Codex plus Claude as concrete S8 acceptance paths, observational-only usage/cost telemetry, and the local T36 authority boundary. Implementation was separately gated at that time; S8/T30–T36 implementation was authorized on 2026-09-27 (Issue #97 comment #5852650410), and the real T36 Runtime run remains separately gated. On 2026-09-27 the human also recorded the S9 product direction: public `axiom` CLI, automated native release artifacts, stable idempotent remote install/owned upgrade, Codex+Claude first-run bootstrap and self-hosted Axiom dogfooding. The canonical S9 Plan/Tasks amendment remains subject to review before implementation. |
 
 ## Human decisions recorded — 2026-09-20
 

@@ -83,6 +83,18 @@ and T30–T36 Tasks. Codex and Claude are the two concrete S8 acceptance Runtime
 paths; token/cost budget governance remains future work. This approval does not
 authorize S8 implementation, Runtime dispatch or external effects.
 
+Issue [#81](https://github.com/rgomids/axiom/issues/81) records the 2026-09-27
+S9 productization direction. The final MVP slice now closes the gap between a
+repository-local implementation and a distributable product before RC acceptance:
+the canonical public executable is `axiom`; supported native artifacts are
+prepared through repeatable automation; a stable verified macOS/Linux bootstrap
+installs without source checkout and converges owned reinstall/upgrade safely;
+`axiom first-run` configures every supported detected Runtime, including Codex
+and Claude; and S9 acceptance dogfoods real Axiom engineering through Axiom's own
+S8 orchestration path. Historical T23–T25 remain the RC/acceptance tail, while
+proposed T37–T40 add the productization work before them. Implementation,
+publication and final acceptance remain separately gated.
+
 ## Complete Specification 002
 
 [Specification 002 — Lingo Project Initialization](../specifications/002-lingo-project-initialization/spec.md)
