@@ -830,24 +830,54 @@ Plan/release declaration before distribution.
 - **FR-064 Stable remote installation:** supported macOS/Linux users MUST be able
   to install from one stable remote bootstrap command without cloning the
   repository or building from source. The canonical versioned bootstrap source
-  MUST be `scripts/install.sh` in this repository. The bootstrap MUST detect the
-  supported OS/architecture, select the matching published artifact, verify
-  integrity before installation and install only into an owned safe destination.
+  MUST be `scripts/install.sh` in this repository, consumed through the
+  repository's stable raw URL. The bootstrap MUST detect the supported
+  OS/architecture, resolve one published release under the release-selection
+  policy below, select the matching published artifact, verify integrity before
+  installation and install only into an owned safe destination.
+  Release-selection and version policy (Issue #81):
+  - published versions use SemVer-compatible tags: stable `vMAJOR.MINOR.PATCH`
+    (published with `prerelease=false`) and release candidate
+    `vMAJOR.MINOR.PATCH-rc.N` (published with `prerelease=true`); draft releases
+    are never installable;
+  - with no selector, and with the explicitly equivalent `--channel stable`, the
+    bootstrap installs the latest published stable release. It MUST NOT silently
+    fall back to a release candidate; when no stable release exists it fails
+    explicitly with zero installation effects and directs the operator to
+    `--version <tag>`;
+  - `--version <tag>` resolves exactly that published stable or RC tag and never
+    floats to a newer release. A release candidate is selected only by its exact
+    tag, `--version vX.Y.Z-rc.N`;
+  - a floating release-candidate selector (for example a newest-RC channel) is
+    not an S9 product requirement. Any selector the bootstrap does not support
+    fails as an input error with zero installation effects;
+  - `--channel` and `--version` are mutually exclusive; supplying both is an
+    input error with zero installation effects, and neither selector silently
+    wins;
+  - selectors are resolution policy only: once resolution succeeds, the
+    installation and its Evidence are bound to the exact resolved release
+    identity (tag/version, source revision where published metadata exposes it,
+    selected asset, asset SHA-256, platform/architecture and installation
+    receipt), not to the selector.
 - **FR-065 Convergent reinstall/upgrade:** rerunning the supported bootstrap MUST
-  be idempotent for an equivalent owned installation and MUST converge an older
-  owned installation to the selected newer version through the existing
-  ownership/preview/recovery safety contracts. Foreign, modified, unsafe,
-  ambiguous or unsupported state MUST fail closed and MUST NOT be silently
-  overwritten.
+  converge through the existing ownership/preview/recovery safety contracts. For
+  an installation Axiom owns and recognizes: the same resolved version is an
+  idempotent no-op; a newer resolved version is a protected owned upgrade; an
+  older resolved version is refused as an automatic downgrade with zero
+  installation effects (a downgrade requires a future separately specified
+  explicit mechanism). Foreign, modified, unsafe, ambiguous or unsupported state
+  MUST fail closed and MUST NOT be overwritten to satisfy any version or channel
+  selection.
 - **FR-066 Multi-runtime first run:** `axiom first-run` MUST inspect supported
   Runtimes already present on the machine and configure every supported detected
   Axiom integration. Runtime skills/integration files installed by Axiom MUST use
   that Runtime's user-global scope, never a Project-local scope as the product
-  default. For the MVP this includes Codex user-global skills and Claude
-  user-global skills. MVP acceptance MUST cover Codex-only, Claude-only,
-  Codex+Claude and no-Runtime cases. First run MUST NOT silently install a
-  Runtime, provision/mutate Runtime credentials, purchase subscriptions or invent
-  availability.
+  default or fallback. For the MVP this includes Codex user-global skills in
+  Codex's global skill root and Claude user-global skills at
+  `<CLAUDE_CONFIG_DIR or ~/.claude>/skills/<name>/SKILL.md`. MVP acceptance MUST
+  cover Codex-only, Claude-only, Codex+Claude and no-Runtime cases. First run MUST
+  NOT silently install a Runtime, provision/mutate Runtime credentials, provision
+  secrets, purchase subscriptions/capacity or invent availability.
 - **FR-067 Self-hosted acceptance path:** after S8, S9 acceptance MUST include
   real Axiom engineering/delivery work coordinated through Axiom itself, using the
   approved parent/child Execution Graph, Codex and Claude Runtime paths,
@@ -909,6 +939,9 @@ The MVP MUST handle at least:
 - unsupported installer platform/architecture, checksum mismatch, unavailable
   artifact, foreign/modified install target, unsafe owned state or ambiguous
   bootstrap/upgrade result;
+- no published stable release for the default selector, unpublished requested
+  tag, conflicting `--channel`/`--version` selectors, unsupported selector, or an
+  older resolved version that would require an automatic downgrade;
 - Codex-only, Claude-only, Codex+Claude and no-supported-Runtime first-run state,
   including partial Runtime integration configuration that must remain truthful;
 - invalid/cyclic graph, unresolved dependency, incompatible child scope, or stale
@@ -1027,11 +1060,11 @@ Global invariants:
 | AC-41 | Required child failure, blocker, cancellation or unknown result produces deterministic partial/non-success parent truth while preserving successful sibling results and confirmed effects. |
 | AC-42 | Parent Evidence traces graph revision, lineage, authority, execution controls, coordination, artifacts, validations, child attempts/results and observed usage without secrets, unrestricted reasoning or raw chat. |
 | AC-43 | Existing sequential Executions remain readable/resumable with unchanged identity and semantics after graph support is introduced. |
-| AC-44 | A clean supported environment installs a checksum-verified published Axiom binary without source checkout/build and invokes it through the canonical `axiom` executable. |
+| AC-44 | A clean supported environment installs a checksum-verified published Axiom binary without source checkout/build and invokes it through the canonical `axiom` executable. Selection follows FR-064: no selector or `--channel stable` resolves only the latest published stable release and never an RC; `--version <tag>` resolves exactly that tag; a missing stable release, conflicting selectors or an unsupported selector fail with zero installation effects; the installation records the exact resolved release identity. |
 | AC-45 | The release automation produces the complete supported native artifact/checksum/provenance set from one clean revision without implying publication authority. |
-| AC-46 | Re-running the stable remote installer is a no-op for an equivalent owned installation, safely upgrades an older owned installation, and refuses foreign/modified/unsafe/ambiguous targets with no silent overwrite. |
+| AC-46 | Re-running the stable remote installer is a no-op when the owned installation already has the resolved version, performs a protected owned upgrade to a newer resolved version, refuses an older resolved version as an automatic downgrade, and refuses foreign/modified/unsafe/ambiguous targets with no silent overwrite. |
 | AC-47 | `axiom first-run` configures all supported Runtimes detected on the machine and truthfully covers Codex-only, Claude-only, Codex+Claude and no-Runtime cases without installing Runtimes or mutating credentials. |
-| AC-48 | The exact RC clean-environment journey uses the public `axiom` CLI and remote installer on every supported release row before Project/workflow/runtime acceptance. |
+| AC-48 | The exact RC clean-environment journey uses the public `axiom` CLI and remote installer on every supported release row before Project/workflow/runtime acceptance, pinning the same immutable candidate with `--version vX.Y.Z-rc.N` and never a floating selector. |
 | AC-49 | At least one real Axiom engineering activity in S9 is coordinated through Axiom with Codex and Claude child Executions, Integration/Reconciliation and inspectable parent/child Evidence. |
 
 ## Required acceptance Evidence
@@ -1043,7 +1076,12 @@ Release-candidate Evidence MUST include:
 - clean-environment construction and prerequisite inventory;
 - installation and upgrade commands with exit statuses and installed checksums;
 - stable remote-installer identity plus platform-selection, download, checksum,
-  owned-target, reinstall/no-op, owned-upgrade and foreign/unsafe refusal Evidence;
+  owned-target, reinstall/no-op, owned-upgrade, downgrade refusal and
+  foreign/unsafe refusal Evidence;
+- release-selection Evidence showing the selector used and the exact resolved
+  release identity (tag, source revision where published, asset, asset SHA-256,
+  platform/architecture, receipt), plus stable-only default, missing-stable,
+  selector-conflict and unsupported-selector refusals;
 - public CLI identity proving the installed executable is invoked as `axiom`
   without a required user-created alias;
 - release-automation Evidence binding one clean revision to all supported native
@@ -1146,13 +1184,21 @@ run for Codex and Claude. The existing T23–T25 IDs remain historical RC work; 
 productization Tasks are appended for traceability. This recorded scope decision
 does not itself authorize implementation or publication.
 
+Later S9 human decisions are reconciled into FR-064–FR-066: the canonical
+bootstrap source is `scripts/install.sh` consumed through the repository's stable
+raw URL, and Axiom Runtime skills are user-global for every supported Runtime
+(PR #104 review, 2026-09-27); the release-selection and version policy follows
+Issue #81, with release candidates selected only by exact
+`--version vX.Y.Z-rc.N` and no floating RC selector required (human decision,
+2026-09-28).
+
 ## Requirements, details, and open questions
 
 | Classification | This Specification |
 |---|---|
 | Requirement | Observable journeys, FR/AC contracts, failure states, invariants, Evidence, and preserved boundaries above, including FR-038–FR-061/AC-25–AC-43 from the approved S8 amendment and the 2026-09-27 S9 product-scope direction FR-062–FR-067/AC-44–AC-49 proposed for canonical amendment approval. |
 | Implementation detail deferred to Plan | CLI framework, concrete Go packages/interfaces, exact JSON schema, prompt UI, filesystem syscalls, migration algorithm, installer implementation, artifact filename rendering, lifecycle/graph-record encoding, scheduler mechanism, concrete Runtime adapters, concrete model names and metadata-policy schema. GitHub label spelling is fixed only for the Issue #94 adapter projection. |
-| Human decisions recorded | HD-1 through HD-4 and complete original Specification approval were recorded on 2026-09-20. ADR-0005/0006 directly formalize HD-3/HD-2. The Issue #94 amendment, FR-038–FR-044, AC-25–AC-31, S6 placement, and Specification 002 policy-reference clarification were explicitly approved on 2026-09-24. On 2026-09-26 human review approved FR-045–FR-061, AC-32–AC-43, ADR-0009, the amended Plan/Tasks, Codex plus Claude as concrete S8 acceptance paths, observational-only usage/cost telemetry, and the local T36 authority boundary. Implementation was separately gated at that time; S8/T30–T36 implementation was authorized on 2026-09-27 (Issue #97 comment #5852650410). The real T36 Runtime run later received its own exact authority, was executed, and produced `real_run_recorded` Evidence. The technical outcome is S8 ready for human review; human acceptance and S9 remain separate. On 2026-09-27 the human also recorded the S9 product direction: public `axiom` CLI, automated native release artifacts, stable idempotent remote install/owned upgrade, Codex+Claude first-run bootstrap and self-hosted Axiom dogfooding. The canonical S9 Plan/Tasks amendment remains subject to review before implementation. |
+| Human decisions recorded | HD-1 through HD-4 and complete original Specification approval were recorded on 2026-09-20. ADR-0005/0006 directly formalize HD-3/HD-2. The Issue #94 amendment, FR-038–FR-044, AC-25–AC-31, S6 placement, and Specification 002 policy-reference clarification were explicitly approved on 2026-09-24. On 2026-09-26 human review approved FR-045–FR-061, AC-32–AC-43, ADR-0009, the amended Plan/Tasks, Codex plus Claude as concrete S8 acceptance paths, observational-only usage/cost telemetry, and the local T36 authority boundary. Implementation was separately gated at that time; S8/T30–T36 implementation was authorized on 2026-09-27 (Issue #97 comment #5852650410). The real T36 Runtime run later received its own exact authority, was executed, and produced `real_run_recorded` Evidence. The technical outcome is S8 ready for human review; human acceptance and S9 remain separate. On 2026-09-27 the human also recorded the S9 product direction: public `axiom` CLI, automated native release artifacts, stable idempotent remote install/owned upgrade, Codex+Claude first-run bootstrap and self-hosted Axiom dogfooding. The canonical S9 Plan/Tasks amendment remains subject to review before implementation. The PR #104 review on 2026-09-27 fixed the bootstrap source at `scripts/install.sh` and made Axiom Runtime skills user-global (Claude under `<CLAUDE_CONFIG_DIR or ~/.claude>/skills/<name>/SKILL.md`). Issue #81 records the release-selection and version policy; on 2026-09-28 the human narrowed release-candidate selection to exact `--version vX.Y.Z-rc.N` pins without a required floating RC selector. |
 
 ## Human decisions recorded — 2026-09-20
 
