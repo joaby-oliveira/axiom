@@ -28,12 +28,13 @@ fail() {
 
 usage() {
   cat <<'EOF'
-Usage: install.sh [--channel stable|rc | --version vMAJOR.MINOR.PATCH[-rc.N]]
+Usage: install.sh [--channel stable | --version vMAJOR.MINOR.PATCH[-rc.N]]
                   [--bin-dir <absolute-dir>] [--receipt-dir <absolute-dir>]
 
 Without a selector, or with --channel stable, the latest published stable
 release is installed. Release candidates are installed only by exact version
-(--version vMAJOR.MINOR.PATCH-rc.N); --channel rc is refused. --channel and
+(--version vMAJOR.MINOR.PATCH-rc.N); there is no release-candidate channel.
+--channel and
 --version are mutually exclusive. Defaults: --bin-dir $HOME/.local/bin and
 --receipt-dir ${XDG_STATE_HOME:-$HOME/.local/state}/axiom/install.
 EOF
@@ -79,12 +80,12 @@ else
   case "$channel" in
     stable) selector='channel stable' ;;
     rc)
-      # Release candidates are exact-version only (human decision
-      # 2026-09-28): no newest-RC discovery, HTML scraping, API JSON parsing
-      # or channel index.
+      # Release candidates are exact-version only (FR-064, Issue #81): there
+      # is no floating RC selector, so this is an unsupported selector with a
+      # pointer to the exact-version form.
       fail 'release candidates require an explicit version: use --version vMAJOR.MINOR.PATCH-rc.N (--channel rc does not select a release candidate)'
       ;;
-    *) fail '--channel must be stable or rc' ;;
+    *) fail '--channel must be stable; release candidates use --version vMAJOR.MINOR.PATCH-rc.N' ;;
   esac
 fi
 

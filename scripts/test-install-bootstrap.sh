@@ -158,7 +158,7 @@ step version-channel-conflict bash -eo pipefail -c 'refused "$home" "mutually ex
 for invalid in 1.0.0 v1.0 v01.0.0 v1.0.0-beta.1 v1.0.0-rc.01 v1.0.0-poc.1 'v1.0.0;id' ''; do
   step "invalid-version:$invalid" bash -eo pipefail -c 'refused "$home" "exact published tag" --version "$1" && no_network' _ "$invalid"
 done
-step invalid-channel bash -eo pipefail -c 'refused "$home" "--channel must be stable or rc" --channel beta && no_network'
+step invalid-channel bash -eo pipefail -c 'refused "$home" "--channel must be stable;" --channel beta && no_network'
 step duplicate-selector bash -eo pipefail -c 'refused "$home" "more than once" --version v1.0.0 --version v1.1.0 && no_network'
 step missing-selector-value bash -eo pipefail -c 'refused "$home" "--version requires a value" --version && no_network'
 step rc-channel-requires-exact-version bash -eo pipefail -c 'refused "$home" "release candidates require an explicit version" --channel rc && no_network'

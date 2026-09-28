@@ -214,7 +214,10 @@ installation and unrelated-CWD invocation with:
 `axiom first-run` is an idempotent bootstrap (S9/T40). It discovers each
 supported Runtime by resolving its executable from the current `PATH`
 (`codex`, `claude`); a configuration directory alone does not count, and the
-executable is never run. For every Runtime found it installs or upgrades the
+executable is never run. A Runtime whose executable is not on this process's
+`PATH` is reported absent (with `configurationWithoutExecutable` when its
+configuration directory exists); put it on `PATH` and rerun, or use the
+per-Runtime command below. For every Runtime found it installs or upgrades the
 five Axiom-owned user-global skills, then reports every supported Runtime:
 
 ```bash
@@ -232,9 +235,13 @@ current content is a no-op, and only content registered as a previous
 Axiom-owned revision for that Runtime is upgraded. Claude has no previous
 revisions yet. Unknown, foreign, or modified content is preserved and fails that
 Runtime (`<runtime>_skill_conflict`); the receipt never authorizes overwriting
-changed content. A skill root must be owned by you with mode `0700` and no
-extended ACL, otherwise that Runtime fails (`<runtime>_skill_root_unavailable`)
-without changes; a relative `CLAUDE_CONFIG_DIR` fails Claude the same way.
+changed content. The skill root belongs to the Runtime, which commonly creates
+it `0755`: it must be a real directory (not a symlink) owned by you, not
+writable by group or other, and without extended ACL, otherwise that Runtime
+fails (`<runtime>_skill_root_unavailable`) without changes. So `0700`, `0750`
+and `0755` are accepted and `0770`, `0775` and `0777` are refused. Everything
+Axiom creates under the root stays `0700`/`0600`. A missing root is created
+`0700`. A relative `CLAUDE_CONFIG_DIR` fails Claude the same way.
 Axiom only reads `CLAUDE_CONFIG_DIR` from the process environment, not from
 Claude settings files. The install keeps its persistent `.axiom-skill-set.lock`
 in each skill root.
@@ -384,9 +391,9 @@ Selection:
   falls back to a release candidate; with no stable release it fails and names
   `--version`.
 - `--version vX.Y.Z` or `--version vX.Y.Z-rc.N`: exactly that published tag.
-- `--channel rc`: refused. Release candidates are installed only by exact
-  version (`--version vX.Y.Z-rc.N`); there is no newest-RC discovery, HTML
-  scraping, API JSON parsing or channel index (human decision 2026-09-28).
+- release candidates: only by exact version, `--version vX.Y.Z-rc.N`. There is
+  no release-candidate channel; `--channel rc`, like any other unsupported
+  selector, is an input error with no effect.
 - `--channel` and `--version` are mutually exclusive and fail before any effect.
 
 The bootstrap detects the exact supported row (macOS 27.0/arm64, Ubuntu
