@@ -951,18 +951,28 @@ four bounded units:
    Preparation is deterministic; publication remains authority-bearing.
 3. **Stable remote bootstrap:** keep the canonical bootstrap implementation at
    repository path `scripts/install.sh`. The public bootstrap may be invoked from
-   the raw `main` URL while the script itself resolves a selected release
-   channel/version. It detects the supported row, obtains the selected published
-   artifact, verifies it before mutation and installs into an owned safe
-   destination. Equivalent rerun is a no-op. An older owned install converges
-   through the existing protected upgrade/recovery semantics;
-   foreign/modified/unsafe/ambiguous targets refuse.
+   the raw `main` URL while the script itself resolves one published release
+   under the FR-064 selection policy (Issue #81): no selector or
+   `--channel stable` resolves the latest published stable `vX.Y.Z` release and
+   never falls back to an RC (no stable release is an explicit zero-effect
+   failure pointing to `--version`); `--version <tag>` resolves exactly one
+   published stable or `vX.Y.Z-rc.N` tag; `--channel` and `--version` are
+   mutually exclusive; drafts are never installable. Release candidates are
+   selected only by exact version; a floating RC selector is not an S9
+   requirement and any unsupported selector is a zero-effect input error.
+   Resolution binds the install and its Evidence to the exact tag, asset and
+   asset SHA-256 rather than the selector. It detects the supported row, obtains
+   the resolved published artifact, verifies it before mutation and installs
+   into an owned safe destination. For a recognized owned install, the same
+   resolved version is a no-op, a newer one converges through the existing
+   protected upgrade/recovery semantics, and an older one is refused as an
+   automatic downgrade; foreign/modified/unsafe/ambiguous targets refuse.
 4. **Multi-runtime first run:** `axiom first-run` discovers supported local
    Runtime executables/configuration and installs/configures the corresponding
    Axiom integration for every detected Runtime in that Runtime's user-global
    scope. For MVP, Codex uses its user-global skill root and Claude uses its
    user-global `skills/<name>/SKILL.md` root under `~/.claude` (or the
-   configured Claude config directory). Project-local Runtime skills are not the
+   effective Claude config directory, including `CLAUDE_CONFIG_DIR`). Project-local Runtime skills are not the
    product default. Codex-only, Claude-only, both and neither are explicit states.
    It never silently installs a Runtime, changes credentials, buys capacity or
    invents availability.
@@ -977,8 +987,11 @@ Codex and Claude, structured coordination, Integration/Reconciliation and
 inspectable Evidence.
 
 RC is an identified candidate version/revision with immutable checksums and a
-declared support matrix. For each OS/architecture row, an isolated account or VM
-with no Axiom roots executes published instructions only:
+declared support matrix, tagged `vX.Y.Z-rc.N` and published as a GitHub
+prerelease only under T23 authority. For each OS/architecture row, an isolated
+account or VM with no Axiom roots executes published instructions only, pinning
+the same candidate through the remote bootstrap with `--version vX.Y.Z-rc.N`
+(never a floating selector):
 
 ```text
 remote install -> axiom version/provenance -> Codex + Claude discovery/bootstrap -> axiom first-run
@@ -1238,6 +1251,7 @@ Architecture assessment found two new durable choices:
 | Artifact layout/metadata and installation receipt schema | Versioned local adapter formats implementing already approved ownership/compatibility requirements. Exact paths, field names and encoding remain replaceable behind closed readers/migration gates; no separate ADR unless identity or lifecycle changes. |
 | Package/component map | Planning decomposition with inward dependencies and consumer-owned ports, not a published API or permanent module topology; no ADR. |
 | GitHub label/comment spelling and GitHub Releases adapter | First-adapter conventions within the approved MVP, replaceable behind Provider/distribution boundaries and carrying no broad compatibility/authenticity promise; no ADR at this stage. |
+| S9 release-selection/version policy | Human product decision recorded in Issue #81 and FR-064/FR-065 (stable default, exact `--version` pins, exact-version-only RCs, no automatic downgrade). It lives at the replaceable bootstrap/distribution boundary and does not change ownership, recovery or Execution contracts; a future floating RC channel or explicit downgrade mechanism is additive and needs its own decision. No ADR. |
 | Work Item lifecycle projection, flags, bounded history and metadata policy | Extends the already approved local-authority/Provider-projection contract. Lifecycle is derived from the existing gates/facts, so Execution identity, gate semantics, source-of-truth ownership, data ownership and recovery semantics do not change; ADR-0008 remains valid without alteration and no new ADR is needed. Reassess if implementation requires another workflow authority, an independently persisted lifecycle, portable Execution, Provider-owned gates, or a generic custom-field schema. |
 | Parent/child Execution Graph | Changes durable identity/lineage, dependency, authority, retry/cancellation, integration and Evidence semantics. Accepted in ADR-0009 by explicit human decision on 2026-09-26; S8/T30–T36 implementation was authorized on 2026-09-27 (Issue #97 comment #5852650410). The real T36 Runtime run later received its own exact authority, was executed, and produced the recorded Evidence. ADR-0008 remains historical and sequentially compatible; human acceptance and S9 remain separate. |
 
