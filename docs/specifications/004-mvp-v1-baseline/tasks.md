@@ -986,14 +986,16 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
 - **Affected boundaries:** bootstrap script/endpoint, platform detection, release
   asset selection/download, checksum verification, owned binary/receipt update,
   install/upgrade recovery and user-facing diagnostics.
-- **Expected implementation:** Provide one stable bootstrap URL suitable for
-  `curl -fsSL <url> | sh`. Detect the exact supported row, select a requested/
-  selected published version, download the matching artifact and checksum data,
-  verify before mutation, and invoke/reuse the protected installation path.
-  Equivalent owned install is a no-op. Older owned install upgrades through the
-  protected path. Foreign/modified/unsafe/ambiguous state refuses unchanged.
-  The exact hosting URL and default release-channel selection must be finalized
-  before implementation acceptance; T24 must be able to pin the exact RC.
+- **Expected implementation:** Create the canonical bootstrap at
+  `scripts/install.sh` and expose it through the repository's stable raw URL,
+  suitable for `curl -fsSL <url> | sh`. Detect the exact supported row, select a
+  requested/selected published version, download the matching artifact and
+  checksum data, verify before mutation, and invoke/reuse the protected
+  installation path. Equivalent owned install is a no-op. Older owned install
+  upgrades through the protected path. Foreign/modified/unsafe/ambiguous state
+  refuses unchanged. The default release-channel/version selection policy must be
+  finalized before implementation acceptance; T24 must always be able to pin the
+  exact RC.
 - **Authority and side effects:** Network read plus bounded user-owned local
   installation. No shell-profile mutation, privilege escalation, credential
   mutation or release publication unless separately decided.
@@ -1011,8 +1013,9 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
 - **Completion criteria:** A clean supported user can install a pinned published
   Axiom version with one remote bootstrap, and repeated execution is convergent
   without weakening fail-closed ownership guarantees.
-- **Risks / gates:** Stable installer hosting and default release-channel policy
-  must be explicit before claiming the final public install contract.
+- **Risks / gates:** The bootstrap source/hosting decision is fixed at
+  `scripts/install.sh` in this repository; the remaining product decision is the
+  default release-channel/version-selection policy.
 
 ### T40 — Codex + Claude first-run bootstrap
 
@@ -1030,13 +1033,18 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
 - **Expected implementation:** Add the product Claude integration installation/
   status path needed by the delivered Claude Runtime adapter, preserve the Codex
   path, and make first-run enumerate all supported Runtime observations before
-  applying only the missing/owned Axiom integration state. Cover Codex-only,
-  Claude-only, both and neither. Do not silently install Runtime binaries, change
-  credentials, provision secrets, buy capacity or choose an unapproved Model
-  Profile.
+  applying only the missing/owned Axiom integration state. All Axiom Runtime
+  skills are user-global by product rule. Preserve Codex's user-global skill root;
+  install Claude skills under the Claude user-global
+  `skills/<name>/SKILL.md` hierarchy rooted at `~/.claude` or the effective
+  `CLAUDE_CONFIG_DIR`. Project-local Runtime skills are not used as a fallback.
+  Cover Codex-only, Claude-only, both and neither. Do not silently install Runtime
+  binaries, change credentials, provision secrets, buy capacity or choose an
+  unapproved Model Profile.
 - **Authority and side effects:** Only bounded Axiom-owned Runtime integration
-  files/state for detected local Runtimes. Tests use isolated roots where
-  possible; real Runtime invocation remains separately gated.
+  files/state inside the current user's Runtime-native global roots for detected
+  local Runtimes. Tests use isolated roots where possible; real Runtime invocation
+  remains separately gated.
 - **Failure / recovery:** One unavailable/failed Runtime integration is reported
   independently; confirmed integration effects remain truthful; rerun converges
   owned partial state and refuses foreign/modified integration state.
@@ -1051,9 +1059,10 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
 - **Completion criteria:** One `axiom first-run` configures all and only supported
   detected Runtimes and leaves the machine in truthful usable/blocked state for
   S8 Runtime resolution.
-- **Risks / gates:** The exact Claude product-integration filesystem/command
-  contract must be validated against the supported Claude Runtime before
-  implementation is accepted.
+- **Risks / gates:** Each future supported Runtime must declare and validate its
+  Runtime-native user-global skill root before product support; no Project-local
+  fallback is allowed merely because a global integration is unavailable or
+  unsafe.
 
 ### T23 — Identified RC archives and authorized prerelease publication
 
