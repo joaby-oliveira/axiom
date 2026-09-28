@@ -283,7 +283,7 @@ history):
 |---|---|
 | Claude revision N → N+1 → first-run (`TestClaudeRevisionNConvergesAfterUpgradeToNPlusOne`) | inventory `upgradable`/receipt `legacy`; converges to N+1, receipt refreshed, `Ready`; rerun `unchanged` with an identical tree |
 | Claude revision N modified by the user, replaced by foreign content, with an extra file, or `0644` → N+1 (`TestModifiedClaudeRevisionNIsRefusedAfterUpgrade`) | `claude_skill_conflict`; tree byte- and mode-identical |
-| Codex + Claude at N; `PublishUpgradeSkill` (the `axiom upgrade` primitive) moves Codex to N+1 leaving its receipt at N; then first-run (`TestCodexAndClaudeConvergeTogetherAfterUpgrade`) | both converge to N+1 with refreshed receipts; rerun idempotent |
+| Codex + Claude at N; `PublishSkill` (the `axiom upgrade` primitive, renamed from `PublishUpgradeSkill` by F13) moves Codex to N+1 leaving its receipt at N; then first-run (`TestCodexAndClaudeConvergeTogetherAfterUpgrade`) | both converge to N+1 with refreshed receipts; rerun idempotent |
 | Partial Claude state: no receipt, one skill missing, one already N+1, the rest N (`TestPartialClaudeStateConvergesAfterUpgrade`) | converges; rerun `unchanged` |
 | Old valid receipt (Claude N for this root) | accepted and replaced (first case) |
 | Invalid receipt: Claude N receipt of another root, the Codex receipt, a foreign receipt, a `0644` receipt (`TestClaudeReceiptMustBeAxiomEvidenceForThisRoot`) | `claude_skill_conflict`; skills and receipt unchanged |
@@ -340,6 +340,154 @@ and executable cases `Runtime-created 0755 skill roots are configured` (a user's
 own Claude skill in the same root is preserved) and `group-writable skill root
 fails that Runtime unchanged`. Existing `0770` and skill-directory `0755`
 refusals still pass.
+
+## Filesystem object identity (finding F13, final review)
+
+**Finding.** Validating a directory by pathname (ownership, mode, ACL,
+ancestry) and then mutating it in a SEPARATE step by re-deriving the same
+pathname leaves a window in which the two operations can land on different
+filesystem objects if the directory, or one of its ancestors, is replaced in
+between. This is distinct from F9 (which established the accept/refuse
+policy for a directory Axiom does not own) and from the ancestor-checking
+gap F9's own Evidence had already flagged as residual ("Unsafe ancestors are
+not checked, before or after this change"). It is ADR-0005 property 3
+("controlled ancestor/leaf replacement... must be detected and rejected"),
+which the implementation had not yet closed for either the new publication
+root (T39) or the Runtime skill root (T40).
+
+**Exploit scenario.** A shared, multi-principal parent directory:
+
+```
+/shared/                 (mutable by another principal)
+└── user-bin/            mode 0755, owner correct
+```
+
+`CheckPublicationDirectory("/shared/user-bin")` validated the leaf and its
+ancestors were never checked; the actual publication then reopened
+`/shared/user-bin` by pathname to stage and rename the binary. If `/shared`
+let another principal replace the `user-bin` entry, or if a component were
+swapped between the read-only validation and the later reopen, the
+publication could target an object different from the one that was
+validated. The same shape existed for the Runtime skill root (`skillRootDirectory`
+validated by a single `Lstat`+`Open` on the full path, with no per-component
+walk and no ancestor check at all) and for `internal/install`'s binary and
+receipt directories, whose `Apply()` validated once (inside `preview()`) and
+mutated later through fresh `os.OpenFile`/`os.Rename` calls by pathname.
+
+**Cause.** Two related gaps:
+1. `anchoredRoot` (`internal/local`) validated each path component was a
+   real, non-symlinked, identity-consistent directory, but never evaluated
+   whether a CONTAINER ancestor's own ownership/mode let another principal
+   replace the next component. `internal/codexruntime`'s directory checks
+   were weaker still: a single `os.Lstat`+`os.OpenFile` on the full path,
+   with no per-component walk.
+2. Even with ancestors checked, `CheckPublicationDirectory`/`CheckPrivateDirectory`
+   (and `codexruntime`'s equivalents) opened an anchored root, validated it,
+   and then CLOSED it, returning only a boolean. Callers that then needed to
+   mutate reopened the same pathname independently — `internal/install`'s
+   `publishEffect` via `os.OpenFile(stage,...)`/`os.Rename(...)`, and
+   `codexruntime`'s `installOne`/`PublishUpgradeSkill`/`publishReceipt` via
+   fresh `os.OpenRoot`/`os.Lstat` calls, some of them more than once per
+   skill. The validated object and the mutated object were never
+   provably the same object.
+
+**Contract violated.** ADR-0005 property 3 (controlled ancestor/leaf
+replacement must be detected and rejected) and, derivatively, property 9
+(restrictive ownership/permissions for Axiom-owned state) once a mutation
+could land somewhere other than the validated, owned location.
+
+**Fix.**
+
+*Ancestor safety* (`b540b61`, `2c7948e`): `internal/local`'s
+`anchoredRoot` and a mirrored `anchoredRoot` added to `internal/codexruntime`
+(which previously had no per-component walk at all, and needed a
+`trustedCanonical` step added too, matching `internal/local`'s handling of
+trusted root-owned symlinks such as macOS's `/var` -> `/private/var`) now
+check every container from `/` down to (but not including) the final
+target: `ancestorSafe` requires the container be owned by root or the
+current user, and disallow group/other write unless the sticky bit
+restricts removal/rename of existing entries to each entry's own owner. A
+container owned by neither root nor the current user is never trusted,
+sticky or not, since its owner already has unilateral control over what it
+contains. Ordinary system directories (`/`, `/Users`, `/home`, a `0755`
+`$HOME`) pass because they are not group/other-writable; `/tmp`-style
+`1777` directories pass because of the sticky bit, not because of who owns
+them; a hypothetical root-owned `0777` directory WITHOUT sticky is refused,
+since without sticky any principal could replace an entry inside it
+regardless of the container's owner.
+
+*Object-identity binding* (`b540b61`, `03d30a4`, `2c7948e`, the primary fix): `internal/local` gained
+`AnchoredDirectory`, an open, validated handle to one directory whose
+`ReadFile`/`Stage`/`Rename`/`Remove`/`Mkdir`/`CreateExclusive`/`Sync`
+methods resolve against the directory object the handle was opened
+against — never by re-deriving its pathname — via Go's `os.Root`, which
+binds later operations to the opened directory's file descriptor
+(`*at` syscalls), immune to a later rename, unlink-and-recreate, or
+symlink swap at that pathname. `CheckPrivateDirectory`/`CheckPublicationDirectory`/
+`ReadOwnedFile`/`ReadPublishedFile` are now thin, one-shot wrappers over it
+(no duplicated logic). `internal/install`'s `Apply()` opens `ReceiptDir`
+once (`local.OpenOwnedDirectory`) and uses that same handle for the install
+lock, every marker write/removal, and the receipt file publication for the
+rest of the call; `BinaryDir` is opened once, lazily
+(`local.OpenPublicationDirectory`), and reused for the binary effect and any
+binary-directory leftover cleanup. `publishEffect` and `writeMarker` now take
+an already-opened `AnchoredDirectory` and do their whole stage/reread/rename/confirm
+sequence through it. `internal/codexruntime` mirrors this for the skill
+root: `Service.Install` opens the skill root once (`ensureRoot` now returns
+the opened, anchored `*os.Root`) and threads it through `installableOne`/
+`installOne`/`publishReceiptIn`; a new `UpgradeSession` (returned by
+`LockForUpgrade`, replacing a bare unlock closure) holds the anchored skill
+root for the whole upgrade, and `PublishSkill` (renamed from
+`PublishUpgradeSkill`) and the new `RemoveSkillLeftover` open each skill's
+own subdirectory once (`privateChild`) and do the reread/stage/rename/confirm
+sequence through that same child object.
+
+**Test seam.** No simulated seam was needed: Go's `os.Root` is itself the
+capability, so the tests physically replace the validated directory (rename
+it away and put a new directory, a symlink, or nothing in its place; replace
+an ancestor) between opening the `AnchoredDirectory`/`UpgradeSession` and the
+later mutation, and assert the mutation lands in the originally validated
+object (wherever it now lives), never in whatever object currently occupies
+the original pathname, and never in an unrelated foreign directory placed
+there:
+
+| Layer | Test | Result |
+|---|---|---|
+| `internal/local` | `TestAnchoredDirectoryMutatesTheValidatedObjectDespiteReplacement` / `...OwnedDirectory...` (leaf renamed+replaced by a directory; leaf renamed+replaced by a symlink; parent renamed away) | mutation lands on the original object; nothing published at the replacement's pathname |
+| `internal/local` | `TestAncestorSafeOwnershipAndStickyMatrix`, `TestPublicationDirectoryRefusesUnsafeAncestorRealFilesystem`, `TestPublicationDirectoryRefusesUnsafeGrandparent` | root/self-owned, no group/other write, or sticky → accepted; group/other-writable without sticky, or foreign-owned → refused, including two levels up |
+| `internal/install` | `TestPublishEffectMutatesTheValidatedDirectoryDespiteReplacement` (root replaced by a directory, by a symlink; ancestor replaced) | binary/receipt publication lands on the original object |
+| `internal/install` | `TestPublishEffectRefusesWhenTargetFileChangedAfterOpen` | the pre-existing expected-revision check still refuses a raced target-file change; stage cleaned up |
+| `internal/install` | `TestPublishEffectNeverTouchesForeignTargetDuringReplacement` | a foreign directory placed at the original pathname keeps its own unrelated content untouched |
+| `internal/codexruntime` | `TestUpgradeSessionPublishesToValidatedRootDespiteReplacement` (root replaced by a directory, by a symlink; ancestor replaced) | skill publication lands on the original root |
+| `internal/codexruntime` | `TestInstallRefusesForeignSkillUntouchedDespiteRootReplacement` | a foreign skill directory is refused, left byte-for-byte unchanged; no receipt published |
+| `internal/codexruntime` | `TestPublishSkillRefusesSkillDirectoryReplacedBySymlink` | a skill directory replaced by a symlink between lock and publish is refused, not followed |
+
+**Shell (`scripts/install-release.sh`).** Bash cannot hold an anchored file
+descriptor the way `os.Root` does, so the fix there is the ancestor-safety
+check alone (`ancestor_safe`/`ancestors_safe`, mirroring the Go rule exactly,
+including the sticky-bit case via `find -perm -1000` since `stat -f %Lp`
+omits it on macOS), applied to every container of `--bin-dir` and
+`--receipt-dir` before any effect and again immediately before each is
+created/used in `prepare_directory`. This narrows the window to the smallest
+the script's existing structure allows but does not close it the way the Go
+paths do; existing symlink rejection (`safe_components`), the receipt lock,
+and re-validation immediately before mutation are unchanged. This residual
+gap is accepted and documented, not hidden (`8fffc1a`). `0700`/`0750`/`0755` for
+`--bin-dir` itself are still accepted and `0702`/`0720`/`0770`/`0775`/`0777`
+still refused (F9 unchanged); new cases cover an unsafe non-sticky ancestor
+and grandparent (refused, zero effect), an ordinary `0755` ancestor
+(accepted), and a `1777` sticky ancestor mimicking `/tmp` (accepted).
+
+**macOS/Linux.** All Go tests above ran natively on macOS 27.0/arm64,
+including under `go test -race` with the default umask and with `umask 077`.
+The shell ancestor cases ran under `sh` and `bash --posix` on the same host.
+CI additionally exercises the full Go suite on `ubuntu-24.04`; the new shell
+ancestor cases were not re-run on a native or synthetic Ubuntu 26.04 row in
+this pass (same limitation already recorded for F6/F9).
+
+**State.** Fixed. No ADR or Specification changed: this closes a gap in the
+ALREADY-required properties (ADR-0005 property 3), it does not add a new
+threat-model commitment.
 
 ## Collateral defects fixed in PR #106
 
@@ -450,12 +598,13 @@ upgrade before any effect.
 | F10 | `internal/local` `TestCoordinationLatestRejectsUnsafeHierarchy` (S8, on `main`) fails under `umask 077`, which `test-s7-native.sh` uses | open, pre-existing on `main`, outside PR #106; separate fix proposed |
 | F11 | The persistent `.axiom-skill-set.lock` is created in a detected Runtime's root even when that Runtime then fails on a conflict | open, low; conflicting and foreign content is never changed |
 | F12 | Release workflow `tag` input is not checked against an existing tag at the dispatched revision | open, low; T23 must bind tag to recorded revision before publication |
+| F13 | Major, final review: a directory was validated by pathname and later mutated by re-deriving the same pathname, and ancestors were never checked for mutation by another principal (ADR-0005 property 3) — the T39 publication root, `internal/install`'s binary/receipt directories, and the T40 Runtime skill root all shared this shape | fixed: ancestor-safety checks added throughout, object-identity bound via `local.AnchoredDirectory` and `codexruntime.UpgradeSession`/anchored skill root; see "Filesystem object identity" |
 
 ## Acceptance status by validation kind
 
 | Kind | Claims |
 |---|---|
-| **confirmed** (executed deterministic tests) | Go packages; release build, verifier and workflow `run:` replay; bootstrap selection/verification logic; release installer and protected upgrade with local fixtures; T40 four-state matrix with fake Runtime executables; skill root permission matrix; F6 post-upgrade convergence with a simulated N+1 skill set (in-process); F9 binary-directory matrix |
+| **confirmed** (executed deterministic tests) | Go packages; release build, verifier and workflow `run:` replay; bootstrap selection/verification logic; release installer and protected upgrade with local fixtures; T40 four-state matrix with fake Runtime executables; skill root permission matrix; F6 post-upgrade convergence with a simulated N+1 skill set (in-process); F9 binary-directory matrix; F13 object-identity replacement tests (real `os.Root` file-descriptor binding, not simulated) at the `internal/local`, `internal/install`, and `internal/codexruntime` layers, plus the shell ancestor-safety matrix |
 | **native** (supported row, local fixtures, not a clean environment, not a published release) | macOS 27.0/arm64 local-fixture validation: install, reinstall no-op, owned upgrade, downgrade refusal, recovery, skills publication, bootstrap cases and the `0700`/`0750`/`0755` binary-directory lifecycle on this host (results above). macOS 27 clean-environment published-RC acceptance is **not run** (T24) |
 | **synthetic** | Ubuntu 26.04/amd64 install/upgrade/refusal suites and Ubuntu row selection (Ubuntu 24.04 userland, replaced `/etc/os-release`), on earlier commits only; the F6/F9 changes were **not** re-run on a synthetic or native Ubuntu row (CI runs the Go suites on `ubuntu-24.04`) |
 | **real Runtime** | none. Codex and Claude were never invoked; T40 used fake executables |
@@ -475,7 +624,7 @@ S9 is not complete, and no MVP acceptance is claimed.
 
 T24 installs one exact published RC with `--version vX.Y.Z-rc.N` on every row
 (AC-48), never a floating selector. It requires S8/T36 technical completion,
-T23 with explicit publication authority. Findings F6 and F9, previously listed
-here as prerequisites, are fixed.
+T23 with explicit publication authority. Findings F6, F9 and F13, previously
+listed here (or identified in final review) as prerequisites, are fixed.
 The S7 Ubuntu 26.04 native rows deferred to T24 remain mandatory. Synthetic and
 native-host results above do not satisfy any T24 row.
