@@ -13,6 +13,14 @@
   ownership as Codex (no previous Claude revisions are registered). New
   `axiom runtime claude install|status`. The shared skill text is now
   Runtime-neutral; the previous Codex revision stays recognized as owned.
+  Executable-only discovery, exit codes and partial-success retention are
+  implementation behavior recorded in S9 Evidence, not Specification rules.
+- fix (S9/T40): a Runtime's user-global skill root is accepted when it is a
+  real, user-owned directory that group and other cannot write and that has no
+  extended ACL, so the common Runtime-created `0755` roots
+  (`~/.claude/skills`, `~/.agents/skills`) are configured instead of failing
+  first-run. Group/other-writable roots still fail closed; everything Axiom
+  creates under the root stays `0700`/`0600`.
 - implementation (S9/T37): the canonical public executable is `axiom`. Release
   archives, `MANIFEST.sha256`, the release installer, the owned upgrade path,
   and the source installer publish `axiom` (receipts, destinations and staging
@@ -28,9 +36,8 @@
   selectors are mutually exclusive. It detects the exact supported row,
   verifies the archive against the release `SHA256SUMS` before reading it,
   checks bundle metadata, and runs the bundle's release installer. Release
-  candidates are exact-version only: `--channel rc` is refused with that
-  explanation (human decision 2026-09-28; no RC discovery or channel index in
-  S9).
+  candidates are selected only by exact `--version vX.Y.Z-rc.N` (FR-064);
+  there is no RC channel, and `--channel rc` is an input error with no effect.
 - implementation (S9/T39): `install-release.sh` converges an older owned
   installation through the verified candidate's protected `axiom upgrade`
   (preview, exact digest, apply), refuses downgrade and divergent same
