@@ -16,8 +16,10 @@
   an RC), `--channel stable`, or an exact `--version vX.Y.Z[-rc.N]`; the two
   selectors are mutually exclusive. It detects the exact supported row,
   verifies the archive against the release `SHA256SUMS` before reading it,
-  checks bundle metadata, and runs the bundle's release installer. `--channel
-  rc` is refused until a deterministic channel index is decided.
+  checks bundle metadata, and runs the bundle's release installer. Release
+  candidates are exact-version only: `--channel rc` is refused with that
+  explanation (human decision 2026-09-28; no RC discovery or channel index in
+  S9).
 - implementation (S9/T39): `install-release.sh` converges an older owned
   installation through the verified candidate's protected `axiom upgrade`
   (preview, exact digest, apply), refuses downgrade and divergent same

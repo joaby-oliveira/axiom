@@ -31,6 +31,13 @@ owned upgrade, and Codex+Claude first-run bootstrap before historical T23–T25.
 This Task amendment is proposed for human review and is not implementation
 authority.**
 
+**S9 T37–T39 local implementation: explicitly authorized by the operator on
+2026-09-28 to proceed in parallel with S8/T36; S8/T36 remains the gate for
+entering RC/acceptance (T23–T25). T37–T39 are implemented and locally validated
+on `integration/s9-productization` (not pushed or merged); T39 release
+candidates are exact-version only by human decision 2026-09-28. T40 and T23–T25
+are not started. See [S9 Evidence](evidence-s9.md).**
+
 Approved artifact: `main` at `c7f756209c608ff1f1a88947dcc425d07daaa831`, merge
 of [PR #72](https://github.com/rgomids/axiom/pull/72). Human approval in PR #72
 accepted the corrected final DAG of 25 Tasks as reconciled with the approved
@@ -78,6 +85,8 @@ Specification 004 — Approved
 -> S8 Specification/ADR/Plan/Tasks amendment + ADR-0009 — Approved; implementation authorized 2026-09-27 (Issue #97 comment #5852650410)
    -> T30–T36 — Partial; real T36 run separately gated and not executed
 -> S9 Release candidate acceptance (T23–T25, with T24/T25 reconciled for S8) — Not authorized
+   -> T37–T39 — implemented and locally validated (unmerged); Ubuntu Evidence synthetic, macOS 27 not exercised; native acceptance remains T24
+   -> T40, T23–T25 — Not started
 ```
 
 The accepted POC and current Go packages are implementation inputs and historical
@@ -993,9 +1002,14 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
   checksum data, verify before mutation, and invoke/reuse the protected
   installation path. Equivalent owned install is a no-op. Older owned install
   upgrades through the protected path. Foreign/modified/unsafe/ambiguous state
-  refuses unchanged. The default release-channel/version selection policy must be
-  finalized before implementation acceptance; T24 must always be able to pin the
-  exact RC.
+  refuses unchanged. Selection policy (human decision 2026-09-28, refining
+  Issue #81): default and `--channel stable` install the latest published stable
+  release only; `--version vX.Y.Z[-rc.N]` pins one exact tag; the selectors are
+  mutually exclusive; release candidates are exact-version only and
+  `--channel rc` fails with that explanation (no RC discovery, scraping, API JSON
+  parsing, parser dependency or channel index in S9). Newer owned versions
+  upgrade, equal ones are no-ops and older ones are refused. T24 pins the exact
+  RC with `--version`.
 - **Authority and side effects:** Network read plus bounded user-owned local
   installation. No shell-profile mutation, privilege escalation, credential
   mutation or release publication unless separately decided.
@@ -1014,8 +1028,8 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
   Axiom version with one remote bootstrap, and repeated execution is convergent
   without weakening fail-closed ownership guarantees.
 - **Risks / gates:** The bootstrap source/hosting decision is fixed at
-  `scripts/install.sh` in this repository; the remaining product decision is the
-  default release-channel/version-selection policy.
+  `scripts/install.sh` in this repository and the selection policy is decided
+  (above). A future RC channel index is post-MVP and needs its own decision.
 
 ### T40 — Codex + Claude first-run bootstrap
 
@@ -1415,5 +1429,7 @@ acceptance is not inferred.**
 
 **S9 (proposed T37–T40 plus historical T23–T25) — Productization,
 distribution, Runtime bootstrap and release acceptance. Product scope recorded
-2026-09-27; Task amendment pending human approval; implementation/release not
-authorized.**
+2026-09-27; Task amendment pending human approval. T37–T39 were implemented
+locally under explicit operator authority (2026-09-28) and are recorded in
+[S9 Evidence](evidence-s9.md); T40 and T23–T25, publication and acceptance are
+not authorized or started.**

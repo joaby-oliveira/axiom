@@ -948,7 +948,15 @@ four bounded units:
 3. **Stable remote bootstrap:** keep the canonical bootstrap implementation at
    repository path `scripts/install.sh`. The public bootstrap may be invoked from
    the raw `main` URL while the script itself resolves a selected release
-   channel/version. It detects the supported row, obtains the selected published
+   channel/version. Selection policy (Issue #81, refined by human decision on
+   2026-09-28): no selector or `--channel stable` resolves the latest published
+   stable release through GitHub's `/releases/latest` redirect and never falls
+   back to an RC; `--version vX.Y.Z[-rc.N]` resolves exactly that tag; the two
+   selectors are mutually exclusive. Release candidates are exact-version only:
+   `--channel rc` fails and names `--version`, with no newest-RC discovery, HTML
+   scraping, API JSON parsing, parser dependency or channel index in S9. A
+   channel index may be designed separately after the MVP. Resolution binds the
+   install to the exact tag, asset and asset digest. It detects the supported row, obtains the selected published
    artifact, verifies it before mutation and installs into an owned safe
    destination. Equivalent rerun is a no-op. An older owned install converges
    through the existing protected upgrade/recovery semantics;

@@ -318,9 +318,9 @@ Selection:
   falls back to a release candidate; with no stable release it fails and names
   `--version`.
 - `--version vX.Y.Z` or `--version vX.Y.Z-rc.N`: exactly that published tag.
-- `--channel rc`: **not available yet**. Selecting the newest release
-  candidate needs a deterministic channel index (a decision is pending); the
-  bootstrap refuses rather than scrape HTML or parse API JSON. Use `--version`.
+- `--channel rc`: refused. Release candidates are installed only by exact
+  version (`--version vX.Y.Z-rc.N`); there is no newest-RC discovery, HTML
+  scraping, API JSON parsing or channel index (human decision 2026-09-28).
 - `--channel` and `--version` are mutually exclusive and fail before any effect.
 
 The bootstrap detects the exact supported row (macOS 27.0/arm64, Ubuntu

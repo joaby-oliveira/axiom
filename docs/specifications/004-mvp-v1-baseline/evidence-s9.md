@@ -6,7 +6,9 @@ This record describes local implementation of Specification 004 Slice S9 Tasks
 T37, T38 and T39, tracked by [Issue #81](https://github.com/rgomids/axiom/issues/81).
 The scope reference is the S9 amendment proposed in
 [PR #104](https://github.com/rgomids/axiom/pull/104) (FR-062–FR-065,
-AC-44–AC-46), which was unmerged when this work was done. The operator
+AC-44–AC-46). PR #104 is still open and unmerged; its head `67bade8` was merged
+locally into `integration/s9-productization` (`c75d832`) so this Evidence and
+the Task status are reconciled against it. The operator
 explicitly authorized T37–T39 implementation while S8/T36 is completed in
 parallel and moved the S8/T36 gate from "start T37" to "enter RC/acceptance".
 
@@ -21,10 +23,10 @@ published Axiom release; T24 owns native clean-environment acceptance.
 |---|---|---|
 | T37 public `axiom` CLI and distribution identity | technically complete locally | `096acb0`, `e4361fa` |
 | T38 automated release artifact pipeline | technically complete locally; workflow not run on GitHub | `90f1eab` |
-| T39 stable remote installer and owned upgrade | stable and exact-version selection complete locally; `--channel rc` blocked on a decision | `eb88832` |
+| T39 stable remote installer and owned upgrade | technically complete locally; release candidates exact-version only by human decision | `eb88832` plus the RC-decision and row-selection reconciliation on the integration branch |
 
-Validated integration revision: `1a52344` on `integration/s9-productization`,
-based on `main` at `d3e0a7a8ebe038b3b801bbcf339486a859da5d5a`.
+The integration branch is based on `main` at
+`d3e0a7a8ebe038b3b801bbcf339486a859da5d5a` (unchanged since T37 started).
 
 ## T37 — public `axiom` executable
 
@@ -89,7 +91,10 @@ The workflow itself, including `actions/upload-artifact`, has not run on GitHub.
 - `scripts/install.sh` (POSIX `sh`): default and `--channel stable` resolve the
   latest stable release from the `Location` of `/releases/latest` only;
   `--version` resolves exactly one tag; `--channel` and `--version` are
-  mutually exclusive. Exact host row before any download; HTTPS-only
+  mutually exclusive. Release candidates are exact-version only (human
+  decision 2026-09-28): `--channel rc` fails before any request and names
+  `--version vX.Y.Z-rc.N`; there is no newest-RC discovery, HTML scraping, API
+  JSON parsing, parser dependency or channel index in S9. Exact host row before any download; HTTPS-only
   downloads; archive digest verified against `SHA256SUMS` before reading it;
   bundle `install.sh` and `release-metadata.txt` must match the bundle manifest
   and the resolved version/row of a clean release build; then the bundle's
@@ -106,11 +111,13 @@ The workflow itself, including `actions/upload-artifact`, has not run on GitHub.
   installer no longer removes the other installer's lock.
 
 `scripts/test-install-bootstrap.sh` (fake `curl`, local release fixtures, clean
-release builds) passed all 45 cases under `dash` and `bash --posix` on the
+release builds) passed all 48 cases under `dash` and `bash --posix` on the
 synthetic Ubuntu 26.04/amd64 row: conflict (both orders), eight invalid
 versions, invalid channel, duplicate and missing values, `--channel rc`
-refusal, unsafe directory input, unsupported OS and architecture, exact
-stable, same-version no-op, default stable owned upgrade, explicit stable,
+refusal naming `--version`, unsafe directory input, unsupported OS and
+architecture, row selection (with `uname`/`sw_vers` shims, each of macOS
+27/arm64, Ubuntu 26.04/amd64 and Ubuntu 26.04/arm64 requests exactly its own
+asset and nothing else), exact stable, same-version no-op, default stable owned upgrade, explicit stable,
 downgrade refusal, exact RC, stable below installed RC refused, no stable
 release, RC behind `latest`, unpublished version, missing asset, missing
 checksum, checksum mismatch, mislabeled asset, development build, three network
@@ -129,7 +136,9 @@ any request. HOME stayed empty.
 
 ## Validation
 
-Run on `1a52344`, Ubuntu 24.04 container, Go 1.26.0, as root unless stated:
+Run on the integration branch after the PR #104 reconciliation and RC
+decision (the commit recording this line), Ubuntu 24.04 container, Go 1.26.0,
+as root unless stated:
 
 | Command | Result |
 |---|---|
@@ -139,7 +148,7 @@ Run on `1a52344`, Ubuntu 24.04 container, Go 1.26.0, as root unless stated:
 | `./scripts/test-release-archives.sh` | pass (native install section also passes on the synthetic row) |
 | `./scripts/test-release-pipeline.sh` | pass |
 | `./scripts/test-install-axiom.sh`, `./scripts/test-codex-skills.sh`, `./scripts/dogfood-poc.sh` | pass |
-| `./scripts/test-install-bootstrap.sh` | selector/host tier pass, then `78` blocked natively; 45/45 on the synthetic row with `dash` and `bash --posix` |
+| `./scripts/test-install-bootstrap.sh` | selector/host tier pass, then `78` blocked natively; 48/48 on the synthetic row with `dash` and `bash --posix` |
 | `./scripts/test-s7-native.sh` (synthetic row) | every install and upgrade step passes, including `installer-owned-upgrade`; only the root-only test above fails |
 
 ## Security review
@@ -163,17 +172,12 @@ upgrade, so a `noexec` temporary directory fails the upgrade before any effect.
 
 ## Limits and open decisions
 
-- **Decision required — `--channel rc`.** Newest-RC discovery has no
-  dependency-free deterministic source: `/releases/latest` excludes
-  prereleases, and the alternatives are HTML/Atom scraping, REST JSON parsing
-  (needs `jq`/`python3`), or Git tags that are not published releases. Options:
-  (A) a closed-schema channel index maintained with each authorized
-  publication, for example a `formatVersion=1`/`channel=rc`/`tag=vX.Y.Z-rc.N`
-  file served from the repository's raw `main` URL or a release asset, then
-  resolved like `--version`; (B) keep release candidates exact-version only,
-  which T24 already requires; (C) adopt a JSON parser dependency. (A) or (B)
-  keep the bootstrap dependency-free. Until decided, `--channel rc` fails
-  before any request.
+- **Decided — release candidates are exact-version only** (human decision
+  2026-09-28). `--channel stable` stays on `/releases/latest`; RCs install only
+  with `--version vX.Y.Z-rc.N`; `--channel rc` fails with that explanation. No
+  newest-RC discovery, HTML scraping, API JSON parsing, parser dependency or
+  channel index in S9; a channel index may be designed separately after the
+  MVP.
 - Ubuntu Evidence here is a **synthetic** row: a private mount namespace with a
   replaced `/etc/os-release` on an Ubuntu 24.04 kernel and userland. It is not
   native acceptance, and macOS 27 was not exercised. T24 remains required.
@@ -186,3 +190,56 @@ upgrade, so a `noexec` temporary directory fails the upgrade before any effect.
 - The source installer and the release installer both target
   `~/.local/bin/axiom` by default and refuse each other's binary.
 - Not done: T40, T23–T25, publication, S9 completion, MVP acceptance.
+
+## Acceptance status by validation kind
+
+| Claim | Kind |
+|---|---|
+| Go packages, release build, verifier, workflow `run:` replay, installer and bootstrap logic | confirmed by executed deterministic tests in this container |
+| Install, no-op, upgrade, downgrade, recovery and refusal on Ubuntu 26.04/amd64 | **synthetic** row only (Ubuntu 24.04 userland, replaced `/etc/os-release`) |
+| Ubuntu 26.04/arm64 and macOS 27/arm64 | asset selection only (shimmed); installation **untested** |
+| `/releases/latest` behavior with no stable release; unpublished RC `SHA256SUMS` 404 | confirmed by live read-only requests |
+| Release workflow on GitHub Actions, artifact upload | **untested** (no dispatch authority) |
+| Native Ubuntu 26.04 amd64/arm64 and macOS 27 acceptance | **blocked** (T24; see below) |
+
+## T24 native acceptance — blocked
+
+T24 is not executable yet and no row is accepted:
+
+| Row | Status | Blocker |
+|---|---|---|
+| macOS 27.0 / arm64 | blocked | no macOS 27 host available here; needs a published RC |
+| Ubuntu 26.04 / amd64 | blocked | only a synthetic row exists here; needs a clean native Ubuntu 26.04 VM/account and a published RC |
+| Ubuntu 26.04 / arm64 | blocked | no arm64 host available here; needs a published RC |
+
+Per the versioned DAG (T39 -> T40 -> T23 -> T24), T24 installs one exact
+published RC with `--version vX.Y.Z-rc.N` on every row. That requires T40,
+S8/T36 technical completion (the gate for entering RC/acceptance), and T23 with
+explicit publication authority. The S7 Ubuntu 26.04 native rows deferred to T24
+remain mandatory. Synthetic results above do not satisfy any T24 row.
+
+## Next S9 task — T40 needs a decision
+
+T40 (Codex + Claude first-run bootstrap) is the next executable Task in the
+DAG and was not started. Today `axiom first-run` is a read-only alias of
+`runtime codex status`, and no Runtime discovery exists (S8 Runtime
+observations are supplied by configuration). Before implementation, these
+contract points need a human decision; the Issue #81 review already listed the
+"exact Claude product-integration install/status contract" as open, and PR #104
+fixed only the Claude skill root:
+
+1. the discovery signal for "Runtime present" (executable on `PATH`, the
+   Runtime's user configuration root, or both);
+2. whether `first-run` itself writes Runtime integrations (FR-066 wording) or
+   stays a preview that `runtime <id> install` applies, and its terminal status
+   and exit code for Codex-only, Claude-only, both and neither;
+3. the Claude integration ownership contract: reuse of the five thin skills
+   (currently Runtime-neutral except one "Codex's current working directory"
+   phrase), a skill-set receipt and known-digest upgrade set like Codex, and
+   conflict handling under `~/.claude/skills` or `CLAUDE_CONFIG_DIR/skills`.
+
+The unmerged S8 branch `agent/t36-real-runtime-evidence` (no pull request) adds
+`runtime profile validate` and records first-run readiness findings that T40
+should consume; a trial merge into this branch conflicts only in
+`CHANGELOG.md`, but its help and docs text still say `lingo` and will need the
+T37 `axiom` wording when integrated.

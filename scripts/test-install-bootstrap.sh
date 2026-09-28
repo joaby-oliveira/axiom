@@ -161,7 +161,7 @@ done
 step invalid-channel bash -eo pipefail -c 'refused "$home" "--channel must be stable or rc" --channel beta && no_network'
 step duplicate-selector bash -eo pipefail -c 'refused "$home" "more than once" --version v1.0.0 --version v1.1.0 && no_network'
 step missing-selector-value bash -eo pipefail -c 'refused "$home" "--version requires a value" --version && no_network'
-step latest-rc-channel-unavailable bash -eo pipefail -c 'refused "$home" "rc channel is not available yet" --channel rc && no_network'
+step rc-channel-requires-exact-version bash -eo pipefail -c 'refused "$home" "release candidates require an explicit version" --channel rc && no_network'
 step unsafe-directory-input bash -eo pipefail -c '
   refused "$home" "--bin-dir must be an absolute canonical path" --bin-dir relative/bin
   refused "$home" "--bin-dir must be an absolute canonical path" --bin-dir "$home/../x"
@@ -208,6 +208,8 @@ publish v1.1.0
 publish v1.2.0-rc.1
 publish v3.0.0
 publish v4.0.0 --development
+publish v2.0.0
+rm -- "$fixtures/releases/v2.0.0/"*.tar.gz
 rm -- "$fixtures/releases/v3.0.0/axiom-3.0.0-$row.tar.gz"
 mkdir "$fixtures/releases/v6.0.0" "$fixtures/releases/v7.0.0" "$fixtures/releases/v8.0.0"
 cp "$fixtures/releases/v1.1.0/axiom-1.1.0-$row.tar.gz" "$fixtures/releases/v6.0.0/axiom-6.0.0-$row.tar.gz"
@@ -226,6 +228,23 @@ receipt_of() { printf '%s/.local/state/axiom/install/installation.receipt\n' "$1
 installed_version() { awk -F= '$1 == "version" {print $2}' "$(receipt_of "$1")"; }
 export -f bin_of receipt_of installed_version asset_sha
 export row revision12
+
+# 0. Row selection: each supported row requests exactly its own asset. v2.0.0
+# publishes SHA256SUMS for all rows but no archive, so selection stops at the
+# missing asset with no effect. Linux rows reuse this host's os-release.
+for selection in macos-27-arm64:Darwin:arm64 ubuntu-26.04-amd64:Linux:x86_64 ubuntu-26.04-arm64:Linux:aarch64; do
+  IFS=: read -r selected_row selected_system selected_machine <<<"$selection"
+  shim="$temporary/row-tools-$selected_row"
+  mkdir -p "$shim"
+  printf '#!/bin/sh\ncase "$1" in -s) echo %s ;; -m) echo %s ;; *) echo %s ;; esac\n' "$selected_system" "$selected_machine" "$selected_system" >"$shim/uname"
+  printf '#!/bin/sh\n[ "$1" = -productVersion ] && echo 27.0\n' >"$shim/sw_vers"
+  chmod 700 "$shim/uname" "$shim/sw_vers"
+  export shim selected_row
+  step "row-selection:$selected_row" bash -eo pipefail -c '
+    EXTRA_PATH="$shim" refused "$(mktemp -d "$temporary/homes/row.XXXXXX")" "has no published asset axiom-2.0.0-$selected_row.tar.gz" --version v2.0.0
+    printf "https://github.com/rgomids/axiom/releases/download/v2.0.0/SHA256SUMS\nhttps://github.com/rgomids/axiom/releases/download/v2.0.0/axiom-2.0.0-%s.tar.gz\n" "$selected_row" | cmp -s - "$temporary/ledger"
+  '
+done
 
 # 1. Exact stable version into a clean HOME, then identical reinstall.
 home=$(new_home main)
