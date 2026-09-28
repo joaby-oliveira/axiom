@@ -826,9 +826,10 @@ Plan/release declaration before distribution.
   MUST remain separate from authority to publish a prerelease/release.
 - **FR-064 Stable remote installation:** supported macOS/Linux users MUST be able
   to install from one stable remote bootstrap command without cloning the
-  repository or building from source. The bootstrap MUST detect the supported
-  OS/architecture, select the matching published artifact, verify integrity before
-  installation and install only into an owned safe destination.
+  repository or building from source. The canonical versioned bootstrap source
+  MUST be `scripts/install.sh` in this repository. The bootstrap MUST detect the
+  supported OS/architecture, select the matching published artifact, verify
+  integrity before installation and install only into an owned safe destination.
 - **FR-065 Convergent reinstall/upgrade:** rerunning the supported bootstrap MUST
   be idempotent for an equivalent owned installation and MUST converge an older
   owned installation to the selected newer version through the existing
@@ -837,7 +838,10 @@ Plan/release declaration before distribution.
   overwritten.
 - **FR-066 Multi-runtime first run:** `axiom first-run` MUST inspect supported
   Runtimes already present on the machine and configure every supported detected
-  Axiom integration. MVP acceptance MUST cover Codex-only, Claude-only,
+  Axiom integration. Runtime skills/integration files installed by Axiom MUST use
+  that Runtime's user-global scope, never a Project-local scope as the product
+  default. For the MVP this includes Codex user-global skills and Claude
+  user-global skills. MVP acceptance MUST cover Codex-only, Claude-only,
   Codex+Claude and no-Runtime cases. First run MUST NOT silently install a
   Runtime, provision/mutate Runtime credentials, purchase subscriptions or invent
   availability.
@@ -871,6 +875,9 @@ Plan/release declaration before distribution.
 - Runtime/model fallback, child authority escalation, child-created children and
   timeout/attempt expansion are denied unless a new explicit operator decision
   grants the exact changed envelope.
+- Axiom-owned Runtime skills are confined to the current user's Runtime-native
+  global skill/configuration root. Project-local Runtime skill installation is
+  not a fallback for missing or unsafe global state.
 
 ## Failure cases and invariants
 
