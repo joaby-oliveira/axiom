@@ -406,7 +406,8 @@ make_set "$temporary/env-a" 0.1.0-rc.1 "$c2" first
 envelope "$temporary/env-a" --tag v0.1.0-rc.1 --revision "$c2" --make-latest false >"$temporary/env"
 for line in tag=v0.1.0-rc.1 "revision=$c2" channel=rc prerelease=true make_latest=false prepared_run=11 \
   "release_notes_sha256=$(digest "$temporary/env-a/notes.md")" "sha256sums_sha256=$(digest "$temporary/env-a/artifacts/SHA256SUMS")" \
-  publication_state=absent effect.tag=create_at_revision effect.publish=prerelease effect.latest=unchanged; do
+  publication_state=absent effect.tag=create_at_revision effect.publish=prerelease effect.latest=unchanged \
+  release_pr=not_applicable release_pr_label_state=not_applicable effect.release_pr_label=none; do
   check "envelope states $line" grep -Fxq -- "$line" "$temporary/env"
 done
 for f in "$temporary/env-a/artifacts"/axiom-*; do
@@ -458,7 +459,7 @@ check 'RC is not latest' bash -c "[[ ! -s '$state/latest' ]] && grep -Fxq latest
 check 'tag created only at publication, at the revision' grep -Fxq "v0.1.0-rc.1 $c2" "$state/tags"
 check 'draft created before any upload, published last' bash -c "head -n 1 '$state/ledger' | grep -q '^POST release v0.1.0-rc.1 draft=true prerelease=true' && grep -E '^(PATCH|UPLOAD)' '$state/ledger' | tail -n 1 | grep -q '\"draft\":false'"
 check 'exactly four assets uploaded' bash -c "[[ \$(grep -c '^UPLOAD' '$state/ledger') == 4 ]]"
-check 'RC does not touch Release PR labels' grep -Fxq 'release_pr=not_applicable' "$temporary/pub"
+check 'RC does not touch Release PR labels' bash -c "grep -Fxq release_pr=not_applicable '$temporary/pub' && ! grep -q '^LABEL' '$state/ledger'"
 
 before=$(mutations)
 make_set "$temporary/rc-rebuild" 0.1.0-rc.1 "$c2" rebuilt
@@ -519,6 +520,25 @@ check 'remote refusals made no GitHub effect' bash -c "[[ $(mutations) == 0 ]]"
 reset_github
 printf '[{"number":7,"merged_at":"2026-10-01T00:00:00Z","labels":[{"name":"autorelease: pending"}]}]\n' >"$state/pulls.json"
 make_set "$temporary/stable" 0.1.0 "$c3" first
+# The envelope binds the exact Release PR and its label state; a changed PR
+# or label is a new preview and stale authority fails before any effect.
+envelope "$temporary/stable" --tag v0.1.0 --revision "$c3" --make-latest true >"$temporary/env"
+for line in release_pr=7 release_pr_label_state=pending effect.release_pr_label=pending_to_tagged; do
+  check "stable envelope states $line" grep -Fxq -- "$line" "$temporary/env"
+done
+pr_digest=$(awk -F= '$1 == "preview_digest" {print $2}' "$temporary/env")
+cp "$state/pulls.json" "$temporary/pulls.saved"
+printf '[{"number":8,"merged_at":"2026-10-01T00:00:00Z","labels":[{"name":"autorelease: pending"}]}]\n' >"$state/pulls.json"
+check 'another Release PR changes the digest' test "$pr_digest" != "$(envelope_digest "$temporary/stable" --tag v0.1.0 --revision "$c3" --make-latest true)"
+expect_failure 'authority for another Release PR is stale' 'preview changed; review and authorize again' \
+  publish_raw "$temporary/stable" --tag v0.1.0 --revision "$c3" --make-latest true --authorized-digest "$pr_digest"
+printf '[{"number":7,"merged_at":"2026-10-01T00:00:00Z","labels":[{"name":"autorelease: tagged"}]}]\n' >"$state/pulls.json"
+envelope "$temporary/stable" --tag v0.1.0 --revision "$c3" --make-latest true >"$temporary/env"
+check 'a changed label state changes the digest' bash -c "grep -Fxq release_pr_label_state=tagged '$temporary/env' && grep -Fxq effect.release_pr_label=none '$temporary/env' && ! grep -Fxq preview_digest=$pr_digest '$temporary/env'"
+expect_failure 'authority for another label state is stale' 'preview changed; review and authorize again' \
+  publish_raw "$temporary/stable" --tag v0.1.0 --revision "$c3" --make-latest true --authorized-digest "$pr_digest"
+check 'divergent Release PR state made no GitHub effect' test "$(mutations)" == 0
+mv "$temporary/pulls.saved" "$state/pulls.json"
 FAKE_GH_FAIL_ON='assets?name=axiom-0.1.0-ubuntu-26.04-amd64' expect_failure 'interrupted upload' 'draft left for a rerun' \
   publish "$temporary/stable" --tag v0.1.0 --revision "$c3" --make-latest true
 check 'partial state is an unpublished draft without tag' bash -c "[[ \$(jq -s '.[0].draft' $state/releases/*.json) == true && ! -s '$state/tags' && ! -s '$state/latest' ]]"

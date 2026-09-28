@@ -185,26 +185,44 @@ check_latest() {
   printf '%s' "${latest:-none}"
 }
 
-# label_release_pr hands the merged Release PR from Release Please's pending
-# state to tagged, which is what Release Please itself does after tagging.
-label_release_pr() {
-  local pulls number
-  [[ "$channel" == stable ]] || { printf 'release_pr=not_applicable\n'; return; }
+# resolve_release_pr reads the merged Release PR of a stable release and the
+# state of its Release Please label. Both are part of the publication envelope,
+# so the exact PR and label change are authorized before any effect.
+release_pr=not_applicable
+release_pr_label_state=not_applicable
+resolve_release_pr() {
+  local pulls candidates
+  [[ "$channel" == stable ]] || return 0
   pulls=$(gh api "repos/$repository/commits/$revision/pulls") || fail 'cannot read the release commit pull requests'
-  number=$(jq -r '[.[] | select(.merged_at != null) | select(any(.labels[]; .name == "autorelease: pending" or .name == "autorelease: tagged"))] | if length == 1 then .[0].number else empty end' <<<"$pulls")
-  if [[ -z "$number" ]]; then
-    printf 'release_pr=not_found\n'
-    return
+  candidates=$(jq -c '[.[] | select(.merged_at != null) | select(any(.labels[]; .name == "autorelease: pending" or .name == "autorelease: tagged"))]' <<<"$pulls")
+  case $(jq 'length' <<<"$candidates") in
+    0) release_pr=not_found; release_pr_label_state=not_applicable ;;
+    1)
+      release_pr=$(jq -r '.[0].number' <<<"$candidates")
+      [[ "$release_pr" =~ ^[0-9]+$ ]] || fail 'Release PR has no number'
+      if jq -e '.[0] | any(.labels[]; .name == "autorelease: pending")' <<<"$candidates" >/dev/null; then
+        release_pr_label_state=pending
+      else
+        release_pr_label_state=tagged
+      fi
+      ;;
+    *) fail 'more than one merged Release PR for the release commit; resolve manually' ;;
+  esac
+}
+
+# label_release_pr hands the authorized Release PR from Release Please's
+# pending state to tagged, which is what Release Please itself does after
+# tagging. It acts only on the PR and label state bound by the envelope.
+label_release_pr() {
+  if [[ "$release_pr_label_state" == pending ]]; then
+    gh api --method POST "repos/$repository/issues/$release_pr/labels" -f 'labels[]=autorelease: tagged' >/dev/null \
+      || fail "cannot label Release PR #$release_pr"
+    printf 'effect=release_pr_labeled pr=%s label=autorelease:tagged\n' "$release_pr"
+    gh api --method DELETE "repos/$repository/issues/$release_pr/labels/autorelease%3A%20pending" >/dev/null \
+      || fail "cannot remove pending label from Release PR #$release_pr"
+    printf 'effect=release_pr_unlabeled pr=%s label=autorelease:pending\n' "$release_pr"
   fi
-  if jq -e --argjson n "$number" '.[] | select(.number == $n) | any(.labels[]; .name == "autorelease: pending")' <<<"$pulls" >/dev/null; then
-    gh api --method POST "repos/$repository/issues/$number/labels" -f 'labels[]=autorelease: tagged' >/dev/null \
-      || fail "cannot label Release PR #$number"
-    printf 'effect=release_pr_labeled pr=%s label=autorelease:tagged\n' "$number"
-    gh api --method DELETE "repos/$repository/issues/$number/labels/autorelease%3A%20pending" >/dev/null \
-      || fail "cannot remove pending label from Release PR #$number"
-    printf 'effect=release_pr_unlabeled pr=%s label=autorelease:pending\n' "$number"
-  fi
-  printf 'release_pr=%s\n' "$number"
+  printf 'release_pr=%s\n' "$release_pr"
 }
 
 releases=$(releases_json) || fail 'cannot list releases'
@@ -232,6 +250,8 @@ if ((count == 1)); then
     check_published "$release"
   fi
 fi
+
+[[ "$check" == true ]] || resolve_release_pr
 
 # --- Publication envelope ---------------------------------------------------
 # Deterministic, complete statement of what would be published and of the
@@ -262,8 +282,14 @@ write_envelope() {
       printf 'draft_asset.%s=%s\n' "$(jq -r '.name' <<<"$asset")" "$(asset_sha256 "$asset")"
     done < <(jq -c '.assets | sort_by(.name) | .[]' <<<"$release")
   fi
+  printf 'release_pr=%s\n' "$release_pr"
+  printf 'release_pr_label_state=%s\n' "$release_pr_label_state"
   if [[ "$state" == published ]]; then
-    printf 'effect=none\n'
+    if [[ "$release_pr_label_state" == pending ]]; then
+      printf 'effect.release_pr_label=pending_to_tagged\n'
+    else
+      printf 'effect=none\n'
+    fi
     return
   fi
   printf 'effect.release=%s\n' "$([[ "$state" == draft ]] && printf reconcile_draft || printf create_draft)"
@@ -271,7 +297,7 @@ write_envelope() {
   printf 'effect.publish=%s\n' "$([[ "$prerelease" == true ]] && printf prerelease || printf release)"
   printf 'effect.tag=%s\n' "$([[ -n "$tag_commit" ]] && printf existing || printf "create_at_revision")"
   printf 'effect.latest=%s\n' "$([[ "$make_latest" == true ]] && printf set || printf unchanged)"
-  printf 'effect.release_pr_label=%s\n' "$([[ "$channel" == stable ]] && printf pending_to_tagged || printf none)"
+  printf 'effect.release_pr_label=%s\n' "$([[ "$release_pr_label_state" == pending ]] && printf pending_to_tagged || printf none)"
 }
 
 if [[ "$check" == false ]]; then
