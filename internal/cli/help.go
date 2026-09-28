@@ -11,6 +11,7 @@ Usage:
 Commands:
   first-run
   runtime codex install|status
+  runtime profile validate
   project configure|show|resolve|init|validate|reopen|update|install
   work-item create|select|show|comment|complete
   workflow start|advance|fact|resume|status|evidence|reconcile
@@ -25,6 +26,9 @@ Stable Codex skill mapping:
   $axiom-work-item-create  -> lingo --json work-item create|select
   $axiom-work-item-run     -> lingo --json workflow start|advance|resume|reconcile
   $axiom-work-item-status  -> lingo --json workflow status|evidence
+
+Runtime profile validation reads local configuration without changing state,
+invoking a runtime, or probing authentication. It accepts no flags or arguments.
 
 Maintenance commands are read-only previews unless repeated with the exact
 --preview-digest and --authorize-local. Backup/export targets must be absent

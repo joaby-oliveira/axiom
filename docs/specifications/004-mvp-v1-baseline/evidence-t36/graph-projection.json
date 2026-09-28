@@ -1,0 +1,302 @@
+{
+  "projectionOnly": true,
+  "pathAlias": "LAB is the isolated operator lab; this projection is not canonical graph bytes",
+  "originalArtifactSHA256": "6c7313d3d1dd75381a9f15f5aaaa3ea8a47c5f79b7be6158b7f3f4bd93564bcc",
+  "graph": {
+    "formatVersion": 1,
+    "parent": {
+      "executionId": "bfdc422a-a1d2-43ea-9aec-e7ea5ff0c05f",
+      "graphRevision": 1,
+      "proposalDigest": "d36831f76b8611ec861f1ba79eca39c49a96440a2525590c4924e98ca350ca0d",
+      "authorityDigest": "1775d97ac84cdda565d2d7ec96340f8278d2bc36ad6dba9c301a37d3016af3af",
+      "authorityEffects": [
+        {
+          "kind": "integration",
+          "target": "cmd/lingo/runtime_profile.go"
+        },
+        {
+          "kind": "integration",
+          "target": "cmd/lingo/runtime_profile_test.go"
+        },
+        {
+          "kind": "integration",
+          "target": "docs/commands.md"
+        },
+        {
+          "kind": "integration",
+          "target": "internal/cli/cli.go"
+        },
+        {
+          "kind": "integration",
+          "target": "internal/cli/help.go"
+        },
+        {
+          "kind": "integration",
+          "target": "internal/cli/runtime_profile_test.go"
+        },
+        {
+          "kind": "repository-write",
+          "target": "cmd/lingo/runtime_profile.go"
+        },
+        {
+          "kind": "repository-write",
+          "target": "cmd/lingo/runtime_profile_test.go"
+        },
+        {
+          "kind": "repository-write",
+          "target": "docs/commands.md"
+        },
+        {
+          "kind": "repository-write",
+          "target": "internal/cli/cli.go"
+        },
+        {
+          "kind": "repository-write",
+          "target": "internal/cli/help.go"
+        },
+        {
+          "kind": "repository-write",
+          "target": "internal/cli/runtime_profile_test.go"
+        }
+      ],
+      "integrationChild": "a1baedbd-ee96-43a1-b876-643c1c65fb8b",
+      "createdAt": "2026-09-28T02:09:15.262741Z"
+    },
+    "children": [
+      {
+        "executionId": "5fd283f1-aee8-49c6-b948-4547e8c6c8cf",
+        "parentId": "bfdc422a-a1d2-43ea-9aec-e7ea5ff0c05f",
+        "graphRevision": 1,
+        "nodeKey": "claude",
+        "envelope": {
+          "capability": {
+            "role": "documentation",
+            "complexity": "low",
+            "capabilities": [
+              "documentation"
+            ]
+          },
+          "inputs": [
+            "approved-plan"
+          ],
+          "outputs": [
+            "claude-result"
+          ],
+          "scope": {
+            "projectId": "e74cf3ed-7ba4-4ffa-8704-8b5cf94cc27e",
+            "repositoryKey": "main",
+            "paths": [
+              "docs/commands.md"
+            ]
+          },
+          "workspace": "LAB/executions/t36-02/claude",
+          "dependencies": [],
+          "allowedEffects": [
+            {
+              "kind": "repository-write",
+              "target": "docs/commands.md"
+            }
+          ],
+          "authorityReference": "user-request:t36-lab:claude",
+          "controls": {
+            "timeout": 1200000000000,
+            "maximumAttempts": 2
+          },
+          "validationOwner": false,
+          "integrationOwner": false,
+          "optional": false,
+          "resolution": {
+            "runtimeId": "claude",
+            "modelProfileId": "t36-claude-documentation",
+            "configurationRevision": 1,
+            "observationRevision": 1
+          }
+        },
+        "attempts": [
+          {
+            "attemptId": "525272a7-d354-49f0-bfe4-46d5d73ad5f6",
+            "number": 1,
+            "status": "succeeded",
+            "startedAt": "2026-09-28T02:09:16.122657Z",
+            "finishedAt": "2026-09-28T02:11:26.883366Z",
+            "resultReference": "process-output:e4b2b08654f0f77ee0680a8caf6908bc56e7289d351e623d4ebfbe0ba4db72a2",
+            "outputDigest": "e4b2b08654f0f77ee0680a8caf6908bc56e7289d351e623d4ebfbe0ba4db72a2",
+            "ambiguousEffect": false
+          }
+        ]
+      },
+      {
+        "executionId": "ebf63cef-3bbf-4d58-8ec1-e6d1698f47b5",
+        "parentId": "bfdc422a-a1d2-43ea-9aec-e7ea5ff0c05f",
+        "graphRevision": 1,
+        "nodeKey": "codex",
+        "envelope": {
+          "capability": {
+            "role": "implementation",
+            "complexity": "low",
+            "capabilities": [
+              "go"
+            ]
+          },
+          "inputs": [
+            "approved-plan"
+          ],
+          "outputs": [
+            "codex-result"
+          ],
+          "scope": {
+            "projectId": "e74cf3ed-7ba4-4ffa-8704-8b5cf94cc27e",
+            "repositoryKey": "main",
+            "paths": [
+              "cmd/lingo/runtime_profile.go",
+              "cmd/lingo/runtime_profile_test.go",
+              "internal/cli/cli.go",
+              "internal/cli/help.go",
+              "internal/cli/runtime_profile_test.go"
+            ]
+          },
+          "workspace": "LAB/executions/t36-02/codex",
+          "dependencies": [],
+          "allowedEffects": [
+            {
+              "kind": "repository-write",
+              "target": "cmd/lingo/runtime_profile.go"
+            },
+            {
+              "kind": "repository-write",
+              "target": "cmd/lingo/runtime_profile_test.go"
+            },
+            {
+              "kind": "repository-write",
+              "target": "internal/cli/cli.go"
+            },
+            {
+              "kind": "repository-write",
+              "target": "internal/cli/help.go"
+            },
+            {
+              "kind": "repository-write",
+              "target": "internal/cli/runtime_profile_test.go"
+            }
+          ],
+          "authorityReference": "user-request:t36-lab:codex",
+          "controls": {
+            "timeout": 1200000000000,
+            "maximumAttempts": 2
+          },
+          "validationOwner": false,
+          "integrationOwner": false,
+          "optional": false,
+          "resolution": {
+            "runtimeId": "codex",
+            "modelProfileId": "t36-codex-implementation",
+            "configurationRevision": 1,
+            "observationRevision": 1
+          }
+        },
+        "attempts": [
+          {
+            "attemptId": "110a6154-9427-4e8f-9e03-91c7db778a45",
+            "number": 1,
+            "status": "succeeded",
+            "startedAt": "2026-09-28T02:09:16.234252Z",
+            "finishedAt": "2026-09-28T02:12:41.497931Z",
+            "resultReference": "process-output:18823a0fdc7e1798f6a24a482e12aa51e42334d4b5e33972ae2d7565a5fa05a3",
+            "outputDigest": "18823a0fdc7e1798f6a24a482e12aa51e42334d4b5e33972ae2d7565a5fa05a3",
+            "ambiguousEffect": false
+          }
+        ]
+      },
+      {
+        "executionId": "a1baedbd-ee96-43a1-b876-643c1c65fb8b",
+        "parentId": "bfdc422a-a1d2-43ea-9aec-e7ea5ff0c05f",
+        "graphRevision": 1,
+        "nodeKey": "integration",
+        "envelope": {
+          "capability": {
+            "role": "integration",
+            "complexity": "low",
+            "capabilities": [
+              "integration"
+            ]
+          },
+          "inputs": [
+            "approved-plan"
+          ],
+          "outputs": [
+            "integration-result"
+          ],
+          "scope": {
+            "projectId": "e74cf3ed-7ba4-4ffa-8704-8b5cf94cc27e",
+            "repositoryKey": "main",
+            "paths": [
+              "cmd/lingo/runtime_profile.go",
+              "cmd/lingo/runtime_profile_test.go",
+              "docs/commands.md",
+              "internal/cli/cli.go",
+              "internal/cli/help.go",
+              "internal/cli/runtime_profile_test.go"
+            ]
+          },
+          "workspace": "LAB/executions/t36-02/integration",
+          "dependencies": [
+            "5fd283f1-aee8-49c6-b948-4547e8c6c8cf",
+            "ebf63cef-3bbf-4d58-8ec1-e6d1698f47b5"
+          ],
+          "allowedEffects": [
+            {
+              "kind": "integration",
+              "target": "cmd/lingo/runtime_profile.go"
+            },
+            {
+              "kind": "integration",
+              "target": "cmd/lingo/runtime_profile_test.go"
+            },
+            {
+              "kind": "integration",
+              "target": "docs/commands.md"
+            },
+            {
+              "kind": "integration",
+              "target": "internal/cli/cli.go"
+            },
+            {
+              "kind": "integration",
+              "target": "internal/cli/help.go"
+            },
+            {
+              "kind": "integration",
+              "target": "internal/cli/runtime_profile_test.go"
+            }
+          ],
+          "authorityReference": "user-request:t36-lab:integration",
+          "controls": {
+            "timeout": 900000000000,
+            "maximumAttempts": 2
+          },
+          "validationOwner": true,
+          "integrationOwner": true,
+          "optional": false,
+          "resolution": {
+            "runtimeId": "codex",
+            "modelProfileId": "t36-integration",
+            "configurationRevision": 1,
+            "observationRevision": 1
+          }
+        },
+        "attempts": [
+          {
+            "attemptId": "9af90feb-d7ca-4985-930d-82e7f68f1402",
+            "number": 1,
+            "status": "succeeded",
+            "startedAt": "2026-09-28T02:12:42.29327Z",
+            "finishedAt": "2026-09-28T02:14:03.924872Z",
+            "resultReference": "integration-result-tree:ae8c866f95e27190d82bca12fcf40bdda05416d1",
+            "outputDigest": "07a594ee2a77a4b52a95a10b2069866088e25f888d282e57bdd4e60ecb67c1d2",
+            "ambiguousEffect": false
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "FormatVersion": 1,
+  "Status": "real_run_recorded",
+  "BaseRevision": "17dd734537789b161172c4677ada84a588b91821",
+  "ConfigurationDigest": "4363f1e0394d2fcb405cac74e093a08e8e46aba88bb7ba5da8dab39d22efc1c6",
+  "ParentID": "bfdc422a-a1d2-43ea-9aec-e7ea5ff0c05f",
+  "GraphRevision": 1,
+  "GraphDigest": "5f150ed6cb1473930cadfb9faba57db33548ffd309beef5511d38f93820dd491",
+  "Dispatch": [
+    {
+      "ChildID": "5fd283f1-aee8-49c6-b948-4547e8c6c8cf",
+      "AttemptID": "525272a7-d354-49f0-bfe4-46d5d73ad5f6",
+      "Status": "succeeded",
+      "StartedAt": "2026-09-28T02:09:16.122657Z",
+      "EndedAt": "2026-09-28T02:11:26.883366Z"
+    },
+    {
+      "ChildID": "ebf63cef-3bbf-4d58-8ec1-e6d1698f47b5",
+      "AttemptID": "110a6154-9427-4e8f-9e03-91c7db778a45",
+      "Status": "succeeded",
+      "StartedAt": "2026-09-28T02:09:16.234252Z",
+      "EndedAt": "2026-09-28T02:12:41.497931Z"
+    }
+  ],
+  "RuntimeExecutions": [
+    {
+      "ChildID": "5fd283f1-aee8-49c6-b948-4547e8c6c8cf",
+      "AttemptID": "525272a7-d354-49f0-bfe4-46d5d73ad5f6",
+      "RuntimeID": "claude",
+      "ModelProfileID": "t36-claude-documentation",
+      "RuntimeVersion": "2.1.283",
+      "ConfigurationRevision": 1,
+      "ObservationRevision": 1,
+      "InvocationDigest": "61c74f999f8c3f724c1f411e06901ff7c58162e71b0e2c6d7146b84acc603562",
+      "ResultReference": "process-output:e4b2b08654f0f77ee0680a8caf6908bc56e7289d351e623d4ebfbe0ba4db72a2"
+    },
+    {
+      "ChildID": "ebf63cef-3bbf-4d58-8ec1-e6d1698f47b5",
+      "AttemptID": "110a6154-9427-4e8f-9e03-91c7db778a45",
+      "RuntimeID": "codex",
+      "ModelProfileID": "t36-codex-implementation",
+      "RuntimeVersion": "0.157.1",
+      "ConfigurationRevision": 1,
+      "ObservationRevision": 1,
+      "InvocationDigest": "ecaeb3a58eb4e3fb56227324d098cef44b99d2acd471a8d6301b4b9cb3663b15",
+      "ResultReference": "process-output:18823a0fdc7e1798f6a24a482e12aa51e42334d4b5e33972ae2d7565a5fa05a3"
+    }
+  ],
+  "CoordinationRecords": [
+    "eyJmb3JtYXRWZXJzaW9uIjoxLCJyZWNvcmRJZCI6IjA0MWQ5MTM4LThkNmUtNDUxMy1hZGNkLWE4MTk5YTIzMzhmNyIsImtpbmQiOiJxdWVzdGlvbl9yZXF1ZXN0IiwicGFyZW50SWQiOiJiZmRjNDIyYS1hMWQyLTQzZWEtOWFlYy1lN2VhNWZmMGMwNWYiLCJjaGlsZElkIjoiZWJmNjNjZWYtM2JiZi00ZDU4LThlYzEtZTZkMTY5OGY0N2I1IiwiZ3JhcGhSZXZpc2lvbiI6MSwiYXR0ZW1wdElkIjoiMTEwYTYxNTQtOTQyNy00ZThmLTllMDMtOTFjN2RiNzc4YTQ1IiwicmV2aXNpb24iOjEsInByb3ZlbmFuY2UiOnsiUHJvZHVjdCI6ImxpbmdvIiwiVmVyc2lvbiI6ImRldmVsb3BtZW50IiwiUmV2aXNpb24iOiIxN2RkNzM0NTM3Nzg5YjE2MTE3MmM0Njc3YWRhODRhNTg4YjkxODIxIiwiU291cmNlU3RhdGUiOiJjbGVhbiJ9LCJmaWVsZHMiOlt7Im5hbWUiOiJxdWVzdGlvbiIsInZhbHVlIjoiQ29uZmlybSByZWFkLW9ubHkgcnVudGltZSBwcm9maWxlIHZhbGlkYXRlIGNvbnRyYWN0OiBubyBmbGFnczsgdmFsaWRhdGUgaXNvbGF0ZWQgc3RvcmU7IHNhbml0aXplZCBtaXNzaW5nIG9yIGludmFsaWQgZmFpbHVyZTsgbm8gYXV0aGVudGljYXRpb24gcHJvYmU/In1dLCJjcmVhdGVkQXQiOiIyMDI2LTA5LTI4VDAyOjA5OjI5Ljk2Nzg4WiIsImRpZ2VzdCI6ImJlYWRjYjdmZGViNzFmYTI0ZTk5ZTAxM2RjOTIzOGU4ZjdmODA2YTFmOWQ5YmNiNmJmNWE2YmE0OGU1MTUyYzMifQo=",
+    "eyJmb3JtYXRWZXJzaW9uIjoxLCJyZWNvcmRJZCI6ImFlMTM0NmIwLTc1YmUtNGNjNC1hMjRkLTQ5MmRmZDE0MmVkMyIsImtpbmQiOiJhbnN3ZXIiLCJwYXJlbnRJZCI6ImJmZGM0MjJhLWExZDItNDNlYS05YWVjLWU3ZWE1ZmYwYzA1ZiIsImNoaWxkSWQiOiI1ZmQyODNmMS1hZWU4LTQ5YzYtYjk0OC00NTQ3ZThjNmM4Y2YiLCJncmFwaFJldmlzaW9uIjoxLCJhdHRlbXB0SWQiOiI1MjUyNzJhNy1kMzU0LTQ5ZjAtYmZlNC00NmQ1ZDczYWQ1ZjYiLCJyZXZpc2lvbiI6MSwicHJvdmVuYW5jZSI6eyJQcm9kdWN0IjoibGluZ28iLCJWZXJzaW9uIjoiZGV2ZWxvcG1lbnQiLCJSZXZpc2lvbiI6IjE3ZGQ3MzQ1Mzc3ODliMTYxMTcyYzQ2NzdhZGE4NGE1ODhiOTE4MjEiLCJTb3VyY2VTdGF0ZSI6ImNsZWFuIn0sImZpZWxkcyI6W3sibmFtZSI6ImFuc3dlciIsInZhbHVlIjoiQ29uZmlybWVkLiBEb2N1bWVudCByZWFkLW9ubHkgdmFsaWRhdGlvbiBvZiBpc29sYXRlZCBSdW50aW1lIFByb2ZpbGUgc3RvcmUsIG5vIGZsYWdzLCBubyBhdXRoZW50aWNhdGlvbiBwcm9iZSwgc2FuaXRpemVkIGZhaWx1cmUgZm9yIG1pc3Npbmcgb3IgaW52YWxpZCBjb25maWd1cmF0aW9uLiJ9LHsibmFtZSI6InF1ZXN0aW9uX3JlZmVyZW5jZSIsInZhbHVlIjoiMDQxZDkxMzgtOGQ2ZS00NTEzLWFkY2QtYTgxOTlhMjMzOGY3In1dLCJjcmVhdGVkQXQiOiIyMDI2LTA5LTI4VDAyOjA5OjU3LjM0OTI2MloiLCJkaWdlc3QiOiI2MGQzZmNiZTU2ZjIzZDNkZjhmM2Y5ZTRiNjA2OWJhMTg4N2I0NGFlMTExMjA4NDA4MzhkZWY1Y2QzMmJiMjc0In0K"
+  ],
+  "Coordination": [
+    {
+      "RecordID": "041d9138-8d6e-4513-adcd-a8199a2338f7",
+      "Kind": "question_request",
+      "ParentID": "bfdc422a-a1d2-43ea-9aec-e7ea5ff0c05f",
+      "GraphRevision": 1,
+      "ChildID": "ebf63cef-3bbf-4d58-8ec1-e6d1698f47b5",
+      "AttemptID": "110a6154-9427-4e8f-9e03-91c7db778a45",
+      "Digest": "beadcb7fdeb71fa24e99e013dc9238e8f7f806a1f9d9bcb6bf5a6ba48e5152c3",
+      "Reference": "",
+      "Decision": ""
+    },
+    {
+      "RecordID": "ae1346b0-75be-4cc4-a24d-492dfd142ed3",
+      "Kind": "answer",
+      "ParentID": "bfdc422a-a1d2-43ea-9aec-e7ea5ff0c05f",
+      "GraphRevision": 1,
+      "ChildID": "5fd283f1-aee8-49c6-b948-4547e8c6c8cf",
+      "AttemptID": "525272a7-d354-49f0-bfe4-46d5d73ad5f6",
+      "Digest": "60d3fcbe56f23d3df8f3f9e4b6069ba1887b44ae11120840838def5cd32bb274",
+      "Reference": "041d9138-8d6e-4513-adcd-a8199a2338f7",
+      "Decision": ""
+    }
+  ],
+  "Rollup": {
+    "Status": "success",
+    "ParentID": "bfdc422a-a1d2-43ea-9aec-e7ea5ff0c05f",
+    "GraphRevision": 1,
+    "ChildOutcomes": [
+      {
+        "ChildID": "5fd283f1-aee8-49c6-b948-4547e8c6c8cf",
+        "Status": "succeeded",
+        "Required": true
+      },
+      {
+        "ChildID": "a1baedbd-ee96-43a1-b876-643c1c65fb8b",
+        "Status": "succeeded",
+        "Required": true
+      },
+      {
+        "ChildID": "ebf63cef-3bbf-4d58-8ec1-e6d1698f47b5",
+        "Status": "succeeded",
+        "Required": true
+      }
+    ],
+    "IntegrationChildID": "a1baedbd-ee96-43a1-b876-643c1c65fb8b",
+    "IntegrationResultTree": "ae8c866f95e27190d82bca12fcf40bdda05416d1",
+    "ValidationResults": [
+      {
+        "CommandReference": "go-test",
+        "ExitCode": 0,
+        "OutputDigest": "22dc29139a6d20b0381dd4d063dda938ac97979910cad4f0b74cf48162f4a447"
+      },
+      {
+        "CommandReference": "go-race",
+        "ExitCode": 0,
+        "OutputDigest": "64b4bb3df8ba31a376c94e4baa7cc22ef7a7515601cbbcac809f87c7ecd408ba"
+      },
+      {
+        "CommandReference": "go-vet",
+        "ExitCode": 0,
+        "OutputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "CommandReference": "go-build",
+        "ExitCode": 0,
+        "OutputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "CommandReference": "go-mod-verify",
+        "ExitCode": 0,
+        "OutputDigest": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+      },
+      {
+        "CommandReference": "repository",
+        "ExitCode": 0,
+        "OutputDigest": "04d4a10c2787183c4f48d835caca7684b9bf57682d28fff72355cb9dd2d59f7a"
+      },
+      {
+        "CommandReference": "sensitive-files",
+        "ExitCode": 0,
+        "OutputDigest": "22a7b3658bc40132308671af3ddcdc6f021c651a57901eb0f89f17b185d5d7a7"
+      },
+      {
+        "CommandReference": "diff-check",
+        "ExitCode": 0,
+        "OutputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "CommandReference": "gitleaks",
+        "ExitCode": 0,
+        "OutputDigest": "357e228ef43024636a91f7f0f69c5988895ece00e0182aae990fb13516f8dba0"
+      }
+    ],
+    "References": [
+      "git-workspace:a1baedbd-ee96-43a1-b876-643c1c65fb8b",
+      "git-tree:ae8c866f95e27190d82bca12fcf40bdda05416d1"
+    ]
+  },
+  "ValidationReferences": [
+    "diff-check",
+    "gitleaks",
+    "go-build",
+    "go-mod-verify",
+    "go-race",
+    "go-test",
+    "go-vet",
+    "repository",
+    "sensitive-files"
+  ],
+  "Limitations": [
+    "macOS host only; local build; model sonnet is CLI supported alias; usage and cost unavailable; deterministic negatives distinguished from real positive journey; integration performed by local service"
+  ],
+  "Digest": "7571f4bfd0d091f025d44c1c301fa411b1cba6247a231319f430e91daeb34191"
+}

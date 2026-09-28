@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-09-27]
+
+- implementation: add read-only `lingo runtime profile validate`, with strict
+  argument rejection and sanitized invalid/missing-state failures.
+- evidence: record the native Codex + Claude T36 graph, canonical coordination
+  and concrete integration; S8 is ready for human review on the local candidate.
+  Human acceptance and S9/release authority remain separate.
+
+- fix: structured coordination can publish its first record on a clean local
+  installation. Missing store directories are treated as an empty stream;
+  unsafe directories still fail closed.
+
 ## [2026-09-26]
 
 - implementation: explicit Evidence retirement (HD-S7-T18). `lingo artifact

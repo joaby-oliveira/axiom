@@ -25,8 +25,10 @@ The original Plan and delivered S1–S7 remain historical. Human review on
 Graph delivery, accepted ADR-0009, and renumbered the former RC slice to S9. T23–
 T25 keep their IDs and historical release-candidate objective; T24/T25 are expanded
 to validate and reconcile the new S8 product state. S8/T30–T36 implementation was
-later authorized on 2026-09-27 (Issue #97 comment #5852650410); the real T36
-Runtime run, S9 and human acceptance remain separately gated.
+later authorized on 2026-09-27 (Issue #97 comment #5852650410). The real T36
+Runtime run subsequently received exact authority, was executed, and produced
+the recorded Evidence. The corrected candidate is S8 ready for human review;
+human acceptance and S9 remain separately gated.
 
 This Plan describes how to realize the behavior approved in
 [Specification 004](spec.md). It was explicitly approved by the human reviewer in
@@ -239,7 +241,9 @@ With human approval recorded on 2026-09-24, tracker reconciliation is required:
 
 Approval records the S6/S7/S8 placement only. Tracker reconciliation after merge
 did not authorize T26–T29 implementation; the later explicit S6 authorization
-did. S7 was separately authorized on 2026-09-25; S8 remains separately gated.
+did. S7 was separately authorized on 2026-09-25. S8 implementation and the T36
+run later received their separate authorities; the resulting candidate is ready
+for human review, while human acceptance and S9 remain separately gated.
 
 The approved Issue #97 amendment requires the next reconciliation: #97 becomes S8,
 #81 becomes S9, and tracker #15 moves to S1–S9. T23–T25 keep their IDs and
@@ -1158,7 +1162,7 @@ Architecture assessment found two new durable choices:
 | Package/component map | Planning decomposition with inward dependencies and consumer-owned ports, not a published API or permanent module topology; no ADR. |
 | GitHub label/comment spelling and GitHub Releases adapter | First-adapter conventions within the approved MVP, replaceable behind Provider/distribution boundaries and carrying no broad compatibility/authenticity promise; no ADR at this stage. |
 | Work Item lifecycle projection, flags, bounded history and metadata policy | Extends the already approved local-authority/Provider-projection contract. Lifecycle is derived from the existing gates/facts, so Execution identity, gate semantics, source-of-truth ownership, data ownership and recovery semantics do not change; ADR-0008 remains valid without alteration and no new ADR is needed. Reassess if implementation requires another workflow authority, an independently persisted lifecycle, portable Execution, Provider-owned gates, or a generic custom-field schema. |
-| Parent/child Execution Graph | Changes durable identity/lineage, dependency, authority, retry/cancellation, integration and Evidence semantics. Accepted in ADR-0009 by explicit human decision on 2026-09-26; S8/T30–T36 implementation was authorized on 2026-09-27 (Issue #97 comment #5852650410) and the real T36 Runtime run remains separately gated. ADR-0008 remains historical and sequentially compatible. |
+| Parent/child Execution Graph | Changes durable identity/lineage, dependency, authority, retry/cancellation, integration and Evidence semantics. Accepted in ADR-0009 by explicit human decision on 2026-09-26; S8/T30–T36 implementation was authorized on 2026-09-27 (Issue #97 comment #5852650410). The real T36 Runtime run later received its own exact authority, was executed, and produced the recorded Evidence. ADR-0008 remains historical and sequentially compatible; human acceptance and S9 remain separate. |
 
 If implementation or Plan review requires a different release trust topology,
 storage engine, broad Execution schema, automatic cleanup, portable artifact
@@ -1227,6 +1231,7 @@ authority boundary. T30–T36 implementation, Runtime dispatch, external mutatio
 prerelease publication and final acceptance remain separately unauthorized.
 
 The later explicit S8 implementation authority recorded on 2026-09-27 supersedes
-only that implementation gate. T30–T35 are now technically complete; the exact
-real T36 Codex + Claude run, S9, external effects and human acceptance remain
-separately gated.
+only that implementation gate. T30–T35 are technically complete. The exact real
+T36 Codex + Claude run subsequently received separate authority, was executed,
+and produced the recorded Evidence. Technical outcome: S8 ready for human review.
+S9, external effects and human acceptance remain separately gated.
