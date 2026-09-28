@@ -15,7 +15,9 @@ parallel and moved the S8/T36 gate from "start T37" to "enter RC/acceptance".
 That authority covers local code, tests, documentation, deterministic validation
 and this Evidence. It does not cover T40, T23–T25, push, pull requests, merge,
 tags, GitHub Releases or prereleases, deploy, credential or secret changes,
-Runtime installation, or acceptance of S9 or the MVP. None of those happened.
+Runtime installation, or acceptance of S9 or the MVP. None of those happened
+under this authority; T40 was implemented afterwards under the separate
+2026-09-28 T40 decisions (see the T40 section below).
 No release was published, so the remote bootstrap has not installed any real
 published Axiom release; T24 owns native clean-environment acceptance.
 
@@ -196,7 +198,7 @@ upgrade, so a `noexec` temporary directory fails the upgrade before any effect.
   `0700` is refused; pass `--bin-dir`.
 - The source installer and the release installer both target
   `~/.local/bin/axiom` by default and refuse each other's binary.
-- Not done: T40, T23–T25, publication, S9 completion, MVP acceptance.
+- Not done: T23–T25, publication, S9 completion, MVP acceptance.
 
 ## Acceptance status by validation kind
 

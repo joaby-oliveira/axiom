@@ -16,7 +16,6 @@ import (
 	"regexp"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/rgomids/axiom/internal/codexruntime"
@@ -672,6 +671,8 @@ func statfsAvailable(path string) (uint64, error) {
 }
 
 // compareSemver implements SemVer 2.0.0 precedence; build metadata is ignored.
+// Numeric identifiers are compared as unbounded decimal strings so that values
+// beyond any machine integer keep their SemVer order.
 func compareSemver(left, right string) int {
 	split := func(value string) ([]string, []string) {
 		value, _, _ = strings.Cut(value, "+")
@@ -682,20 +683,11 @@ func compareSemver(left, right string) int {
 		}
 		return strings.Split(core, "."), identifiers
 	}
-	numeric := func(value string) (int, bool) {
-		number, err := strconv.Atoi(value)
-		return number, err == nil
-	}
 	leftCore, leftPre := split(left)
 	rightCore, rightPre := split(right)
 	for index := 0; index < 3; index++ {
-		a, _ := numeric(leftCore[index])
-		b, _ := numeric(rightCore[index])
-		if a != b {
-			if a < b {
-				return -1
-			}
-			return 1
+		if comparison := compareNumericIdentifier(leftCore[index], rightCore[index]); comparison != 0 {
+			return comparison
 		}
 	}
 	switch {
@@ -707,21 +699,20 @@ func compareSemver(left, right string) int {
 		return -1
 	}
 	for index := 0; index < len(leftPre) && index < len(rightPre); index++ {
-		a, aNumeric := numeric(leftPre[index])
-		b, bNumeric := numeric(rightPre[index])
+		a, b := leftPre[index], rightPre[index]
+		aNumeric, bNumeric := isNumericIdentifier(a), isNumericIdentifier(b)
 		switch {
-		case aNumeric && bNumeric && a != b:
-			if a < b {
-				return -1
+		case aNumeric && bNumeric:
+			if comparison := compareNumericIdentifier(a, b); comparison != 0 {
+				return comparison
 			}
-			return 1
 		case aNumeric != bNumeric:
 			if aNumeric {
 				return -1
 			}
 			return 1
-		case !aNumeric && leftPre[index] != rightPre[index]:
-			if leftPre[index] < rightPre[index] {
+		case a != b:
+			if a < b {
 				return -1
 			}
 			return 1
@@ -734,4 +725,31 @@ func compareSemver(left, right string) int {
 		return 1
 	}
 	return 0
+}
+
+// isNumericIdentifier reports whether value is a non-empty run of ASCII digits.
+func isNumericIdentifier(value string) bool {
+	if value == "" {
+		return false
+	}
+	for index := 0; index < len(value); index++ {
+		if value[index] < '0' || value[index] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// compareNumericIdentifier orders two digit strings by numeric value without
+// converting them to a bounded integer type. Leading zeros are ignored
+// defensively; SemVer forbids them but callers need not rely on that.
+func compareNumericIdentifier(left, right string) int {
+	left, right = strings.TrimLeft(left, "0"), strings.TrimLeft(right, "0")
+	switch {
+	case len(left) < len(right):
+		return -1
+	case len(left) > len(right):
+		return 1
+	}
+	return strings.Compare(left, right)
 }

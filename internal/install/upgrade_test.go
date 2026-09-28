@@ -723,6 +723,25 @@ func TestUpgradeStaleAuthorityAndSpaceHaveZeroEffects(t *testing.T) {
 	}
 }
 
+func TestUpgradeRefusesOverflowingReleaseCandidateDowngrade(t *testing.T) {
+	const older, newer = "1.0.0-rc.99999999999999999999", "1.0.0-rc.100000000000000000000"
+	installed := install(t, newBundle(newer, []byte("newer-binary\n")))
+	candidate := installed.candidate(t, newBundle(older, []byte("older-binary\n")))
+	before := snapshot(t, filepath.Dir(installed.target.BinaryDir))
+	if _, err := NewService().Preview(context.Background(), installed.target, candidate); category(err) != "downgrade_refused" {
+		t.Fatalf("error=%v want downgrade_refused", err)
+	}
+	if after := snapshot(t, filepath.Dir(installed.target.BinaryDir)); after != before {
+		t.Fatal("refused downgrade changed owned state")
+	}
+
+	upgradable := install(t, newBundle(older, []byte("older-binary\n")))
+	preview, err := NewService().Preview(context.Background(), upgradable.target, upgradable.candidate(t, newBundle(newer, []byte("newer-binary\n"))))
+	if err != nil || preview.SourceVersion != older {
+		t.Fatalf("upgrade preview=%+v err=%v", preview, err)
+	}
+}
+
 func TestSemverPrecedence(t *testing.T) {
 	for _, test := range []struct {
 		left, right string
@@ -731,6 +750,14 @@ func TestSemverPrecedence(t *testing.T) {
 		{"1.0.0", "1.0.0", 0}, {"1.0.1", "1.0.0", 1}, {"1.0.0-rc.1", "1.0.0", -1},
 		{"1.0.0-rc.2", "1.0.0-rc.10", -1}, {"1.0.0-alpha", "1.0.0-alpha.1", -1}, {"1.0.0-1", "1.0.0-alpha", -1},
 		{"2.0.0", "10.0.0", -1}, {"1.0.0+build", "1.0.0", 0},
+		{"1.0.0-rc.99999999999999999999", "1.0.0-rc.100000000000000000000", -1},
+		{"1.0.0-rc.100000000000000000000", "1.0.0-rc.99999999999999999999", 1},
+		{"1.0.0-rc.99999999999999999999", "1.0.0-rc.99999999999999999999", 0},
+		{"1.0.0-rc.9223372036854775808", "1.0.0-rc.9223372036854775807", 1},
+		{"1.0.0-rc.99999999999999999999", "1.0.0-rc.a", -1}, {"1.0.0-rc.010", "1.0.0-rc.9", 1},
+		{"1.0.0-rc.-1", "1.0.0-rc.1", 1},
+		{"99999999999999999999.0.0", "100000000000000000000.0.0", -1},
+		{"100000000000000000000.0.0", "99999999999999999999.0.0", 1},
 	} {
 		if got := compareSemver(test.left, test.right); got != test.want {
 			t.Fatalf("compare(%s,%s)=%d want %d", test.left, test.right, got, test.want)
