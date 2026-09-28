@@ -22,7 +22,7 @@
 
 **Issue #97 Tasks amendment (T30–T36 / S8, with T23–T25 moved to S9): Approved by explicit human decision on 2026-09-26. T23–T25 retain their IDs and historical RC objective; T24/T25 are expanded for S8 validation/Evidence.**
 
-**S8 Implementation: T30–T36 implementation authorized on 2026-09-27 by explicit human decision (Issue #97 comment #5852650410); the real T36 Runtime run remains separately gated; not technically complete. S9 implementation/release remains not authorized.**
+**S8 Implementation: T30–T36 implementation authorized on 2026-09-27 by explicit human decision (Issue #97 comment #5852650410); the separately operator-authorized T36 lab run is recorded as S8 ready for human review on the corrected local candidate. See [T36 Evidence](evidence-t36/README.md). Human acceptance and S9 implementation/release remain separate.**
 
 Approved artifact: `main` at `c7f756209c608ff1f1a88947dcc425d07daaa831`, merge
 of [PR #72](https://github.com/rgomids/axiom/pull/72). Human approval in PR #72
@@ -69,7 +69,7 @@ Specification 004 — Approved
    -> T22 — complete under revised S7 scope (HD-S7-T22): macOS 27.0/arm64/APFS native pass; Ubuntu 26.04 amd64/arm64 ext4 not executed, deferred to T24
    -> Human acceptance — Not inferred
 -> S8 Specification/ADR/Plan/Tasks amendment + ADR-0009 — Approved; implementation authorized 2026-09-27 (Issue #97 comment #5852650410)
-   -> T30–T36 — Partial; real T36 run separately gated and not executed
+   -> T30–T36 — Technical candidate ready for human review; real T36 Evidence recorded
 -> S9 Release candidate acceptance (T23–T25, with T24/T25 reconciled for S8) — Not authorized
 ```
 
@@ -1142,9 +1142,9 @@ Task-specific external gates remain explicit:
 - T29 mutating local recovery requires fresh exact ADR-0007 recovery authority;
   its ordinary reconciliation inspection remains read-only.
 - T30–T35 were implemented under the explicit 2026-09-27 S8 authority. T33/T35
-  concrete Git delivery is recorded in S8 Evidence; T36 remains the sole technical
-  S8 step and retains its separate exact real-run gate.
-- T36 uses the approved local-only real-run boundary and still requires a separate
+  concrete Git delivery and the separately authorized T36 lab journey are
+  recorded in S8 Evidence. The corrected candidate is ready for human review.
+- Each T36 run uses the approved local-only boundary and requires its own
   reviewed run envelope naming Model Profiles, repositories/worktrees, commands,
   timeout/maximum attempts, exact local effects and cleanup. External effects need
   their own authority.
@@ -1222,9 +1222,9 @@ T34 foundation exist at `21f4f7c` plus the publication read-back correction
 `e654f83`; T33 and T35 are technically complete at `e884a46` plus composition
 fix `7bfadc3`, with concrete Git workspace/integration adapters, combined
 validation and application composition.
-T36 has schema and a draft envelope; the
-separately gated real Codex + Claude run was not executed. See
-[S8 Evidence](evidence-s8.md). S8 is not technically complete, and human
-acceptance is not inferred.**
+The separately operator-authorized real Codex + Claude T36 lab run produced
+`real_run_recorded` Evidence after the clean-state coordination fix. See
+[T36 Evidence](evidence-t36/README.md). The corrected candidate is S8 ready for
+human review; human acceptance is not inferred.**
 
 **S9 (T23–T25) — Release candidate acceptance; not authorized.**

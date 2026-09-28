@@ -1,0 +1,193 @@
+{
+  "scope": "deterministic unit and native temporary-Git tests, not real provider failures",
+  "cases": {
+    "Runtime/Profile no-match and no fallback": [
+      {
+        "package": "github.com/rgomids/axiom/internal/runtimeprofile",
+        "test": "TestResolveBlocksWithoutFallback",
+        "elapsed": 0
+      }
+    ],
+    "Incompatible capability": [
+      {
+        "package": "github.com/rgomids/axiom/internal/runtimeprofile",
+        "test": "TestResolveDistinguishesDeclaredFromProvenCapability",
+        "elapsed": 0
+      }
+    ],
+    "Stale configuration": [
+      {
+        "package": "github.com/rgomids/axiom/internal/runtimeprofile",
+        "test": "TestResolveRejectsStaleConfigurationBeforeObservation",
+        "elapsed": 0
+      }
+    ],
+    "Missing/stale authority and effect escalation": [
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestGraphPublicationRejectsStaleDigestAndAuthorityExpansion",
+        "elapsed": 0
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestIntegrationStaleAuthorityAndValidationFailureStayNonSuccess",
+        "elapsed": 0
+      }
+    ],
+    "Invalid graph/dependencies": [
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestPlannerRejectsCycleMissingDependencyOrOrphan/cycle",
+        "elapsed": 0
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestPlannerRejectsCycleMissingDependencyOrOrphan/missing",
+        "elapsed": 0
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestPlannerRejectsCycleMissingDependencyOrOrphan/orphan",
+        "elapsed": 0
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestPlannerRejectsCycleMissingDependencyOrOrphan",
+        "elapsed": 0
+      }
+    ],
+    "Concurrent independent children/dependency gating": [
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestSchedulerDispatchesIndependentChildrenConcurrentlyAndBlocksDependency",
+        "elapsed": 0
+      }
+    ],
+    "Conflicting effects serialization": [
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestSchedulerSerializesConflictingEffects",
+        "elapsed": 0
+      }
+    ],
+    "Timeout/ambiguous effect": [
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestSchedulerTimeoutAndAmbiguousRetryBlock",
+        "elapsed": 0
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestSchedulerUnknownTimeoutRequiresReconciliationEvenWhenFlagIsInconsistent",
+        "elapsed": 0
+      }
+    ],
+    "Cancellation": [
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestIntegrationExternalCancellationDuringApplyIsRecorded",
+        "elapsed": 0
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestSchedulerCancellationStopsNewDispatch",
+        "elapsed": 0
+      }
+    ],
+    "Safe retry/maximum attempts": [
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestSchedulerRetryPreservesPriorAttempt",
+        "elapsed": 0
+      }
+    ],
+    "Partial/missing/forged/stale/foreign results": [
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestIntegrationBlocksMissingForgedStaleConflictAndForeignDrift/missing",
+        "elapsed": 0
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestIntegrationBlocksMissingForgedStaleConflictAndForeignDrift/forged",
+        "elapsed": 0
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestIntegrationBlocksMissingForgedStaleConflictAndForeignDrift/stale",
+        "elapsed": 0
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestIntegrationBlocksMissingForgedStaleConflictAndForeignDrift/conflict",
+        "elapsed": 0
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestIntegrationBlocksMissingForgedStaleConflictAndForeignDrift/foreign",
+        "elapsed": 0
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestIntegrationBlocksMissingForgedStaleConflictAndForeignDrift",
+        "elapsed": 0
+      }
+    ],
+    "Real Git conflict": [
+      {
+        "package": "github.com/rgomids/axiom/internal/gitworkspace",
+        "test": "TestConcreteIntegrationBlocksMissingStaleForeignConflictAndEffectMismatch/missing_child",
+        "elapsed": 0.99
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/gitworkspace",
+        "test": "TestConcreteIntegrationBlocksMissingStaleForeignConflictAndEffectMismatch/foreign_target",
+        "elapsed": 0.72
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/gitworkspace",
+        "test": "TestConcreteIntegrationBlocksMissingStaleForeignConflictAndEffectMismatch/stale_base",
+        "elapsed": 0.68
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/gitworkspace",
+        "test": "TestConcreteIntegrationBlocksMissingStaleForeignConflictAndEffectMismatch/real_conflict",
+        "elapsed": 1.1
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/gitworkspace",
+        "test": "TestConcreteIntegrationBlocksMissingStaleForeignConflictAndEffectMismatch/effect_outside_preview",
+        "elapsed": 0.93
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/gitworkspace",
+        "test": "TestConcreteIntegrationBlocksMissingStaleForeignConflictAndEffectMismatch",
+        "elapsed": 4.41
+      }
+    ],
+    "Validator failure": [
+      {
+        "package": "github.com/rgomids/axiom/internal/executiongraph",
+        "test": "TestIntegrationValidatorFailurePersistsFailedAttempt",
+        "elapsed": 0
+      }
+    ],
+    "Sequential compatibility": [
+      {
+        "package": "github.com/rgomids/axiom/internal/workflow",
+        "test": "TestLegacyS4ProjectionRecordRemainsReadableWithoutRewrite",
+        "elapsed": 0
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/workflow",
+        "test": "TestS4SequentialTransitionRequiresExactRevisionAndReplayConverges",
+        "elapsed": 0
+      },
+      {
+        "package": "github.com/rgomids/axiom/internal/local",
+        "test": "TestGraphAndCoordinationStoresPublishAndReadSeparatelyFromSequentialExecution",
+        "elapsed": 0.1
+      }
+    ]
+  }
+}

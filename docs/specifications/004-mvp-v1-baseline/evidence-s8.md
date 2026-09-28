@@ -1,4 +1,21 @@
-# Evidence — MVP Slice S8: Concrete graph delivery ready for T36
+# Evidence — MVP Slice S8: T36 ready for human review
+
+## Current T36 result — 2026-09-27
+
+The separately operator-authorized native lab journey produced `real_run_recorded`
+Evidence and a `success` parent after a clean-install coordination-store fix.
+Codex and Claude executed independent real children with 130.649114 seconds of
+strict overlap, canonical question/answer coordination and concrete validated Git
+integration. AC-32–AC-43 are recorded as 12/12 with explicit real/deterministic
+boundaries. See [T36 Evidence, identities and limitations](evidence-t36/README.md).
+
+Result: **S8 ready for human review on the corrected local candidate**. No human
+acceptance, Issue closure, merge, S9 completion or release is inferred.
+
+## Historical T30–T35 snapshot — before the T36 lab run
+
+The remainder preserves the pre-T36 record and draft envelope. Its statements
+that T36 was not executed describe that earlier snapshot, not current status.
 
 ## Claim and authority boundary
 
