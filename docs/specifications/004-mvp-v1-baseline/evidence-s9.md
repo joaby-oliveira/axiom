@@ -755,46 +755,65 @@ native-host results above do not satisfy any T24 row.
 
 ## Release flow infrastructure (pre-T23, 2026-09-28)
 
-**Authority.** Local repository changes only, under the operator's
-2026-09-28 request to consolidate CI, Release PR and publication. Nothing here
-merged, pushed, tagged, published, dispatched a workflow or changed repository
-settings. T23 is not started; its human gate is unchanged.
+**Authority.** Repository changes only, in PR #107, under the operator's
+2026-09-28 requests to consolidate CI, Release PR and publication and then to
+fix the PR #107 review findings. Nothing here merged, tagged, published,
+dispatched a release workflow, approved an environment or changed repository
+settings. **T23 remains not started; no real publication is authorized by this
+work.**
 
 **Delivered.** `ci.yml` (formerly `poc-verification.yml`; PR + push to `main`;
 required checks `verify (linux)`, `verify (macos)`, `release-contract`);
-`release-please.yml` with `skip-github-release` (Release PR only);
-`publish-release.yml` (dispatch from `main`, `release` environment, preflight
--> build -> verify -> draft -> read-back -> publish -> read-back);
-`scripts/release-preflight.sh`, `release-notes.sh`, `publish-release.sh`,
-`release.sh`, `test-release-flow.sh`; maintainer skill `$axiom-release`;
+`release-please.yml` with `skip-github-release` (Release PR only); two-phase
+publication: PREPARE with `release-artifacts.yml` (preflight, build, verify,
+notes, retained workflow artifact) and a publication envelope computed by
+`scripts/release.sh` after `scripts/verify-prepared-release.sh`; PUBLISH with
+`publish-release.yml` (dispatch from `main`, `release` environment, same
+prepared artifact, envelope digest must equal the authorized digest, draft ->
+read-back -> publish -> read-back, no rebuild). `scripts/release-preflight.sh`,
+`release-notes.sh`, `publish-release.sh` (`--check`, `--envelope`,
+`--authorized-digest`), `release.sh` (`status`, `prepare`, `publish`,
+`verify`), `test-release-flow.sh`; maintainer skill `$axiom-release`;
 `.github/CODEOWNERS`; ruleset desired state in `.github/rulesets/`. The T38
-scripts (`build-release-archives.sh`, `verify-release-artifacts.sh`,
-`release-tag-version.sh`) are reused unchanged.
+`build-release-archives.sh`, `verify-release-artifacts.sh` and
+`release-tag-version.sh` are reused unchanged.
+
+**Review findings (PR #107).**
+
+| Finding | Resolution |
+|---|---|
+| BLOCKER: authority was bound to a preview computed before the artifacts existed | Authority now binds to the publication envelope of the prepared, verified bytes (notes, `SHA256SUMS` and per-artifact digests, revision, channel, `latest`, prepared run, remote state, effects). `release.sh publish` and the publish job each recompute it and stop with `preview changed; review and authorize again` on any difference; the publish workflow no longer builds. |
+| MAJOR: documented SemVer table diverged from Release Please | CONTRIBUTING now documents the default strategy of the bundled release-please 17.6.0: breaking -> major (minor while `0.x`), `feat` -> minor, any other type -> patch; hidden changelog types are not non-releasable, they only cannot open a Release PR alone. Test asserts the configuration and documentation. |
 
 **Release Please evaluation.** Adopted for the Release PR only.
 `googleapis/release-please-action` v5.0.0 (pinned
-`45996ed1f6d02564a971a2fa1b5860e934307cf7`) supports `skip-github-release`;
-release-please v17.11.2 finds the previous release from GitHub Releases or,
-failing that, the tag of the manifest version, and refuses a new Release PR
-while a merged one is labelled `autorelease: pending`. `publish-release.sh`
-therefore relabels the release commit's PR to `autorelease: tagged` after a
-verified stable publication, which is the handoff Release Please documents for
-external tagging. RCs need no Release PR and do not affect Release Please
-(their tags never equal the manifest version).
+`45996ed1f6d02564a971a2fa1b5860e934307cf7`) bundles release-please 17.6.0
+(its `package-lock.json`). In that version: `skip-github-release` skips
+release creation; the previous release is found from GitHub Releases or,
+failing that, the tag of the manifest version; a new Release PR is refused
+while a merged one is labelled `autorelease: pending`; a release is skipped
+when its changelog would be empty; the default strategy bumps breaking ->
+major (minor pre-1.0 with `bump-minor-pre-major`), `feat` -> minor, otherwise
+patch; and the conventionalcommits preset always lists breaking changes and
+`Release-As` footers even for hidden types. `publish-release.sh` relabels the
+release commit's PR to `autorelease: tagged` after a verified stable
+publication, the handoff Release Please documents for external tagging. RCs
+need no Release PR and do not affect Release Please.
 
 | Check | Result |
 |---|---|
-| `./scripts/test-release-flow.sh` (local bash 3.2, macOS 27/arm64) | PASS: preflight SemVer/revision/Release PR binding, notes, first publication, reruns, partial draft, conflicts, stable vs prerelease/latest, `release.sh` authority boundary, workflow triggers/permissions/pins |
-| `./scripts/test-release-pipeline.sh` | PASS at committed `HEAD` `9613fa9` |
-| replay of `publish-release.yml` steps in a clean clone (temporary local commit), real `build-release-archives.sh` + `verify-release-artifacts.sh` output, fake GitHub | PASS: draft, 4 uploads, single publication as prerelease, `latest=none`; rerun `publication=already_published` with no effect; source clean |
-| read-only against `rgomids/axiom`: `publish-release.sh --check`, `release.sh status [--tag v0.1.0-rc.1]` | PASS; `next_action=blocked` because required CI on `main` is missing and the `release` environment does not exist |
-| `go test -race ./...`, `go vet ./...`, `go build ./...`, `go mod verify`, `./scripts/validate-repository.sh .`, `git diff --check`, `gitleaks detect --no-git` | PASS |
+| `./scripts/test-release-flow.sh` (local bash 3.2, macOS 27/arm64) | PASS: preflight, notes, envelope completeness/determinism and digest changes (artifact, notes, revision, prepared run), missing/stale authority with zero effects, published assets equal the envelope, reruns, partial draft needing new authority, conflicts, stable vs prerelease/latest, `release.sh` prepare (only the preparation dispatch) / publish boundary, Release Please config vs documentation, workflow triggers/permissions/pins/no rebuild |
+| `./scripts/test-release-pipeline.sh` | PASS |
+| replay in a clean clone (temporary local commit) of `release-artifacts.yml` steps with the real builder and verifier, `verify-prepared-release.sh`, `publish-release.sh --envelope`, then publication with that digest against the fake GitHub | PASS: preflight, real build, real verification, `verify-prepared-release.sh` (host `version_smoke` normalized), envelope with notes/`SHA256SUMS`/3 artifact digests; a stale digest was refused with zero GitHub effects; the exact digest published draft -> 4 uploads -> prerelease, and every published asset digest equals the envelope; source clean |
+| `go test -race ./...`, `go vet ./...`, `go build ./...`, `go mod verify`, `./scripts/validate-repository.sh .`, `git diff --check`, `gitleaks detect --no-git`, sensitive-file checks | PASS |
+| GitHub CI on PR #107 head `0de5daf` | `verify (linux)`, `verify (macos)`, `release-contract` passed |
 
-**Not verified.** GitHub-hosted execution of `ci.yml`, `release-please.yml`
-and `publish-release.yml`; Release Please's live Release PR, labels and
-CHANGELOG insertion; `gh` upload to `uploads.github.com` and asset `digest`
-fields against the real API; the `workflow_dispatch` CI run satisfying required
-checks on the Release PR; the repository settings in
+**Not verified.** GitHub-hosted execution of `release-please.yml`,
+`release-artifacts.yml` and `publish-release.yml`; live Release PR, labels and
+CHANGELOG insertion; `download-artifact` across runs, `gh` upload to
+`uploads.github.com` and asset `digest` fields against the real API; the
+`workflow_dispatch` CI run satisfying required checks on the Release PR; the
+repository settings in
 [repository security](../../security/repository-security.md#release-and-branch-protection),
 which remain pending administrator application. `actionlint` and `shellcheck`
 were not available locally.

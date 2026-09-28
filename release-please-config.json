@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/v17.11.2/schemas/config.json",
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/v17.6.0/schemas/config.json",
   "bootstrap-sha": "9613fa9880cf25f8908ea8f0e651239d57fd79f1",
   "include-v-in-tag": true,
   "include-component-in-tag": false,
@@ -8,7 +8,6 @@
   "packages": {
     ".": {
       "release-type": "go",
-      "package-name": "axiom",
       "initial-version": "0.1.0",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,

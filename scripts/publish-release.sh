@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# Publishes one verified Axiom artifact set as a GitHub Release, or inspects
-# the remote publication state with --check. Uses the GitHub CLI (`gh`) and
-# `jq`; credentials come only from the caller's `gh` environment.
+# Publishes one prepared, verified Axiom artifact set as a GitHub Release.
+# Uses the GitHub CLI (`gh`) and `jq`; credentials come only from the caller's
+# `gh` environment. Modes:
+#   --check     read-only remote publication state (no local set needed);
+#   --envelope  read-only publication envelope and preview_digest for the
+#               exact local set, notes, prepared run and remote state;
+#   (default)   publication, only with --authorized-digest equal to the
+#               envelope recomputed here, immediately before the first effect.
 #
 # Publication order: classify the remote state -> create or reuse one draft
 # bound to the exact revision -> replace mismatched draft assets and upload
@@ -22,7 +27,10 @@ make_latest=
 directory=
 evidence=
 notes=
+prepared_run=
+authorized_digest=
 check=false
+envelope_only=false
 while (($#)); do
   case "$1" in
     --repo) repository=${2:-}; shift 2 ;;
@@ -32,7 +40,10 @@ while (($#)); do
     --dir) directory=${2:-}; shift 2 ;;
     --evidence) evidence=${2:-}; shift 2 ;;
     --notes) notes=${2:-}; shift 2 ;;
+    --prepared-run) prepared_run=${2:-}; shift 2 ;;
+    --authorized-digest) authorized_digest=${2:-}; shift 2 ;;
     --check) check=true; shift ;;
+    --envelope) envelope_only=true; shift ;;
     *) printf 'release_publish_error: invalid argument\n' >&2; exit 1 ;;
   esac
 done
@@ -52,6 +63,13 @@ prerelease=false
 [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || fail 'full source revision required'
 [[ "$make_latest" == true || "$make_latest" == false ]] || fail 'make-latest must be true or false'
 [[ "$channel" == stable || "$make_latest" == false ]] || fail 'a release candidate is never latest'
+if [[ "$check" == false ]]; then
+  [[ "$prepared_run" =~ ^[0-9]+$ ]] || fail 'prepared workflow run id required'
+  if [[ "$envelope_only" == false ]]; then
+    [[ "$authorized_digest" =~ ^[0-9a-f]{64}$ ]] \
+      || fail 'publication requires --authorized-digest: the preview_digest a human authorized'
+  fi
+fi
 command -v gh >/dev/null 2>&1 || fail 'gh is required'
 command -v jq >/dev/null 2>&1 || fail 'jq is required'
 
@@ -215,6 +233,59 @@ if ((count == 1)); then
   fi
 fi
 
+# --- Publication envelope ---------------------------------------------------
+# Deterministic, complete statement of what would be published and of the
+# remote state it starts from. Its SHA-256 is the preview_digest that human
+# authority binds to; any change requires a new review.
+write_envelope() {
+  local name sum
+  printf 'envelopeVersion=1\n'
+  printf 'repository=%s\n' "$repository"
+  printf 'tag=%s\n' "$tag"
+  printf 'version=%s\n' "$version"
+  printf 'channel=%s\n' "$channel"
+  printf 'prerelease=%s\n' "$prerelease"
+  printf 'revision=%s\n' "$revision"
+  printf 'make_latest=%s\n' "$make_latest"
+  printf 'prepared_run=%s\n' "$prepared_run"
+  printf 'release_notes_sha256=%s\n' "$(digest "$notes")"
+  printf 'sha256sums_sha256=%s\n' "$(awk '$1 == "SHA256SUMS" {print $2}' "$temporary/expected")"
+  while read -r name sum _; do
+    [[ "$name" == SHA256SUMS ]] || printf 'artifact.%s=%s\n' "$name" "$sum"
+  done <"$temporary/expected"
+  printf 'publication_state=%s\n' "$state"
+  printf 'tag_state=%s\n' "$([[ -n "$tag_commit" ]] && printf present || printf absent)"
+  printf 'release_id=%s\n' "$([[ -n "$release" ]] && jq -r '.id' <<<"$release" || printf none)"
+  if [[ "$state" == draft ]]; then
+    while IFS= read -r asset; do
+      [[ -n "$asset" ]] || continue
+      printf 'draft_asset.%s=%s\n' "$(jq -r '.name' <<<"$asset")" "$(asset_sha256 "$asset")"
+    done < <(jq -c '.assets | sort_by(.name) | .[]' <<<"$release")
+  fi
+  if [[ "$state" == published ]]; then
+    printf 'effect=none\n'
+    return
+  fi
+  printf 'effect.release=%s\n' "$([[ "$state" == draft ]] && printf reconcile_draft || printf create_draft)"
+  printf 'effect.assets=upload_exact_envelope_set\n'
+  printf 'effect.publish=%s\n' "$([[ "$prerelease" == true ]] && printf prerelease || printf release)"
+  printf 'effect.tag=%s\n' "$([[ -n "$tag_commit" ]] && printf existing || printf "create_at_revision")"
+  printf 'effect.latest=%s\n' "$([[ "$make_latest" == true ]] && printf set || printf unchanged)"
+  printf 'effect.release_pr_label=%s\n' "$([[ "$channel" == stable ]] && printf pending_to_tagged || printf none)"
+}
+
+if [[ "$check" == false ]]; then
+  write_envelope >"$temporary/envelope"
+  preview=$(digest "$temporary/envelope")
+  if [[ "$envelope_only" == true ]]; then
+    cat "$temporary/envelope"
+    printf 'preview_digest=%s\n' "$preview"
+    exit 0
+  fi
+  [[ "$preview" == "$authorized_digest" ]] \
+    || fail "preview changed; review and authorize again (current preview_digest=$preview)"
+fi
+
 printf 'publicationVersion=1\n'
 printf 'repository=%s\n' "$repository"
 printf 'tag=%s\n' "$tag"
@@ -222,6 +293,7 @@ printf 'revision=%s\n' "$revision"
 printf 'channel=%s\n' "$channel"
 printf 'tag_state=%s\n' "$([[ -n "$tag_commit" ]] && printf present || printf absent)"
 printf 'publication_state=%s\n' "$state"
+[[ "$check" == false ]] && printf 'authorized_digest=%s\n' "$authorized_digest"
 [[ -n "$release" ]] && printf 'release_id=%s\n' "$(jq -r '.id' <<<"$release")"
 
 if [[ "$check" == true ]]; then

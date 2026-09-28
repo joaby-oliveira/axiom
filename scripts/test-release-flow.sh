@@ -95,7 +95,30 @@ case "${1:-}" in
     log "workflow ${*:2}"
     exit 0 ;;
   run)
-    printf '[{"databaseId":4242,"url":"https://github.com/%s/actions/runs/4242","createdAt":"%s"}]\n' "$repo" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    sub=$2
+    shift 2
+    workflow= name= dir= id=
+    while (($#)); do
+      case "$1" in
+        --workflow) workflow=$2; shift 2 ;;
+        --name) name=$2; shift 2 ;;
+        --dir) dir=$2; shift 2 ;;
+        --repo|--event|--limit|--json) shift 2 ;;
+        --*) shift ;;
+        *) id=$1; shift ;;
+      esac
+    done
+    case "$sub" in
+      list)
+        id=4242
+        [[ "$workflow" == release-artifacts.yml ]] && id=5151
+        printf '[{"databaseId":%s,"url":"https://github.com/%s/actions/runs/%s","createdAt":"%s"}]\n' "$id" "$repo" "$id" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" ;;
+      watch) log "run watch $id" ;;
+      download)
+        [[ -d "$s/runs/$id/$name" ]] || not_found
+        cp -R "$s/runs/$id/$name/." "$dir/" ;;
+      *) exit 2 ;;
+    esac
     exit 0 ;;
   release)
     # gh release download TAG --repo R --dir DIR
@@ -197,6 +220,9 @@ case "$method $path" in
     number=${number%%/*}
     log "LABEL remove $number ${path##*/}"
     jq --argjson n "$number" '(.[] | select(.number == $n) | .labels) |= map(select(.name != "autorelease: pending"))' "$s/pulls.json" >"$s/pulls.new" && mv "$s/pulls.new" "$s/pulls.json" ;;
+  "GET actions/runs/"*)
+    [[ -f "$s/runs/${path#actions/runs/}.json" ]] || not_found
+    cat "$s/runs/${path#actions/runs/}.json" ;;
   "GET environments/release")
     [[ -f "$s/environment.json" ]] || not_found
     cat "$s/environment.json" ;;
@@ -214,6 +240,11 @@ reset_github() {
 mutations() {
   grep -Ec '^(POST|PATCH|DELETE|UPLOAD|LABEL|workflow)' "$state/ledger" || true
 }
+# release_effects counts effects on tags, releases, assets, labels, or a
+# publication dispatch; a preparation dispatch is not one.
+release_effects() {
+  grep -Ec '^(POST|PATCH|DELETE|UPLOAD|LABEL|workflow run publish-release)' "$state/ledger" || true
+}
 
 # --- Fixture repository -----------------------------------------------------------
 fixture=$temporary/fixture
@@ -224,10 +255,29 @@ git -C "$fixture" config user.email release-test@example.invalid
 git -C "$fixture" config user.name 'Release Test'
 git -C "$fixture" config commit.gpgsign false
 mkdir -p "$fixture/scripts" "$fixture/.github/rulesets"
-for script in release-tag-version.sh release-preflight.sh release-notes.sh publish-release.sh release.sh; do
+for script in release-tag-version.sh release-preflight.sh release-notes.sh publish-release.sh release.sh verify-prepared-release.sh; do
   cp "$repository_root/scripts/$script" "$fixture/scripts/$script"
 done
 cp "$repository_root/.github/rulesets/main.json" "$fixture/.github/rulesets/main.json"
+# Stub of verify-release-artifacts.sh for synthetic sets: same Evidence shape,
+# same revision and checksum refusals. The real verifier is covered by
+# test-release-pipeline.sh.
+cat >"$fixture/scripts/verify-release-artifacts.sh" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'; else shasum -a 256 "$1" | awk '{print $1}'; fi; }
+while (($#)); do case "$1" in --dir) d=$2 ;; --version) v=$2 ;; --revision) r=$2 ;; esac; shift 2; done
+[[ $(git -C "$root" rev-parse HEAD) == "$r" ]] || { echo 'release_verify_error: checkout is not the artifact source revision' >&2; exit 1; }
+printf 'evidenceVersion=1\nproduct=Axiom\nversion=%s\nrevision=%s\n' "$v" "$r"
+printf 'sha256sums=%s\n' "$(sha "$d/SHA256SUMS")"
+while read -r h n; do
+  [[ $(sha "$d/$n") == "$h" ]] || { echo "release_verify_error: checksum mismatch: $n" >&2; exit 1; }
+  printf 'archive=%s sha256=%s axiom_sha256=x manifest_sha256=x version_smoke=not_host_architecture\n' "$n" "$h"
+done <"$d/SHA256SUMS"
+printf 'publication=none\nresult=pass\n'
+STUB
+chmod 700 "$fixture/scripts/verify-release-artifacts.sh"
 printf '# Changelog\n\n## [2026-09-28]\n\n- curated history\n' >"$fixture/CHANGELOG.md"
 commit() { git -C "$fixture" add -A && git -C "$fixture" commit -q -m "$1" && git -C "$fixture" rev-parse HEAD; }
 c0=$(commit 'chore: base')
@@ -326,12 +376,77 @@ make_set() {
   } >"$dir/evidence.txt"
   printf 'notes for %s\n' "$version" >"$dir/notes.md"
 }
+# envelope DIR ARGS prints the publication envelope of a set (read-only).
+envelope() {
+  local dir=$1
+  shift
+  "$fixture/scripts/publish-release.sh" --envelope --repo rgomids/axiom --prepared-run 11 --dir "$dir/artifacts" \
+    --evidence "$dir/evidence.txt" --notes "$dir/notes.md" "$@"
+}
+envelope_digest() { envelope "$@" | awk -F= '$1 == "preview_digest" {print $2}'; }
+# publish_raw DIR ARGS publishes with whatever --authorized-digest ARGS carry.
+publish_raw() {
+  local dir=$1
+  shift
+  "$fixture/scripts/publish-release.sh" --repo rgomids/axiom --prepared-run 11 --dir "$dir/artifacts" \
+    --evidence "$dir/evidence.txt" --notes "$dir/notes.md" "$@"
+}
+# publish DIR ARGS authorizes exactly the current envelope, then publishes.
 publish() {
   local dir=$1
   shift
-  "$fixture/scripts/publish-release.sh" --repo rgomids/axiom --dir "$dir/artifacts" --evidence "$dir/evidence.txt" --notes "$dir/notes.md" "$@"
+  envelope "$dir" "$@" >"$temporary/envelope" || return 1
+  publish_raw "$dir" "$@" --authorized-digest "$(awk -F= '$1 == "preview_digest" {print $2}' "$temporary/envelope")"
 }
 release_json() { jq -s --arg t "$1" '[.[] | select(.tag_name == $t)] | .[0]' "$state"/releases/*.json; }
+
+# Publication envelope: complete, deterministic, and the only authority.
+reset_github
+make_set "$temporary/env-a" 0.1.0-rc.1 "$c2" first
+envelope "$temporary/env-a" --tag v0.1.0-rc.1 --revision "$c2" --make-latest false >"$temporary/env"
+for line in tag=v0.1.0-rc.1 "revision=$c2" channel=rc prerelease=true make_latest=false prepared_run=11 \
+  "release_notes_sha256=$(digest "$temporary/env-a/notes.md")" "sha256sums_sha256=$(digest "$temporary/env-a/artifacts/SHA256SUMS")" \
+  publication_state=absent effect.tag=create_at_revision effect.publish=prerelease effect.latest=unchanged; do
+  check "envelope states $line" grep -Fxq -- "$line" "$temporary/env"
+done
+for f in "$temporary/env-a/artifacts"/axiom-*; do
+  check "envelope states $(basename "$f") and its SHA-256" grep -Fxq "artifact.$(basename "$f")=$(digest "$f")" "$temporary/env"
+done
+check 'envelope lists exactly three artifacts' test "$(grep -c '^artifact\.' "$temporary/env")" == 3
+grep -v '^preview_digest=' "$temporary/env" >"$temporary/env-body"
+check 'preview_digest is the SHA-256 of the envelope' grep -Fxq "preview_digest=$(digest "$temporary/env-body")" "$temporary/env"
+digest_a=$(envelope_digest "$temporary/env-a" --tag v0.1.0-rc.1 --revision "$c2" --make-latest false)
+check 'envelope digest is deterministic' test "$digest_a" == "$(envelope_digest "$temporary/env-a" --tag v0.1.0-rc.1 --revision "$c2" --make-latest false)"
+make_set "$temporary/env-b" 0.1.0-rc.1 "$c2" second
+digest_b=$(envelope_digest "$temporary/env-b" --tag v0.1.0-rc.1 --revision "$c2" --make-latest false)
+check 'a changed artifact changes the digest' test "$digest_a" != "$digest_b"
+cp -R "$temporary/env-a" "$temporary/env-notes"
+printf 'edited\n' >>"$temporary/env-notes/notes.md"
+check 'changed release notes change the digest' test "$digest_a" != "$(envelope_digest "$temporary/env-notes" --tag v0.1.0-rc.1 --revision "$c2" --make-latest false)"
+make_set "$temporary/env-c" 0.1.0-rc.1 "$c4" first
+check 'another revision changes the digest' test "$digest_a" != "$(envelope_digest "$temporary/env-c" --tag v0.1.0-rc.1 --revision "$c4" --make-latest false)"
+other_run=$("$fixture/scripts/publish-release.sh" --envelope --repo rgomids/axiom --prepared-run 12 --dir "$temporary/env-a/artifacts" \
+  --evidence "$temporary/env-a/evidence.txt" --notes "$temporary/env-a/notes.md" --tag v0.1.0-rc.1 --revision "$c2" --make-latest false \
+  | awk -F= '$1 == "preview_digest" {print $2}')
+check 'another prepared run changes the digest' test "$digest_a" != "$other_run"
+check 'envelope made no GitHub effect' test "$(mutations)" == 0
+expect_failure 'publication without an authorized digest' 'requires --authorized-digest' \
+  publish_raw "$temporary/env-a" --tag v0.1.0-rc.1 --revision "$c2" --make-latest false
+expect_failure 'authority for other bytes is stale' 'preview changed; review and authorize again' \
+  publish_raw "$temporary/env-a" --tag v0.1.0-rc.1 --revision "$c2" --make-latest false --authorized-digest "$digest_b"
+check 'stale or missing authority made no GitHub effect' test "$(mutations)" == 0
+publish_raw "$temporary/env-a" --tag v0.1.0-rc.1 --revision "$c2" --make-latest false --authorized-digest "$digest_a" >"$temporary/pub"
+check 'exact authority publishes' grep -Fxq publication=published "$temporary/pub"
+envelope_assets=$(grep -E '^(artifact\.|sha256sums_sha256=)' "$temporary/env" | sed -E 's/^artifact\.//; s/^sha256sums_sha256=/SHA256SUMS=/' | LC_ALL=C sort | paste -sd, -)
+published_assets=$(jq -r '.assets[] | "\(.name)=\(.digest | sub("^sha256:"; ""))"' "$state"/releases/*.json | LC_ALL=C sort | paste -sd, -)
+check 'published assets are exactly the envelope artifacts' test "$envelope_assets" == "$published_assets"
+before=$(mutations)
+expect_failure 'old authority after the state changed is stale' 'preview changed' \
+  publish_raw "$temporary/env-a" --tag v0.1.0-rc.1 --revision "$c2" --make-latest false --authorized-digest "$digest_a"
+envelope "$temporary/env-a" --tag v0.1.0-rc.1 --revision "$c2" --make-latest false >"$temporary/env"
+check 'published envelope has no effects' bash -c "grep -Fxq publication_state=published '$temporary/env' && grep -Fxq effect=none '$temporary/env'"
+publish "$temporary/env-a" --tag v0.1.0-rc.1 --revision "$c2" --make-latest false >"$temporary/pub"
+check 'authorized rerun of a published release converges' bash -c "grep -Fxq publication=already_published '$temporary/pub' && [[ $(mutations) == $before ]]"
 
 reset_github
 make_set "$temporary/rc" 0.1.0-rc.1 "$c2" first
@@ -409,6 +524,10 @@ FAKE_GH_FAIL_ON='assets?name=axiom-0.1.0-ubuntu-26.04-amd64' expect_failure 'int
 check 'partial state is an unpublished draft without tag' bash -c "[[ \$(jq -s '.[0].draft' $state/releases/*.json) == true && ! -s '$state/tags' && ! -s '$state/latest' ]]"
 "$fixture/scripts/publish-release.sh" --check --repo rgomids/axiom --tag v0.1.0 --revision "$c3" --make-latest true >"$temporary/check"
 check 'check reports the partial draft' grep -Fxq publication_state=draft "$temporary/check"
+interrupted_digest=$(awk -F= '$1 == "preview_digest" {print $2}' "$temporary/envelope")
+check 'the partial draft is a new preview' test "$interrupted_digest" != "$(envelope_digest "$temporary/stable" --tag v0.1.0 --revision "$c3" --make-latest true)"
+expect_failure 'authority of the interrupted run is stale' 'preview changed' \
+  publish_raw "$temporary/stable" --tag v0.1.0 --revision "$c3" --make-latest true --authorized-digest "$interrupted_digest"
 make_set "$temporary/stable-rebuild" 0.1.0 "$c3" rebuilt
 cp "$temporary/stable/artifacts/axiom-0.1.0-macos-27-arm64.tar.gz" "$temporary/stable-rebuild/artifacts/"
 ( cd "$temporary/stable-rebuild/artifacts" && for f in axiom-*.tar.gz; do printf '%s  %s\n' "$(digest "$f")" "$f"; done ) >"$temporary/stable-rebuild/sums"
@@ -435,10 +554,24 @@ check 'stable rerun converges without effects' bash -c "grep -Fxq publication=al
 rm "$state/latest"
 expect_failure 'published stable that is not latest is reported' 'expected v0.1.0' publish "$temporary/stable-rebuild" --tag v0.1.0 --revision "$c3" --make-latest true
 
-# --- 4. release.sh: next step and authority boundary ---------------------------------------------
+# --- 4. release.sh: prepare, envelope and authority boundary ---------------------------------------
 release() { (cd "$fixture" && "$fixture/scripts/release.sh" "$@"); }
 green() {
   printf '{"check_runs":[{"name":"verify (linux)","status":"completed","conclusion":"success","started_at":"1"},{"name":"verify (macos)","status":"completed","conclusion":"success","started_at":"1"},{"name":"release-contract","status":"completed","conclusion":"success","started_at":"1"}]}\n' >"$state/checks-$1.json"
+}
+# stage_prepared_run ID TAG REVISION SALT [WORKFLOW] places a prepared set, as
+# release-artifacts.yml retains it, behind the fake `gh run download`.
+stage_prepared_run() {
+  local id=$1 tag=$2 rev=$3 salt=$4 path=${5:-.github/workflows/release-artifacts.yml} root
+  root=$state/runs/$id/axiom-release-$tag
+  rm -rf -- "$state/runs/$id"
+  make_set "$temporary/run-$id" "${tag#v}" "$rev" "$salt"
+  mkdir -p "$root"
+  cp -R "$temporary/run-$id/artifacts" "$root/artifacts"
+  cp "$temporary/run-$id/evidence.txt" "$root/release-evidence.txt"
+  "$fixture/scripts/release-notes.sh" --tag "$tag" --revision "$rev" --repo rgomids/axiom >"$root/release-notes.md"
+  jq -n --arg path "$path" '{path: $path, event: "workflow_dispatch", head_branch: "main", status: "completed", conclusion: "success"}' \
+    >"$state/runs/$id.json"
 }
 reset_github
 printf '{"protection_rules":[{"type":"required_reviewers"}]}\n' >"$state/environment.json"
@@ -454,31 +587,63 @@ check 'open Release PR needs human review and merge' grep -Fxq next_action=revie
 rm "$state/pr-open.json"
 printf '[{"number":8,"url":"https://github.com/rgomids/axiom/pull/8","title":"chore(main): release 0.1.0","mergeCommit":{"oid":"%s"}}]\n' "$c3" >"$state/pr-merged.json"
 release status >"$temporary/status"
-check 'merged Release PR resolves the stable tag and release commit' bash -c "grep -Fxq tag=v0.1.0 '$temporary/status' && grep -Fxq revision=$c3 '$temporary/status' && grep -Fxq next_action=authorize_publication '$temporary/status'"
+check 'merged Release PR resolves the stable tag and asks to prepare its release commit' bash -c "grep -Fxq tag=v0.1.0 '$temporary/status' && grep -Fxq revision=$c3 '$temporary/status' && grep -Fxq next_action=prepare '$temporary/status'"
 check 'status reports repository, CI and environment facts' bash -c "grep -Fxq main_ci=success '$temporary/status' && grep -Fxq release_environment=protected '$temporary/status' && grep -Fxq worktree=clean '$temporary/status'"
 rm "$state/pr-merged.json"
 
 release status --tag v0.1.0-rc.1 >"$temporary/status"
-check 'RC status previews publication of main' bash -c "grep -Fxq next_action=authorize_publication '$temporary/status' && grep -Fxq revision=$c4 '$temporary/status'"
-digest_value=$(awk -F= '$1 == "preview_digest" {print $2}' "$temporary/status")
+check 'RC status asks to prepare main first' bash -c "grep -Fxq next_action=prepare '$temporary/status' && grep -Fxq revision=$c4 '$temporary/status' && ! grep -q '^preview_digest=' '$temporary/status'"
+check 'status made no remote effect' test "$(mutations)" == 0
+
+stage_prepared_run 5151 v0.1.0-rc.1 "$c4" first
+release prepare --tag v0.1.0-rc.1 >"$temporary/prepare"
+check 'prepare dispatches only the preparation workflow' bash -c "[[ \$(grep -c '^workflow run release-artifacts.yml' '$state/ledger') == 1 ]] && grep -Fq 'revision=$c4' '$state/ledger'"
+check 'prepare makes no release, tag, asset or publication effect' test "$(release_effects)" == 0
+check 'prepare stops at the authority boundary' bash -c "grep -Fxq next_action=authorize_publication '$temporary/prepare' && grep -Fxq prepared_run=5151 '$temporary/prepare'"
+for key in tag=v0.1.0-rc.1 "revision=$c4" channel=rc prerelease=true make_latest=false prepared_run=5151 publication_state=absent; do
+  check "prepared envelope states $key" grep -Fxq "preview.$key" "$temporary/prepare"
+done
+check 'prepared envelope states notes, SHA256SUMS and every artifact digest' bash -c "grep -Eq '^preview\\.release_notes_sha256=[0-9a-f]{64}$' '$temporary/prepare' && grep -Eq '^preview\\.sha256sums_sha256=[0-9a-f]{64}$' '$temporary/prepare' && [[ \$(grep -Ec '^preview\\.artifact\\.axiom-0\\.1\\.0-rc\\.1-[a-z0-9.-]+\\.tar\\.gz=[0-9a-f]{64}$' '$temporary/prepare') == 3 ]]"
+digest_value=$(awk -F= '$1 == "preview_digest" {print $2}' "$temporary/prepare")
+release status --tag v0.1.0-rc.1 --prepared-run 5151 >"$temporary/status"
+check 'the envelope of a prepared run is deterministic' grep -Fxq "preview_digest=$digest_value" "$temporary/status"
+
 : >"$state/ledger"
 expect_failure 'publish without authorization is refused' 'requires explicit human authorization' \
-  release publish --tag v0.1.0-rc.1 --revision "$c4" --preview-digest "$digest_value"
+  release publish --tag v0.1.0-rc.1 --revision "$c4" --prepared-run 5151 --preview-digest "$digest_value"
+expect_failure 'publish without the prepared run is refused' 'requires the --prepared-run' \
+  release publish --tag v0.1.0-rc.1 --revision "$c4" --preview-digest "$digest_value" --authorize-publication
 expect_failure 'publish without the preview digest is refused' 'preview-digest' \
-  release publish --tag v0.1.0-rc.1 --revision "$c4" --authorize-publication
-expect_failure 'publish with a stale preview is refused' 'preview changed' \
-  release publish --tag v0.1.0-rc.1 --revision "$c4" --preview-digest "$(printf '0%.0s' {1..64})" --authorize-publication
+  release publish --tag v0.1.0-rc.1 --revision "$c4" --prepared-run 5151 --authorize-publication
+expect_failure 'publish with a stale preview is refused' 'preview changed; review and authorize again' \
+  release publish --tag v0.1.0-rc.1 --revision "$c4" --prepared-run 5151 --preview-digest "$(printf '0%.0s' {1..64})" --authorize-publication
+stage_prepared_run 5151 v0.1.0-rc.1 "$c4" second
+expect_failure 'authority does not follow changed prepared bytes' 'preview changed; review and authorize again' \
+  release publish --tag v0.1.0-rc.1 --revision "$c4" --prepared-run 5151 --preview-digest "$digest_value" --authorize-publication
+stage_prepared_run 5151 v0.1.0-rc.1 "$c4" first
+stage_prepared_run 6161 v0.1.0-rc.1 "$c4" first .github/workflows/other.yml
+release status --tag v0.1.0-rc.1 --prepared-run 6161 >"$temporary/status"
+check 'a set from another workflow is refused' bash -c "grep -Fxq next_action=blocked '$temporary/status' && grep -Fq 'not a successful release-artifacts.yml' '$temporary/status'"
+stage_prepared_run 7171 v0.1.0-rc.1 "$c4" first
+printf 'x\n' >>"$state/runs/7171/axiom-release-v0.1.0-rc.1/artifacts/axiom-0.1.0-rc.1-ubuntu-26.04-amd64.tar.gz"
+release status --tag v0.1.0-rc.1 --prepared-run 7171 >"$temporary/status"
+check 'a tampered prepared set is refused' bash -c "grep -Fxq next_action=blocked '$temporary/status' && grep -Fq 'checksum mismatch' '$temporary/status'"
+stage_prepared_run 8181 v0.1.0-rc.1 "$c4" first
+printf 'edited\n' >>"$state/runs/8181/axiom-release-v0.1.0-rc.1/release-notes.md"
+release status --tag v0.1.0-rc.1 --prepared-run 8181 >"$temporary/status"
+check 'prepared notes must be the revision notes' grep -Fq 'release notes differ' "$temporary/status"
 rm "$state/environment.json"
 expect_failure 'unprotected release environment blocks publication' 'publication is not the next step' \
-  release publish --tag v0.1.0-rc.1 --revision "$c4" --preview-digest "$digest_value" --authorize-publication
+  release publish --tag v0.1.0-rc.1 --revision "$c4" --prepared-run 5151 --preview-digest "$digest_value" --authorize-publication
 printf '{"protection_rules":[{"type":"required_reviewers"}]}\n' >"$state/environment.json"
 rm "$state/checks-$c4.json"
 release status --tag v0.1.0-rc.1 >"$temporary/status"
 check 'missing CI blocks publication' bash -c "grep -Fxq next_action=blocked '$temporary/status' && grep -Fq 'required CI' '$temporary/status'"
 green "$c4"
-check 'refusals dispatched nothing' bash -c "[[ \$(grep -c '^workflow' '$state/ledger' || true) == 0 ]]"
-release publish --tag v0.1.0-rc.1 --revision "$c4" --preview-digest "$digest_value" --authorize-publication >"$temporary/dispatch"
-check 'authorized exact preview dispatches the publish workflow once' bash -c "[[ \$(grep -c '^workflow run publish-release.yml' '$state/ledger') == 1 ]] && grep -Fq 'tag=v0.1.0-rc.1' '$state/ledger' && grep -Fq 'revision=$c4' '$state/ledger' && grep -Fxq run_id=4242 '$temporary/dispatch'"
+check 'refusals caused no remote effect' test "$(mutations)" == 0
+release publish --tag v0.1.0-rc.1 --revision "$c4" --prepared-run 5151 --preview-digest "$digest_value" --authorize-publication >"$temporary/dispatch"
+check 'the exact authorized envelope dispatches publication once' bash -c "[[ \$(grep -c '^workflow run publish-release.yml' '$state/ledger') == 1 ]] && grep -Fq 'prepared_run=5151' '$state/ledger' && grep -Fq 'preview_digest=$digest_value' '$state/ledger' && grep -Fq 'revision=$c4' '$state/ledger' && grep -Fxq run_id=4242 '$temporary/dispatch'"
+check 'release.sh itself never touches releases, tags or assets' test "$(grep -Ec '^(POST|PATCH|DELETE|UPLOAD|LABEL)' "$state/ledger" || true)" == 0
 release status --tag v0.2.0 >"$temporary/status"
 check 'stable without a Release PR is blocked' bash -c "grep -Fxq next_action=blocked '$temporary/status' && grep -Fq 'no Release PR prepares 0.2.0' '$temporary/status'"
 release status --tag v0.1.0-rc.1 --revision "$side" >"$temporary/status"
@@ -505,10 +670,18 @@ check 'CI runs on pull requests, pushes to main and dispatch only' test "$(trigg
 check 'CI push trigger is main only' bash -c "sed -n '/^  push:/,/^  [a-z]/p' '$workflows/ci.yml' | grep -Fxq '      - main'"
 check 'CI has a read-only token and no publication path' bash -c "grep -A1 '^permissions:' '$workflows/ci.yml' | tail -n 1 | grep -Fxq '  contents: read' && ! grep -Eiq 'contents: write|gh release|git tag|git push|publish-release|secrets\\.|id-token' '$workflows/ci.yml'"
 check 'Release PR workflow never creates tags or releases' bash -c "grep -Fxq '          skip-github-release: true' '$workflows/release-please.yml' && [[ \$(jq -r '.\"skip-github-release\"' '$repository_root/release-please-config.json') == true ]] && ! grep -Eiq 'gh release|git tag|git push|softprops|secrets\\.' '$workflows/release-please.yml'"
+config=$repository_root/release-please-config.json
+check 'Release Please uses its default versioning with pre-1.0 bumps as documented' bash -c "jq -e '(.packages[\".\"] | .\"bump-minor-pre-major\" == true and .\"bump-patch-for-minor-pre-major\" == false and (has(\"versioning\") | not) and .\"initial-version\" == \"0.1.0\") and (has(\"versioning\") | not)' '$config' >/dev/null"
+check 'visible changelog types are exactly the documented release triggers' test "$(jq -r '.packages["."]["changelog-sections"][] | select(.hidden != true) | .type' "$config" | paste -sd, -)" == feat,fix,security,perf,revert
+check 'hidden changelog types are exactly the documented non-triggers' test "$(jq -r '.packages["."]["changelog-sections"][] | select(.hidden == true) | .type' "$config" | paste -sd, -)" == docs,test,refactor,build,ci,chore
+check 'CONTRIBUTING documents the pinned Release Please semantics' bash -c "grep -Fq 'release-please 17.6.0' '$repository_root/CONTRIBUTING.md' && grep -Fq '| \`feat\` | minor | minor |' '$repository_root/CONTRIBUTING.md' && grep -Fq 'hidden in the changelog, not non-releasable' '$repository_root/CONTRIBUTING.md' && grep -Fq 'googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0' '$workflows/release-please.yml'"
 check 'Release PR workflow runs on main pushes and dispatch only' test "$(triggers "$workflows/release-please.yml")" == push,workflow_dispatch
 check 'publication runs only on explicit dispatch' test "$(triggers "$workflows/publish-release.yml")" == workflow_dispatch
 check 'publication token is scoped to the gated publish job' bash -c "grep -Fxq 'permissions: {}' '$workflows/publish-release.yml' && [[ \$(grep -c 'contents: write' '$workflows/publish-release.yml') == 1 ]] && sed -n '/^  publish:/,\$p' '$workflows/publish-release.yml' | grep -Fxq '    environment: release' && sed -n '/^  publish:/,\$p' '$workflows/publish-release.yml' | grep -Fq 'contents: write'"
-check 'publication requires dispatch from main and preflight before build' bash -c "grep -Fq 'refs/heads/main' '$workflows/publish-release.yml' && grep -Fxq '    needs: preflight' '$workflows/publish-release.yml' && grep -Fxq '    needs: [preflight, build]' '$workflows/publish-release.yml'"
+check 'publication requires dispatch from main and a verified preflight' bash -c "grep -Fq 'refs/heads/main' '$workflows/publish-release.yml' && grep -Fxq '    needs: preflight' '$workflows/publish-release.yml'"
+check 'publication never rebuilds: it consumes the prepared run artifact' bash -c "! grep -Eq 'build-release-archives|upload-artifact' '$workflows/publish-release.yml' && [[ \$(grep -c 'run-id: \${{ inputs.prepared_run }}' '$workflows/publish-release.yml') == 2 ]] && [[ \$(grep -c 'verify-prepared-release.sh' '$workflows/publish-release.yml') == 2 ]]"
+check 'publication is bound to the authorized envelope digest' bash -c "grep -Fq -- '--authorized-digest \"\$PREVIEW_DIGEST\"' '$workflows/publish-release.yml' && grep -Fq 'PREVIEW_DIGEST: \${{ inputs.preview_digest }}' '$workflows/publish-release.yml'"
+check 'preparation builds, verifies and retains the exact set without publishing' bash -c "grep -Fq build-release-archives.sh '$workflows/release-artifacts.yml' && grep -Fq verify-release-artifacts.sh '$workflows/release-artifacts.yml' && grep -Fq release-notes.sh '$workflows/release-artifacts.yml' && grep -Fq 'name: axiom-release-\${{ env.RELEASE_TAG }}' '$workflows/release-artifacts.yml' && ! grep -Eiq 'contents: write|gh release|git tag|git push|publish-release' '$workflows/release-artifacts.yml'"
 check 'no workflow uses repository secrets' bash -c "! grep -Fq 'secrets.' $workflows/*.yml"
 pinned=true
 while IFS= read -r line; do

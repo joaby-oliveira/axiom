@@ -463,10 +463,14 @@ semantic version without the leading `v`:
 ```
 
 The manually dispatched `Release artifacts` workflow
-(`.github/workflows/release-artifacts.yml`) takes one `tag` input, checks out the
-dispatched revision, requires it to be clean and equal to `GITHUB_SHA`, builds
-the three supported rows with `build-release-archives.sh`, verifies the complete
-set, and retains `artifacts/` plus `release-evidence.txt` as a workflow artifact.
+(`.github/workflows/release-artifacts.yml`) is the PREPARE phase of the
+[Release flow](#release-flow). It takes `tag` and `revision` inputs, runs from
+`main`, checks out that exact revision, requires it to be clean and to pass
+`release-preflight.sh`, builds the three supported rows with
+`build-release-archives.sh`, verifies the complete set, renders the release
+notes, and retains `artifacts/`, `release-evidence.txt`, `release-notes.md`,
+`preflight.txt` and `prepare-metadata.txt` as the workflow artifact
+`axiom-release-<tag>`.
 It has a read-only token and never creates tags, GitHub Releases, prereleases,
 or `latest`, and never writes to the repository. Cross-built artifacts are not
 native target acceptance; publication (see [Release flow](#release-flow)) and
@@ -510,8 +514,8 @@ The process, versioning and authority rules are in
 |---|---|---|
 | `.github/workflows/ci.yml` | every PR, push to `main`, dispatch | required checks only; read-only token |
 | `.github/workflows/release-please.yml` | push to `main`, dispatch | opens/updates the Release PR (`CHANGELOG.md`, `.release-please-manifest.json`); never tags or releases; dispatches CI on the Release PR branch |
-| `.github/workflows/release-artifacts.yml` | manual dispatch with `tag` | prepares and verifies the artifact set as a workflow artifact; never publishes |
-| `.github/workflows/publish-release.yml` | manual dispatch from `main` with `tag` and `revision` | preflight, build, verify, draft, upload, read-back, publish; `publish` job gated by the `release` environment |
+| `.github/workflows/release-artifacts.yml` | manual dispatch from `main` with `tag` and `revision` | PREPARE: preflight, build, verify, notes; retains the exact set as workflow artifact `axiom-release-<tag>`; read-only token; never publishes |
+| `.github/workflows/publish-release.yml` | manual dispatch from `main` with `tag`, `revision`, `prepared_run`, `preview_digest` | PUBLISH: re-verifies that prepared artifact, requires its envelope digest to equal `preview_digest`, then draft, upload, read-back, publish; `publish` job gated by the `release` environment; never rebuilds |
 
 Discover the state and the next step (read-only apart from `git fetch` of
 `main`):
@@ -525,26 +529,39 @@ Discover the state and the next step (read-only apart from `git fetch` of
 `status` prints closed `key=value` facts (repository, branch, HEAD, worktree,
 `main`, required CI from `.github/rulesets/main.json`, `release` environment,
 open and merged-unpublished Release PRs) and `next_action`: `none`,
-`review_release_pr`, `blocked` with `reason`, `verify_published`, or
-`authorize_publication` with `preview.*` lines and a `preview_digest`. A stable
-tag resolves to its release commit (the first-parent `main` commit whose
-manifest introduced the version); a release candidate defaults to
-`origin/main`. Publication is previewed only when required CI on the revision
-is green and the `release` environment requires a reviewer.
+`review_release_pr`, `blocked` with `reason`, `prepare`, `authorize_publication`
+or `verify_published`. A stable tag resolves to its release commit (the
+first-parent `main` commit whose manifest introduced the version); a release
+candidate defaults to `origin/main`. Preparation is offered only when required
+CI on the revision is green and the `release` environment requires a reviewer.
 
-Dispatch publication of exactly the reviewed preview, only after explicit human
-authorization, then approve the `release` environment in GitHub:
+Prepare, then review the envelope:
 
 ```bash
-./scripts/release.sh publish --tag v0.1.0-rc.1 --revision <full-sha> \
+./scripts/release.sh prepare --tag v0.1.0-rc.1 --revision <full-sha>
+./scripts/release.sh status --tag v0.1.0-rc.1 --revision <full-sha> --prepared-run <run_id>
+```
+
+`prepare` dispatches `release-artifacts.yml` (no publication), waits for it and
+prints the result of `status --prepared-run`: the prepared artifact is
+downloaded, re-verified with `verify-prepared-release.sh` in a clean clone at the
+revision, and its publication envelope is printed as `preview.*` lines with
+`preview_digest`, the SHA-256 of the envelope. Only after explicit human
+authorization of that digest:
+
+```bash
+./scripts/release.sh publish --tag v0.1.0-rc.1 --revision <full-sha> --prepared-run <run_id> \
   --preview-digest <preview_digest> --authorize-publication
 gh run watch <run_id> --repo rgomids/axiom --exit-status
 ```
 
-Without `--authorize-publication`, or when the recomputed preview differs from
-`--preview-digest`, nothing is dispatched. Verify a published release; with
-`--download`, the assets are re-verified with `verify-release-artifacts.sh` in a
-clean clone at the tagged revision:
+Without `--authorize-publication`, or when the envelope recomputed now differs
+from `--preview-digest`, nothing is dispatched (`preview changed; review and
+authorize again`). The publication workflow recomputes the envelope again from
+the same prepared bytes and refuses before any effect on a mismatch. A maintainer
+then approves the `release` environment in GitHub. Verify a published release;
+with `--download`, the assets are re-verified with `verify-release-artifacts.sh`
+in a clean clone at the tagged revision:
 
 ```bash
 ./scripts/release.sh verify --tag v0.1.0-rc.1 --download
@@ -555,7 +572,12 @@ Building blocks, each read-only unless stated:
 ```bash
 ./scripts/release-preflight.sh --tag v0.1.0 --revision <full-sha> --main-ref origin/main
 ./scripts/release-notes.sh --tag v0.1.0 --revision <full-sha> --repo rgomids/axiom
+./scripts/verify-prepared-release.sh --tag v0.1.0 --revision <full-sha> --prepared /abs/prepared \
+  --repo rgomids/axiom --run <run_id>
 ./scripts/publish-release.sh --check --repo rgomids/axiom --tag v0.1.0 --revision <full-sha> --make-latest true
+./scripts/publish-release.sh --envelope --repo rgomids/axiom --tag v0.1.0 --revision <full-sha> --make-latest true \
+  --prepared-run <run_id> --dir /abs/prepared/artifacts --evidence /abs/prepared/release-evidence.txt \
+  --notes /abs/prepared/release-notes.md
 ```
 
 `release-preflight.sh` requires a full revision on the first-parent history of
@@ -564,15 +586,22 @@ the release commit of that version; for an RC, a manifest version not newer
 than the RC, no existing stable of that version and an RC number greater than
 every existing one; the version must be newer than the latest stable tag, and
 an existing tag is accepted only at the same revision. It prints `make_latest`.
-`publish-release.sh` without `--check` performs the publication (only the
-`publish-release.yml` job runs it): it requires the verifier Evidence, the
-artifact directory and the notes, and prints each remote `effect=` line.
+`verify-prepared-release.sh` runs in a clean checkout of the revision and
+requires the prepared run to be a successful `release-artifacts.yml` dispatch
+from `main`, the preflight to pass now, `verify-release-artifacts.sh` to accept
+the artifacts and reproduce `release-evidence.txt` (host-only `version_smoke`
+ignored), and `release-notes.md` to equal the notes of the revision.
+`publish-release.sh --envelope` prints the envelope and `preview_digest`;
+without `--check`/`--envelope` it publishes only with `--authorized-digest`
+equal to that digest (only the `publish-release.yml` job runs it) and prints
+each remote `effect=` line.
 
 Test the whole contract with a stateful fake `gh` and local Git fixtures (no
-network or GitHub effects): preflight rules, notes, first publication, reruns,
-partial drafts, conflicts, stable versus prerelease and `latest`, the
-authorization boundary of `release.sh`, and the workflows' triggers,
-permissions and pins:
+network or GitHub effects): preflight rules, notes, envelope completeness and
+determinism, stale authority, publication of exactly the envelope's bytes,
+reruns, partial drafts, conflicts, stable versus prerelease and `latest`, the
+prepare/publish authority boundary of `release.sh`, the Release Please
+configuration, and the workflows' triggers, permissions and pins:
 
 ```bash
 ./scripts/test-release-flow.sh

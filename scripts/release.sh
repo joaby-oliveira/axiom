@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
 # Maintainer release orchestration used by the $axiom-release skill.
 #
-#   release.sh status  [--tag vX.Y.Z[-rc.N]] [--revision SHA]
-#   release.sh publish --tag TAG --revision SHA --preview-digest DIGEST --authorize-publication
+#   release.sh status  [--tag vX.Y.Z[-rc.N]] [--revision SHA] [--prepared-run ID]
+#   release.sh prepare --tag TAG [--revision SHA]
+#   release.sh publish --tag TAG --revision SHA --prepared-run ID --preview-digest DIGEST --authorize-publication
 #   release.sh verify  --tag TAG [--download]
 #
-# status and verify are read-only apart from `git fetch` of main and temporary
-# files. publish only dispatches .github/workflows/publish-release.yml, and
-# only when --authorize-publication is present and DIGEST equals a freshly
-# recomputed publication preview, so authority is bound to the exact reviewed
-# tag, revision, channel, latest pointer and remote state. It never creates
-# tags or releases itself and never approves the `release` environment.
+# PREPARE: `prepare` dispatches release-artifacts.yml (read-only token; it
+# builds, verifies and retains the exact artifact set, and publishes nothing),
+# waits for it, then prints the publication envelope of that prepared set.
+# status with --prepared-run downloads the prepared set, re-verifies it in a
+# clean clone of the revision and prints the envelope and its preview_digest.
+# PUBLISH: `publish` dispatches publish-release.yml only with
+# --authorize-publication and a DIGEST equal to the envelope recomputed now;
+# the workflow recomputes it again from the same prepared bytes before the
+# first effect. status and verify are read-only apart from `git fetch` of main
+# and temporary files. This script never creates tags or releases itself and
+# never approves the `release` environment.
 # Release rules live in release-preflight.sh, publish-release.sh and the
 # workflows; this script only gathers facts and chooses the next step.
 set -euo pipefail
@@ -20,11 +26,13 @@ umask 077
 repository_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 scripts=$repository_root/scripts
 workflow=publish-release.yml
+prepare_workflow=release-artifacts.yml
 command=${1:-}
 [[ -n "$command" ]] && shift
 tag=
 revision=
 preview_digest=
+prepared_run=
 authorized=false
 download=false
 while (($#)); do
@@ -32,6 +40,7 @@ while (($#)); do
     --tag) tag=${2:-}; shift 2 ;;
     --revision) revision=${2:-}; shift 2 ;;
     --preview-digest) preview_digest=${2:-}; shift 2 ;;
+    --prepared-run) prepared_run=${2:-}; shift 2 ;;
     --authorize-publication) authorized=true; shift ;;
     --download) download=true; shift ;;
     *) printf 'release_error: invalid argument\n' >&2; exit 1 ;;
@@ -105,6 +114,49 @@ release_commit_for() {
       return
     fi
   done < <(git -C "$repository_root" log --first-parent --format=%H origin/main -- .release-please-manifest.json)
+}
+
+# prepared_envelope downloads the prepared set of $prepared_run, verifies it
+# in a clean clone of $revision with that revision's scripts, and writes the
+# publication envelope to $temporary/envelope. On refusal it sets reason.
+prepared_envelope() {
+  local dir=$temporary/prepared clone=$temporary/source origin_url
+  [[ "$prepared_run" =~ ^[0-9]+$ ]] || { reason='prepared run id must be numeric'; return 1; }
+  rm -rf -- "$dir" "$clone"
+  mkdir "$dir"
+  printf 'prepared_run=%s\n' "$prepared_run" >>"$temporary/status"
+  if ! gh run download "$prepared_run" --repo "$repository" --name "axiom-release-$tag" --dir "$dir" >/dev/null 2>&1; then
+    reason="cannot download axiom-release-$tag from run $prepared_run"
+    return 1
+  fi
+  origin_url=$(git -C "$repository_root" remote get-url origin)
+  git clone --quiet --no-hardlinks "$repository_root" "$clone"
+  git -C "$clone" checkout --quiet --detach "$revision"
+  git -C "$clone" fetch --quiet "$repository_root" "+refs/remotes/origin/main:refs/remotes/origin/main"
+  if ! "$clone/scripts/verify-prepared-release.sh" --tag "$tag" --revision "$revision" --prepared "$dir" \
+    --repo "$repository" --run "$prepared_run" --remote "$origin_url" >"$temporary/prepared-facts" 2>"$temporary/prepared-error"; then
+    reason=$(sed -E 's/^[a-z_]+_error: //' "$temporary/prepared-error" | head -n 1)
+    return 1
+  fi
+  if ! "$clone/scripts/publish-release.sh" --envelope --repo "$repository" --tag "$tag" --revision "$revision" \
+    --make-latest "$(value make_latest "$temporary/prepared-facts")" --prepared-run "$prepared_run" --dir "$dir/artifacts" \
+    --evidence "$dir/release-evidence.txt" --notes "$dir/release-notes.md" >"$temporary/envelope" 2>"$temporary/envelope-error"; then
+    reason=$(sed 's/^release_publish_error: //' "$temporary/envelope-error" | head -n 1)
+    return 1
+  fi
+}
+
+# find_run WORKFLOW SINCE prints the newest dispatch run of WORKFLOW created
+# at or after SINCE, as JSON, or nothing.
+find_run() {
+  local run=
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    run=$(gh run list --repo "$repository" --workflow "$1" --event workflow_dispatch --limit 10 \
+      --json databaseId,url,createdAt | jq -c --arg since "$2" '[.[] | select(.createdAt >= $since)] | sort_by(.createdAt) | last // empty')
+    [[ -n "$run" ]] && break
+    sleep "${AXIOM_RELEASE_RETRY_DELAY:-3}"
+  done
+  printf '%s' "$run"
 }
 
 # status writes key=value facts and the next step to $temporary/status.
@@ -192,17 +244,16 @@ status() {
           next=blocked; reason="required CI on $revision is $ci"
         elif [[ $(release_environment) != protected ]]; then
           next=blocked; reason='the release environment is missing or has no required reviewers (docs/security/repository-security.md)'
-        else
-          {
-            printf 'repository=%s\n' "$repository"
-            printf 'workflow=%s\nref=main\n' "$workflow"
-            grep -E '^(tag|version|channel|prerelease|revision|make_latest)=' "$temporary/preflight"
-            grep -E '^(publication_state|release_id)=' "$temporary/remote"
-          } >"$temporary/preview"
+        elif [[ -z "$prepared_run" ]]; then
+          next=prepare
+          reason="build and verify the exact set first: release.sh prepare --tag $tag --revision $revision (no publication)"
+        elif prepared_envelope; then
           next=authorize_publication
-          reason='human authorization required for the exact preview below'
-          sed 's/^/preview./' "$temporary/preview" >>"$out"
-          printf 'preview_digest=%s\n' "$(digest_stdin <"$temporary/preview")" >>"$out"
+          reason='human authorization required for the exact publication envelope below'
+          grep -v '^preview_digest=' "$temporary/envelope" | sed 's/^/preview./' >>"$out"
+          grep '^preview_digest=' "$temporary/envelope" >>"$out"
+        else
+          next=blocked
         fi
       fi
     fi
@@ -218,27 +269,43 @@ case "$command" in
     cat "$temporary/status"
     printf '%s\n' "$status_line"
     ;;
+  prepare)
+    [[ -n "$tag" ]] || fail 'prepare requires --tag'
+    [[ -z "$prepared_run" ]] || fail 'prepare starts a new preparation; use status --prepared-run for an existing one'
+    status_line=$(status)
+    grep -Fxq 'next_action=prepare' <<<"$status_line" \
+      || { cat "$temporary/status"; fail "preparation is not the next step: $(tr '\n' ' ' <<<"$status_line")"; }
+    revision=$(value revision "$temporary/status")
+    dispatched_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    gh workflow run "$prepare_workflow" --repo "$repository" --ref main -f "tag=$tag" -f "revision=$revision" >/dev/null \
+      || fail 'preparation dispatch failed'
+    printf 'effect=workflow_dispatched workflow=%s tag=%s revision=%s publication=none\n' "$prepare_workflow" "$tag" "$revision"
+    run=$(find_run "$prepare_workflow" "$dispatched_at")
+    [[ -n "$run" ]] || fail 'cannot find the preparation run'
+    prepared_run=$(jq -r '.databaseId' <<<"$run")
+    printf 'prepare_run_url=%s\n' "$(jq -r '.url' <<<"$run")"
+    gh run watch "$prepared_run" --repo "$repository" --exit-status >/dev/null || fail "preparation run $prepared_run failed"
+    status_line=$(status)
+    cat "$temporary/status"
+    printf '%s\n' "$status_line"
+    ;;
   publish)
     [[ -n "$tag" && "$revision" =~ ^[0-9a-f]{40}$ ]] || fail 'publish requires --tag and a full --revision'
     [[ "$authorized" == true ]] \
-      || fail 'publication requires explicit human authorization (--authorize-publication) for the reviewed preview; nothing was dispatched'
-    [[ "$preview_digest" =~ ^[0-9a-f]{64}$ ]] || fail 'publish requires the --preview-digest shown by status'
+      || fail 'publication requires explicit human authorization (--authorize-publication) for the reviewed envelope; nothing was dispatched'
+    [[ "$preview_digest" =~ ^[0-9a-f]{64}$ ]] || fail 'publish requires the --preview-digest of the authorized envelope'
+    [[ "$prepared_run" =~ ^[0-9]+$ ]] || fail 'publish requires the --prepared-run of the authorized envelope'
     status_line=$(status)
     grep -Fxq 'next_action=authorize_publication' <<<"$status_line" \
       || fail "publication is not the next step: $(tr '\n' ' ' <<<"$status_line")"
     grep -Fxq "preview_digest=$preview_digest" "$temporary/status" \
-      || fail 'preview changed since it was authorized; review the new status and authorize again'
+      || fail "preview changed; review and authorize again (current $(grep '^preview_digest=' "$temporary/status"))"
     dispatched_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-    gh workflow run "$workflow" --repo "$repository" --ref main -f "tag=$tag" -f "revision=$revision" >/dev/null \
-      || fail 'workflow dispatch failed'
-    printf 'effect=workflow_dispatched workflow=%s tag=%s revision=%s\n' "$workflow" "$tag" "$revision"
-    run=
-    for _ in 1 2 3 4 5 6 7 8 9 10; do
-      run=$(gh run list --repo "$repository" --workflow "$workflow" --event workflow_dispatch --limit 10 \
-        --json databaseId,url,createdAt | jq -c --arg since "$dispatched_at" '[.[] | select(.createdAt >= $since)] | sort_by(.createdAt) | first // empty')
-      [[ -n "$run" ]] && break
-      sleep "${AXIOM_RELEASE_RETRY_DELAY:-3}"
-    done
+    gh workflow run "$workflow" --repo "$repository" --ref main -f "tag=$tag" -f "revision=$revision" \
+      -f "prepared_run=$prepared_run" -f "preview_digest=$preview_digest" >/dev/null || fail 'workflow dispatch failed'
+    printf 'effect=workflow_dispatched workflow=%s tag=%s revision=%s prepared_run=%s preview_digest=%s\n' \
+      "$workflow" "$tag" "$revision" "$prepared_run" "$preview_digest"
+    run=$(find_run "$workflow" "$dispatched_at")
     if [[ -n "$run" ]]; then
       printf 'run_id=%s\nrun_url=%s\n' "$(jq -r '.databaseId' <<<"$run")" "$(jq -r '.url' <<<"$run")"
     else
@@ -278,6 +345,6 @@ case "$command" in
     printf 'result=pass\n'
     ;;
   *)
-    fail 'usage: release.sh status|publish|verify [options]'
+    fail 'usage: release.sh status|prepare|publish|verify [options]'
     ;;
 esac

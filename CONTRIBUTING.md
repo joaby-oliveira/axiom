@@ -121,20 +121,36 @@ security(filesystem): reject unsafe destination ownership
 feat(cli)!: rename the configure command
 ```
 
-Because PRs are squash-merged, **the PR title becomes the commit on `main`** and
-must follow this format; the squash body may carry footers. The types drive the
-next version and the changelog:
+Because PRs are squash-merged, **the PR title becomes the commit on `main`**
+and must follow this format; the squash body may carry footers.
 
-| On `main` | Next version (while `0.x`) | Next version (from `1.0.0`) | Changelog section |
-|---|---|---|---|
-| `!` or `BREAKING CHANGE:` footer | minor | major | per type, marked breaking |
-| `feat` | minor | minor | Features |
-| `fix` | patch | patch | Bug Fixes |
-| `security`, `perf`, `revert` | patch | patch | Security, Performance, Reverts |
-| `docs`, `test`, `refactor`, `build`, `ci`, `chore` | no release on its own | no release on its own | hidden |
+Versions come from Release Please's default versioning strategy as pinned by
+[`release-please.yml`](.github/workflows/release-please.yml)
+(`release-please-action` v5.0.0, which bundles release-please 17.6.0) and
+configured in [`release-please-config.json`](release-please-config.json)
+(`bump-minor-pre-major: true`, `bump-patch-for-minor-pre-major: false`). The
+next version is the largest bump among the commits since the last release:
 
-A `Release-As: X.Y.Z` footer forces the next stable version when the computed
-one is not what maintainers decided.
+| Commits since the last release | Next version while `0.x` | Next version from `1.0.0` |
+|---|---|---|
+| any breaking change (`!` or `BREAKING CHANGE:` footer, any type) | minor | major |
+| `feat` | minor | minor |
+| any other type (`fix`, `security`, `perf`, `revert`, `docs`, `test`, `refactor`, `build`, `ci`, `chore`, ...) | patch | patch |
+
+The first release has no previous release and uses `initial-version` (`0.1.0`).
+A `Release-As: X.Y.Z` footer forces the version.
+
+Whether a Release PR is opened is a separate rule: Release Please skips a
+release whose changelog would be empty. Only `feat`, `fix`, `security`,
+`perf` and `revert` have visible changelog sections (Features, Bug Fixes,
+Security, Performance, Reverts); `docs`, `test`, `refactor`, `build`, `ci` and
+`chore` are hidden in the changelog, not non-releasable. So:
+
+- hidden types alone open no Release PR;
+- a breaking change or a `Release-As` footer is always listed, whatever its
+  type, and so opens one;
+- once a Release PR exists, hidden commits still count toward the bump above
+  (they can never exceed patch) and are left out of the changelog text.
 
 Each commit must represent one coherent unit of change. Its subject must explain the observable purpose, not merely identify modified files. Generic messages such as `wip`, `update`, `changes`, `fix`, `misc`, `added stuff`, or equivalents are not acceptable in final history. Do not group unrelated changes in one commit.
 
@@ -213,8 +229,10 @@ Accepted submissions are licensed under [Apache-2.0](LICENSE), unless explicitly
 ## Release flow
 
 ```text
-main -> Release PR -> review + approval -> squash merge -> explicit publication
-     -> tag vX.Y.Z[-rc.N] -> build + verify -> GitHub Release
+main -> Release PR -> review + approval -> squash merge
+     -> prepare: build + verify -> publication envelope
+     -> explicit human authorization of that envelope
+     -> publish the same bytes: tag vX.Y.Z[-rc.N] + GitHub Release -> read-back
 ```
 
 GitHub Releases is the initial distribution channel. Preparing a versioned
@@ -252,25 +270,53 @@ new Release PR. Curated dated entries in `CHANGELOG.md` continue as before; the
 Release PR inserts the version heading above the entries it releases, and only
 the Release PR edits those version headings.
 
-### Publication
+### Preparation and publication
 
-[`publish-release.yml`](.github/workflows/publish-release.yml) is the only
-workflow that creates tags and GitHub Releases. It runs only when dispatched
-from `main` with an exact tag and full revision, and its `publish` job waits for
-approval of the protected `release` environment. It then:
+Publication is split in two phases with human authority between them:
 
-1. re-checks the tag, the revision and the Release PR binding with `release-preflight.sh`;
-2. builds the complete set with `build-release-archives.sh` from a clean checkout of that revision;
-3. verifies it with `verify-release-artifacts.sh` (closed artifact set, `SHA256SUMS`, provenance, exact revision);
-4. creates or reconciles one **draft** release bound to the revision, uploads every asset and reads back each digest;
-5. publishes once and reads back the release, the tag and the `latest` pointer.
+```text
+PREPARE  release-artifacts.yml: preflight -> build -> verify -> notes -> retained workflow artifact
+         release.sh: re-verify that artifact at the revision -> publication envelope + preview_digest
+AUTHORITY  a maintainer authorizes that exact preview_digest
+PUBLISH  publish-release.yml: same artifact -> re-verify -> envelope == authorized digest
+         -> draft -> upload -> read-back -> publish -> read-back
+```
+
+1. [`release-artifacts.yml`](.github/workflows/release-artifacts.yml), dispatched
+   from `main` with the tag and full revision, checks them with
+   `release-preflight.sh`, builds the set with `build-release-archives.sh` from a
+   clean checkout, verifies it with `verify-release-artifacts.sh` (closed
+   artifact set, `SHA256SUMS`, provenance, exact revision), renders the release
+   notes and retains exactly those files as the workflow artifact
+   `axiom-release-<tag>`. It has a read-only token and publishes nothing.
+2. `scripts/release.sh` downloads that artifact, re-verifies it with
+   [`verify-prepared-release.sh`](scripts/verify-prepared-release.sh) in a clean
+   checkout of the revision, and prints the **publication envelope**: repository,
+   tag, version, channel, prerelease, revision, `make_latest`, prepared run,
+   release-notes and `SHA256SUMS` digests, each artifact with its SHA-256, the
+   relevant remote state and the external effects. Its SHA-256 is the
+   `preview_digest`.
+3. A maintainer authorizes that `preview_digest`.
+4. [`publish-release.yml`](.github/workflows/publish-release.yml), dispatched
+   from `main` with the tag, revision, prepared run and authorized digest, waits
+   for approval of the protected `release` environment, downloads the same
+   artifact, re-verifies it, and recomputes the envelope from those bytes and the
+   current remote state. If anything differs (an artifact, a digest, the notes,
+   the revision, the `latest` decision, the remote state), it stops with
+   `preview changed; review and authorize again` before any effect. Otherwise it
+   creates or reconciles one **draft** bound to the revision, uploads exactly the
+   envelope's files, reads back each digest, publishes once and reads back the
+   release, the tag and the `latest` pointer. Nothing is rebuilt after
+   authorization.
 
 A stable release must be published from its release commit. A release
 candidate may be published from any `main` revision that does not record a
 newer version (typically `main` before the Release PR, or the release commit
-itself). Reruns converge: a matching draft is completed, a consistent
-published release is a no-op, and any duplicate, foreign asset, moved tag or
-inconsistent release fails closed without changes.
+itself). Reruns converge: a consistent published release is a no-op, and any
+duplicate, foreign asset, moved tag or inconsistent release fails closed
+without changes. Because an interrupted publication changes the remote state
+(for example to a partial draft), completing it needs a new envelope and a new
+authorization.
 
 ### Authority
 
@@ -278,13 +324,14 @@ inconsistent release fails closed without changes.
 |---|---|
 | merge a feature/fix PR | maintainer with merge authority |
 | review, approve and merge the Release PR | maintainer; merging does not publish |
-| dispatch publication of an exact tag and revision | maintainer, explicitly |
+| prepare and verify an artifact set (no publication) | maintainer or agent |
+| authorize the exact publication envelope and dispatch it | maintainer, explicitly |
 | approve the `release` environment | maintainer, in GitHub |
 | repository settings, rulesets, environments | repository administrator |
 
 Green CI, a merged Release PR or an earlier approval never authorizes a
 publication. Agents may prepare, verify and report, and dispatch publication
-only after an explicit human authorization of the exact preview; they never
+only after an explicit human authorization of the exact envelope digest; they never
 approve the environment, create tags or edit releases by hand.
 
 ### `$axiom-release`
@@ -298,10 +345,11 @@ $axiom-release v0.2.0-rc.1  # conduct that release candidate
 $axiom-release v0.2.0       # conduct that stable release
 ```
 
-It runs [`scripts/release.sh`](scripts/release.sh) (`status`, `publish`,
-`verify`), stops at the authority boundary with the exact publication preview,
-and after authorization dispatches the workflow, waits for the run and verifies
-the published tag, revision and assets. Detailed commands, settings and
+It runs [`scripts/release.sh`](scripts/release.sh) (`status`, `prepare`,
+`publish`, `verify`): it prepares and verifies the artifact set, stops at the
+authority boundary with the exact publication envelope, and after
+authorization dispatches the publication of those same bytes, waits for the
+run and verifies the published tag, revision and assets. Detailed commands, settings and
 Evidence are in the [command reference](docs/commands.md#release-flow) and
 [repository security](docs/security/repository-security.md#release-and-branch-protection).
 
@@ -309,9 +357,9 @@ Evidence are in the [command reference](docs/commands.md#release-flow) and
 
 | | Merge to `main` | Release |
 |---|---|---|
-| Trigger | squash merge of a reviewed PR | explicit dispatch of `publish-release.yml` |
+| Trigger | squash merge of a reviewed PR | prepared set, authorized envelope, dispatch of `publish-release.yml` |
 | Effects | commit on `main`; CI; Release PR update | tag, GitHub Release, assets |
-| Authority | PR approval and required CI | explicit publication authority and `release` environment approval |
+| Authority | PR approval and required CI | authority over the exact envelope digest and `release` environment approval |
 | Reversible | by a new PR | never silently: tags and published releases are immutable |
 
 ## AI-assisted contributions

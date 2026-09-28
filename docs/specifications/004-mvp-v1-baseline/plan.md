@@ -991,14 +991,21 @@ publication authority).** Development follows GitHub Flow into a protected
 `main` with required CI and squash merge. Release Please maintains a Release PR
 (SemVer from Conventional Commits, `CHANGELOG.md`,
 `.release-please-manifest.json`) with `skip-github-release`, so merging it only
-records the versioned state. Publication is the separate, manually dispatched
-`publish-release.yml`, gated by the protected `release` environment: it
-re-checks tag/revision/Release PR binding (`release-preflight.sh`), builds and
-verifies with the T38 scripts, stages one draft bound to the revision, uploads
-and reads back every asset digest, then publishes once (RC as prerelease, never
-`latest`; stable from its release commit, `latest` only when highest). Reruns
-converge; duplicates, foreign draft assets, moved tags and inconsistent
-published releases fail closed. The staged draft is never installable, so the
+records the versioned state. Publication has two phases. PREPARE: the T38
+`release-artifacts.yml` checks tag/revision/Release PR binding
+(`release-preflight.sh`), builds and verifies with the T38 scripts, renders the
+notes and retains that exact set; `release.sh` re-verifies it at the revision
+and prints a deterministic publication envelope (tag, revision, channel,
+`latest` decision, notes and `SHA256SUMS` digests, each artifact SHA-256,
+prepared run, remote state, effects) whose digest is what a human authorizes.
+PUBLISH: `publish-release.yml`, gated by the protected `release` environment,
+consumes the same prepared artifact without rebuilding, recomputes the envelope
+and refuses before any effect unless it equals the authorized digest, then
+stages one draft bound to the revision, uploads and reads back every asset
+digest, and publishes once (RC as prerelease, never `latest`; stable from its
+release commit, `latest` only when highest). Reruns converge; duplicates,
+foreign draft assets, moved tags and inconsistent published releases fail
+closed. The staged draft is never installable, so the
 T23 objective "publish once as a non-draft prerelease" is unchanged. Process
 and authority: [CONTRIBUTING.md](../../../CONTRIBUTING.md#release-flow).
 

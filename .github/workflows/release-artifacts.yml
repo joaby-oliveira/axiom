@@ -1,15 +1,23 @@
 name: Release artifacts
-# Prepares and verifies the complete supported Axiom release artifact set from
-# one exact revision. Preparation only: this workflow never creates tags,
+# PREPARE phase of a release. Builds the complete supported Axiom artifact set
+# from one exact, preflighted revision, verifies it, renders the release notes
+# and retains exactly these bytes as the workflow artifact
+# `axiom-release-<tag>`. The publication envelope that a human authorizes is
+# computed from this artifact, and the publication workflow publishes these same
+# bytes: nothing is rebuilt after authorization.
+# Preparation only: read-only token; this workflow never creates tags,
 # GitHub Releases or prereleases, never changes `latest`, and never writes to
-# the repository. Publication is a separately authorized step (T23).
-# Cross-built artifacts are not native target acceptance (T24).
+# the repository. Cross-built artifacts are not native target acceptance (T24).
 
 on:
   workflow_dispatch:
     inputs:
       tag:
         description: Public release tag to prepare (vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-rc.N); no tag is created
+        required: true
+        type: string
+      revision:
+        description: Full 40-character commit SHA on main to build
         required: true
         type: string
 
@@ -21,7 +29,7 @@ defaults:
     shell: bash
 
 concurrency:
-  group: release-artifacts-${{ github.sha }}
+  group: release-artifacts-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -29,49 +37,63 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
+      - name: Require dispatch from main
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+        run: '[[ "$DISPATCH_REF" == refs/heads/main ]]'
+      - name: Validate inputs
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_REVISION: ${{ inputs.revision }}
+        run: |
+          # Strict shape before GITHUB_ENV; release-preflight.sh applies the full rules.
+          [[ "$RELEASE_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]]
+          {
+            printf 'RELEASE_TAG=%s\n' "$RELEASE_TAG"
+            printf 'RELEASE_REVISION=%s\n' "$RELEASE_REVISION"
+          } >>"$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          ref: ${{ env.RELEASE_REVISION }}
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: false
-      - name: Resolve exact version and source revision
-        env:
-          RELEASE_TAG: ${{ inputs.tag }}
+      - name: Preflight exact tag and revision
         run: |
-          ./scripts/release-tag-version.sh "$RELEASE_TAG" >"$RUNNER_TEMP/release-tag.txt"
-          version=$(awk -F= '$1 == "version" {print $2}' "$RUNNER_TEMP/release-tag.txt")
-          revision=$(git rev-parse --verify HEAD)
-          [[ "$revision" == "$GITHUB_SHA" ]]
+          [[ $(git rev-parse --verify HEAD) == "$RELEASE_REVISION" ]]
           [[ -z $(git status --porcelain --untracked-files=normal) ]]
-          {
-            printf 'RELEASE_VERSION=%s\n' "$version"
-            printf 'RELEASE_REVISION=%s\n' "$revision"
-          } >>"$GITHUB_ENV"
+          out="$RUNNER_TEMP/axiom-release"
+          mkdir -p "$out"
+          ./scripts/release-preflight.sh --tag "$RELEASE_TAG" --revision "$RELEASE_REVISION" --main-ref origin/main >"$out/preflight.txt"
+          version=$(awk -F= '$1 == "version" {print $2}' "$out/preflight.txt")
+          printf 'RELEASE_VERSION=%s\n' "$version" >>"$GITHUB_ENV"
       - name: Verify module sources
         run: go mod verify
       - name: Build supported release archives
         run: ./scripts/build-release-archives.sh --version "$RELEASE_VERSION" --output "$RUNNER_TEMP/axiom-release/artifacts"
-      - name: Verify complete artifact set
-        env:
-          RELEASE_TAG: ${{ inputs.tag }}
+      - name: Verify complete artifact set and render notes
         run: |
-          evidence="$RUNNER_TEMP/axiom-release/release-evidence.txt"
+          out="$RUNNER_TEMP/axiom-release"
+          ./scripts/verify-release-artifacts.sh --dir "$out/artifacts" --version "$RELEASE_VERSION" --revision "$RELEASE_REVISION" >"$out/release-evidence.txt"
+          ./scripts/release-notes.sh --tag "$RELEASE_TAG" --revision "$RELEASE_REVISION" --repo "$GITHUB_REPOSITORY" >"$out/release-notes.md"
           {
             printf 'tag=%s\n' "$RELEASE_TAG"
+            printf 'revision=%s\n' "$RELEASE_REVISION"
             printf 'workflowRun=%s/%s/actions/runs/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
             printf 'workflowRunAttempt=%s\n' "$GITHUB_RUN_ATTEMPT"
             printf 'workflowRef=%s\n' "$GITHUB_WORKFLOW_REF"
             printf 'go=%s\n' "$(go env GOVERSION)"
-            ./scripts/verify-release-artifacts.sh --dir "$RUNNER_TEMP/axiom-release/artifacts" --version "$RELEASE_VERSION" --revision "$RELEASE_REVISION"
-          } >"$evidence"
+          } >"$out/prepare-metadata.txt"
           [[ -z $(git status --porcelain --untracked-files=normal) ]]
-          cat "$evidence" >>"$GITHUB_STEP_SUMMARY"
-      - name: Retain prepared artifacts
+          cat "$out/release-evidence.txt" >>"$GITHUB_STEP_SUMMARY"
+      - name: Retain the prepared set
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: axiom-${{ env.RELEASE_VERSION }}-${{ env.RELEASE_REVISION }}
+          name: axiom-release-${{ env.RELEASE_TAG }}
           path: ${{ runner.temp }}/axiom-release
           if-no-files-found: error
           retention-days: 30

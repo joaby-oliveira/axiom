@@ -8,10 +8,14 @@
   `release-contract`. Release Please maintains the Release PR
   (`CHANGELOG.md`, `.release-please-manifest.json`) and never tags or
   releases. `publish-release.yml` is the only publication path: manual
-  dispatch of an exact tag and revision from `main`, protected `release`
-  environment, preflight, build, `verify-release-artifacts.sh`, draft,
-  asset read-back, single publication (RC prerelease, stable `latest` only
-  when highest) and convergent reruns. New `scripts/release-preflight.sh`,
+  dispatch from `main`, protected `release` environment, re-verification of
+  the prepared set, draft, asset read-back, single publication (RC prerelease, stable `latest` only
+  when highest) and convergent reruns. Publication has two phases: the
+  prepare workflow (`release-artifacts.yml`) builds and verifies the exact
+  set, `release.sh` prints its publication envelope, a human authorizes that
+  envelope digest, and `publish-release.yml` publishes the same prepared bytes
+  only if its recomputed envelope matches; it never rebuilds. New
+  `scripts/release-preflight.sh`, `verify-prepared-release.sh`,
   `release-notes.sh`, `publish-release.sh`, `release.sh` and
   `test-release-flow.sh`; maintainer skill `$axiom-release`; `CODEOWNERS`
   and versioned ruleset desired state. Repository settings changes are

@@ -173,3 +173,9 @@ Trade-offs registrados:
   environment continua sendo uma ação humana na interface do GitHub.
 - O ruleset de tags não tem bypass: uma tag de release publicada só pode ser
   corrigida por uma nova versão.
+- A autorização de publicação vale para um publication envelope exato
+  (bytes preparados e verificados, notes, revisão, `latest`, estado remoto);
+  `publish-release.yml` usa `actions: read` para baixar o artifact preparado
+  daquela execução, não recompila, e recusa antes de qualquer efeito se o
+  envelope recalculado divergir. O artifact preparado expira em 30 dias;
+  depois disso, prepare de novo e autorize o novo envelope.
