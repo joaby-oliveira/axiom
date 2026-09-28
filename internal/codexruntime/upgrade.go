@@ -240,6 +240,10 @@ func (u *UpgradeSession) inspectSkillIn(child *os.Root, name string) (UpgradeSki
 		return skill, ErrUpgradeConflict
 	}
 	for _, entry := range entries {
+		info, err := child.Lstat(entry.Name())
+		if err != nil || info.Size() > maxUpgradeSkillBytes {
+			return skill, ErrUpgradeConflict
+		}
 		content, ok := privateRegularFileIn(child, entry.Name())
 		if !ok || len(content) > maxUpgradeSkillBytes {
 			return skill, ErrUpgradeConflict
