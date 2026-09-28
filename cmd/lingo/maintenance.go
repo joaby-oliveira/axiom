@@ -320,7 +320,7 @@ func (s lifecycleService) Upgrade(ctx context.Context, input cli.MaintenanceInpu
 	case err == nil && result.Status == "success":
 		return s.maintenanceResult(completion.Facts{Completed: true}, "Upgrade confirmed", references, "Run `axiom version` to verify the upgraded binary", view)
 	case err == nil:
-		return s.maintenanceResult(completion.Facts{RequestedEffectConfirmed: true, SecondaryFailure: true}, "Binary, receipt, and Codex skill files upgraded; the Codex skill-set receipt was not refreshed", references, "Run `axiom runtime codex install` with the upgraded binary to refresh the skill-set receipt", view)
+		return s.maintenanceResult(completion.Facts{RequestedEffectConfirmed: true, SecondaryFailure: true}, "Binary, receipt, and Codex skill files upgraded; the Codex skill-set receipt was not refreshed", references, "Run `axiom first-run` with the upgraded binary to refresh the skill-set receipt and converge every detected Runtime, or `axiom runtime codex install` when Codex is not on PATH", view)
 	case len(result.Ledger) > 0:
 		return s.maintenanceResult(completion.Facts{RequestedEffectConfirmed: true, SecondaryFailure: true}, "Upgrade partially applied: "+upgradeCategory(err), references, "Repeat `axiom upgrade` with the same archive to preview the resumable remaining effects", view)
 	case upgradeCategory(err) == "authority_denied":

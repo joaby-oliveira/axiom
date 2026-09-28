@@ -274,7 +274,7 @@ func TestPreAxiomExecutableSkillsAndReceiptRemainUpgradeable(t *testing.T) {
 		if !containsString(legacySkillDigests[name], digest) {
 			t.Fatalf("%s pre-axiom owned digest is not upgradeable", name)
 		}
-		content, err := skillFiles.ReadFile("skills/" + name + "/SKILL.md")
+		content, err := fs.ReadFile(skillFiles, "skills/"+name+"/SKILL.md")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -332,7 +332,7 @@ func TestEmbeddedSkillsUseSupportedNamesAndThinEntrypoints(t *testing.T) {
 		if !validName.MatchString(name) {
 			t.Fatalf("unsupported skill name: %q", name)
 		}
-		content, err := skillFiles.ReadFile("skills/" + name + "/SKILL.md")
+		content, err := fs.ReadFile(skillFiles, "skills/"+name+"/SKILL.md")
 		if err != nil {
 			t.Fatal(err)
 		}

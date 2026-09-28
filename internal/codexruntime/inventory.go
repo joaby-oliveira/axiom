@@ -83,7 +83,7 @@ func (s Service) Inventory(ctx context.Context) (Inventory, error) {
 		switch {
 		case receiptErr == nil && matchesPrivateFile(receiptPath, receipt):
 			result.Receipt = "current"
-		case s.integration.matchesLegacyReceipt(receiptPath):
+		case s.integration.matchesLegacyReceipt(s.root):
 			result.Receipt = "legacy"
 		default:
 			result.Receipt, foreign = "foreign", true

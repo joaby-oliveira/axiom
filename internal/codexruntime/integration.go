@@ -1,37 +1,42 @@
 package codexruntime
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
-	"io/fs"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 )
 
 // integration is one Runtime's user-global Axiom skill integration: the
-// shared thin skill set published under that Runtime's skill root, with only
-// the ownership history that Runtime actually had. Content outside that
-// history is never replaced.
+// shared thin skill set published under that Runtime's skill root. Content is
+// owned only when it is this binary's skill set, a revision in
+// sharedSkillHistory, or a revision in the Runtime's own earlier history.
+// Content outside that history is never replaced.
 type integration struct {
-	runtime        string
+	runtime string
+	// legacySkills and legacyReceipts are ownership history only this
+	// Runtime had before the shared history began. They are frozen: later
+	// revisions go to sharedSkillHistory.
 	legacySkills   map[string][]string
 	legacyReceipts [][]byte
-	receipt        func(root string) ([]byte, error)
+	receiptFor     func(root string, revision skillSetRevision) ([]byte, error)
 }
 
 var codexIntegration = integration{
 	runtime:        "codex",
 	legacySkills:   legacySkillDigests,
 	legacyReceipts: legacyReceiptWires,
-	receipt:        func(string) ([]byte, error) { return receiptBytes() },
+	receiptFor:     codexReceiptBytes,
 }
 
-// claudeIntegration starts without history: no earlier Axiom version was
-// ever installed into a Claude skill root, so no older content is owned.
+// claudeIntegration has no history of its own: no Axiom version before the
+// shared history ever installed into a Claude skill root, so only shared
+// revisions are Claude-owned.
 var claudeIntegration = integration{
 	runtime:      "claude",
 	legacySkills: map[string][]string{},
-	receipt:      claudeReceiptBytes,
+	receiptFor:   claudeReceiptBytes,
 }
 
 // NewClaude returns the Axiom integration for the Claude user-global skill
@@ -50,36 +55,75 @@ func (s Service) Runtime() string { return s.integration.runtime }
 
 func (i integration) category(suffix string) string { return i.runtime + "_" + suffix }
 
+// receipt is this binary's skill-set receipt for root.
+func (i integration) receipt(root string) ([]byte, error) {
+	revision, err := currentRevision()
+	if err != nil {
+		return nil, err
+	}
+	return i.receiptFor(root, revision)
+}
+
+// knownDigest reports an earlier Axiom-owned revision of one skill.
 func (i integration) knownDigest(name, digest string) bool {
-	for _, known := range i.legacySkills[name] {
-		if digest == known {
+	if slices.Contains(i.legacySkills[name], digest) {
+		return true
+	}
+	for _, revision := range sharedSkillHistory {
+		if revision.skills[name] == digest {
 			return true
 		}
 	}
 	return false
 }
 
+// matchesLegacyReceipt reports that the receipt in root is exactly the
+// receipt of an earlier Axiom-owned revision for this Runtime and root.
+func (i integration) matchesLegacyReceipt(root string) bool {
+	path := filepath.Join(root, receiptName)
+	for _, wire := range i.legacyReceipts {
+		if matchesPrivateFile(path, wire) {
+			return true
+		}
+	}
+	for _, revision := range sharedSkillHistory {
+		if wire, err := i.receiptFor(root, revision); err == nil && matchesPrivateFile(path, wire) {
+			return true
+		}
+	}
+	return false
+}
+
+// receiptRecognized reports whether root holds no receipt, this binary's
+// receipt, or an earlier Axiom-owned receipt. Anything else is not Axiom
+// evidence and must not accompany a skill replacement.
+func (i integration) receiptRecognized(root string) bool {
+	path := filepath.Join(root, receiptName)
+	if _, err := os.Lstat(path); os.IsNotExist(err) {
+		return true
+	} else if err != nil {
+		return false
+	}
+	current, err := i.receipt(root)
+	return err == nil && matchesPrivateFile(path, current) || i.matchesLegacyReceipt(root)
+}
+
 // claudeReceiptBytes records the Runtime, the skill root the set was
 // published to, and each skill's identity and digest. It records ownership
 // facts only; it never authorizes replacing content that is not a known
 // Axiom revision.
-func claudeReceiptBytes(root string) ([]byte, error) {
+func claudeReceiptBytes(root string, revision skillSetRevision) ([]byte, error) {
 	if strings.ContainsAny(root, "\n\r") {
 		return nil, errors.New("unsafe skill root")
 	}
-	digest, err := manifestDigest()
+	digest, err := revision.manifestDigest()
 	if err != nil {
 		return nil, err
 	}
 	var builder strings.Builder
-	builder.WriteString("formatVersion=1\nruntime=claude\nskillsRoot=" + root + "\nskillSetVersion=" + SkillSetVersion + "\nbinaryCompatibility=" + BinaryCompatibility + "\nmanifestSha256=" + digest + "\n")
+	builder.WriteString("formatVersion=1\nruntime=claude\nskillsRoot=" + root + "\nskillSetVersion=" + revision.skillSetVersion + "\nbinaryCompatibility=" + revision.binaryCompatibility + "\nmanifestSha256=" + digest + "\n")
 	for _, name := range skillNames {
-		content, err := fs.ReadFile(skillFiles, "skills/"+name+"/SKILL.md")
-		if err != nil {
-			return nil, err
-		}
-		sum := sha256.Sum256(content)
-		builder.WriteString("skill." + name + "=" + hex.EncodeToString(sum[:]) + "\n")
+		builder.WriteString("skill." + name + "=" + revision.skills[name] + "\n")
 	}
 	return []byte(builder.String()), nil
 }

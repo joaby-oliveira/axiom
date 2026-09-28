@@ -17,7 +17,10 @@ import (
 )
 
 //go:embed skills/*/SKILL.md
-var skillFiles embed.FS
+var embeddedSkills embed.FS
+
+// skillFiles is the skill set this binary publishes.
+var skillFiles fs.FS = embeddedSkills
 
 var skillNames = []string{
 	"axiom-project-configure",
@@ -109,6 +112,7 @@ func (s Service) Install(ctx context.Context) Result {
 		return s.inspectResult(Failed, category)
 	}
 	defer lock.Close()
+	replaces := false
 	for _, name := range skillNames {
 		content, err := fs.ReadFile(skillFiles, "skills/"+name+"/SKILL.md")
 		if err != nil {
@@ -117,6 +121,12 @@ func (s Service) Install(ctx context.Context) Result {
 		if !s.integration.installableOne(s.root, name, content) {
 			return s.inspectResult(Failed, s.integration.category("skill_conflict"))
 		}
+		replaces = replaces || !matchesInstalled(s.root, name, content)
+	}
+	// A receipt that is neither absent, current nor an earlier Axiom-owned
+	// receipt for this root is not Axiom evidence: no skill changes beside it.
+	if replaces && !s.integration.receiptRecognized(s.root) {
+		return s.inspectResult(Failed, s.integration.category("skill_conflict"))
 	}
 	changed := false
 	for _, name := range skillNames {
@@ -219,7 +229,7 @@ func (i integration) publishReceipt(root string, content []byte) (bool, bool) {
 		return false, true
 	}
 	if _, err := os.Lstat(path); err == nil {
-		if !i.matchesLegacyReceipt(path) {
+		if !i.matchesLegacyReceipt(root) {
 			return false, false
 		}
 		return i.replaceKnownReceipt(root, content)
@@ -252,15 +262,6 @@ func (i integration) publishReceipt(root string, content []byte) (bool, bool) {
 	return true, true
 }
 
-func (i integration) matchesLegacyReceipt(path string) bool {
-	for _, wire := range i.legacyReceipts {
-		if matchesPrivateFile(path, wire) {
-			return true
-		}
-	}
-	return false
-}
-
 func (i integration) replaceKnownReceipt(root string, content []byte) (bool, bool) {
 	directory, err := os.OpenRoot(root)
 	if err != nil {
@@ -279,7 +280,7 @@ func (i integration) replaceKnownReceipt(root string, content []byte) (bool, boo
 	if writeErr != nil || syncErr != nil || closeErr != nil || written != len(content) {
 		return false, false
 	}
-	if !i.matchesLegacyReceipt(filepath.Join(root, receiptName)) {
+	if !i.matchesLegacyReceipt(root) {
 		return false, false
 	}
 	if err := directory.Rename(temporary, receiptName); err != nil {
@@ -482,14 +483,7 @@ func (i integration) matchesLegacyInstalled(root, name string) bool {
 	if !ok {
 		return false
 	}
-	digest := sha256.Sum256(content)
-	value := hex.EncodeToString(digest[:])
-	for _, known := range i.legacySkills[name] {
-		if value == known {
-			return true
-		}
-	}
-	return false
+	return i.knownDigest(name, digestOf(content))
 }
 
 func (i integration) replaceKnownSkill(directory, name string, content []byte) error {
@@ -515,14 +509,7 @@ func (i integration) replaceKnownSkill(directory, name string, content []byte) e
 	if err != nil {
 		return err
 	}
-	digest := sha256.Sum256(current)
-	known := false
-	for _, expected := range i.legacySkills[name] {
-		if hex.EncodeToString(digest[:]) == expected {
-			known = true
-		}
-	}
-	if !known {
+	if !i.knownDigest(name, digestOf(current)) {
 		return errors.New("skill changed during update")
 	}
 	return root.Rename(temporary, "SKILL.md")
