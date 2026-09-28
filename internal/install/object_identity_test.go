@@ -222,3 +222,45 @@ func TestReplacedIsUnsafe(t *testing.T) {
 		t.Fatal("ErrReplaced must wrap ErrUnsafe")
 	}
 }
+
+func TestApplyKeepsMarkerWhenSkillRootReplacedAfterPublication(t *testing.T) {
+	old := newBundle("1.0.0", []byte("old"))
+	installed := install(t, old)
+	root := installed.withSkillsRoot(t, old.skills)
+	next := newBundle("1.1.0", []byte("new"))
+	candidate := installed.candidate(t, next)
+	service := NewService()
+	preview, err := service.Preview(context.Background(), installed.target, candidate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authority, _ := Authorize(preview, preview.Digest)
+	var original, replacement string
+	service.afterEffect = func(kind string) error {
+		if kind != "skill:"+skillNames[len(skillNames)-1] {
+			return nil
+		}
+		if err := os.Rename(root, root+"-old"); err != nil {
+			return err
+		}
+		// Even a complete matching set at B cannot confirm publication in A.
+		for _, name := range skillNames {
+			if err := os.MkdirAll(filepath.Join(root, name), 0700); err != nil {
+				return err
+			}
+			writeFile(t, filepath.Join(root, name, "SKILL.md"), next.skills[name], 0600)
+		}
+		original, replacement = snapshot(t, root+"-old"), snapshot(t, root)
+		return nil
+	}
+	result, err := service.Apply(context.Background(), preview, authority)
+	if category(err) != "final_verification_failed" || result.Status != "partial" {
+		t.Fatalf("result=%+v err=%v", result, err)
+	}
+	if snapshot(t, root+"-old") != original || snapshot(t, root) != replacement {
+		t.Fatal("replacement caused new mutation")
+	}
+	if _, err := os.Lstat(filepath.Join(installed.target.ReceiptDir, markerName)); err != nil {
+		t.Fatal("recovery marker removed")
+	}
+}

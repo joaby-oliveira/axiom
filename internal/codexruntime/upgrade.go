@@ -9,7 +9,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+
+	"golang.org/x/sys/unix"
 )
 
 // UpgradeStagePrefix names private staging files that an authorized binary
@@ -117,9 +120,11 @@ func (s Service) inspectUpgradeSkill(name string) (UpgradeSkill, error) {
 // replacement instead of completing in the displaced object (ADR-0005
 // property 3, controlled ancestor/leaf replacement).
 type UpgradeSession struct {
-	lock   *os.File
-	root   *os.Root
-	anchor anchor
+	lock        *os.File
+	root        *os.Root
+	anchor      anchor
+	integration integration
+	rootPath    string
 }
 
 // LockForUpgrade takes the same exclusive skill-set lock as Install and opens
@@ -164,7 +169,93 @@ func (s Service) LockForUpgrade() (*UpgradeSession, error) {
 		root.Close()
 		return nil, ErrTargetReplaced
 	}
-	return &UpgradeSession{lock: lock, root: root, anchor: identity}, nil
+	return &UpgradeSession{lock: lock, root: root, anchor: identity, integration: s.integration, rootPath: s.root}, nil
+}
+
+// StillAtPath verifies the session's authorized root and ancestors.
+func (u *UpgradeSession) StillAtPath() error { return u.anchor.verify(u.root) }
+
+// AvailableBytes reads capacity on the session filesystem.
+func (u *UpgradeSession) AvailableBytes() (uint64, error) {
+	directory, err := u.root.Open(".")
+	if err != nil {
+		return 0, err
+	}
+	defer directory.Close()
+	var stat unix.Statfs_t
+	if err := unix.Fstatfs(int(directory.Fd()), &stat); err != nil {
+		return 0, err
+	}
+	return uint64(stat.Bavail) * uint64(stat.Bsize), nil
+}
+
+// Inspect reads upgrade evidence from the session capability, never rootPath.
+func (u *UpgradeSession) Inspect(ctx context.Context) (UpgradeInventory, error) {
+	if err := ctx.Err(); err != nil {
+		return UpgradeInventory{}, err
+	}
+	if err := u.StillAtPath(); err != nil {
+		return UpgradeInventory{}, err
+	}
+	inventory := UpgradeInventory{Skills: make([]UpgradeSkill, 0, len(skillNames))}
+	if _, err := u.root.Lstat(".axiom-skill-set-receipt-stage"); !os.IsNotExist(err) {
+		return inventory, ErrUpgradeConflict
+	}
+	if _, err := u.root.Lstat(receiptName); err == nil {
+		inventory.Receipt, inventory.Configured = true, true
+	} else if !os.IsNotExist(err) {
+		return inventory, ErrUpgradeConflict
+	}
+	for _, name := range skillNames {
+		skill := UpgradeSkill{Name: name}
+		if _, err := u.root.Lstat(name); os.IsNotExist(err) {
+			inventory.Skills = append(inventory.Skills, skill)
+			continue
+		}
+		child, err := privateChild(u.root, name)
+		if err != nil {
+			return inventory, ErrUpgradeConflict
+		}
+		skill, err = u.inspectSkillIn(child, name)
+		identityErr := childStillAt(u.root, child, name)
+		child.Close()
+		if err != nil || identityErr != nil {
+			return inventory, ErrUpgradeConflict
+		}
+		inventory.Configured = true
+		inventory.Skills = append(inventory.Skills, skill)
+	}
+	return inventory, u.StillAtPath()
+}
+
+func (u *UpgradeSession) inspectSkillIn(child *os.Root, name string) (UpgradeSkill, error) {
+	skill := UpgradeSkill{Name: name, Directory: true}
+	directory, err := child.Open(".")
+	if err != nil {
+		return skill, ErrUpgradeConflict
+	}
+	entries, err := directory.ReadDir(-1)
+	directory.Close()
+	if err != nil {
+		return skill, ErrUpgradeConflict
+	}
+	for _, entry := range entries {
+		content, ok := privateRegularFileIn(child, entry.Name())
+		if !ok || len(content) > maxUpgradeSkillBytes {
+			return skill, ErrUpgradeConflict
+		}
+		switch {
+		case entry.Name() == "SKILL.md":
+			skill.SHA256 = digestOf(content)
+			embedded, err := fs.ReadFile(skillFiles, "skills/"+name+"/SKILL.md")
+			skill.Owned = err == nil && string(embedded) == string(content) || u.integration.knownDigest(name, skill.SHA256)
+		case strings.HasPrefix(entry.Name(), UpgradeStagePrefix):
+			skill.Leftovers = append(skill.Leftovers, filepath.Join(u.rootPath, name, entry.Name()))
+		default:
+			return skill, ErrUpgradeConflict
+		}
+	}
+	return skill, nil
 }
 
 // Close releases the install lock and the anchored skill-root handle.
@@ -178,12 +269,27 @@ func (u *UpgradeSession) Close() {
 // handle and a child directory opened from it once, never by re-deriving
 // either by pathname.
 func (u *UpgradeSession) RemoveSkillLeftover(name, leftoverName string) error {
+	if !slices.Contains(skillNames, name) || filepath.Base(leftoverName) != leftoverName || !strings.HasPrefix(leftoverName, UpgradeStagePrefix) {
+		return ErrUpgradeConflict
+	}
+	if err := u.StillAtPath(); err != nil {
+		return err
+	}
 	child, err := privateChild(u.root, name)
 	if err != nil {
 		return err
 	}
 	defer child.Close()
-	return child.Remove(leftoverName)
+	if _, ok := privateRegularFileIn(child, leftoverName); !ok {
+		return ErrUpgradeConflict
+	}
+	if err := errors.Join(u.StillAtPath(), childStillAt(u.root, child, name)); err != nil {
+		return err
+	}
+	if err := child.Remove(leftoverName); err != nil {
+		return err
+	}
+	return errors.Join(u.StillAtPath(), childStillAt(u.root, child, name))
 }
 
 // PublishSkill stages content privately inside name's skill directory

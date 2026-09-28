@@ -94,18 +94,29 @@ func (i integration) matchesLegacyReceipt(root string) bool {
 	return false
 }
 
-// receiptRecognized reports whether root holds no receipt, this binary's
-// receipt, or an earlier Axiom-owned receipt. Anything else is not Axiom
-// evidence and must not accompany a skill replacement.
-func (i integration) receiptRecognized(root string) bool {
-	path := filepath.Join(root, receiptName)
-	if _, err := os.Lstat(path); os.IsNotExist(err) {
+// rootPath supplies receipt data only; ownership is read from root.
+func (i integration) matchesLegacyReceiptIn(root *os.Root, rootPath string) bool {
+	for _, wire := range i.legacyReceipts {
+		if matchesPrivateFileIn(root, receiptName, wire) {
+			return true
+		}
+	}
+	for _, revision := range sharedSkillHistory {
+		if wire, err := i.receiptFor(rootPath, revision); err == nil && matchesPrivateFileIn(root, receiptName, wire) {
+			return true
+		}
+	}
+	return false
+}
+
+func (i integration) receiptRecognizedIn(root *os.Root, rootPath string) bool {
+	if _, err := root.Lstat(receiptName); os.IsNotExist(err) {
 		return true
 	} else if err != nil {
 		return false
 	}
-	current, err := i.receipt(root)
-	return err == nil && matchesPrivateFile(path, current) || i.matchesLegacyReceipt(root)
+	current, err := i.receipt(rootPath)
+	return err == nil && matchesPrivateFileIn(root, receiptName, current) || i.matchesLegacyReceiptIn(root, rootPath)
 }
 
 // claudeReceiptBytes records the Runtime, the skill root the set was

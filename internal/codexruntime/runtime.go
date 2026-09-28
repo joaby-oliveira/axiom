@@ -80,6 +80,7 @@ type Service struct {
 	binaryCompatibility string
 	integration         integration
 	afterSkill          func(string)
+	afterLock           func()
 }
 
 func New(root string) (Service, error) {
@@ -129,11 +130,14 @@ func (s Service) Install(ctx context.Context) Result {
 		category = s.integration.category(category)
 	}
 	if category != "" {
-		return s.inspectResult(Failed, category)
+		return s.inspectResultIn(root, Failed, category)
 	}
 	defer lock.Close()
 	if verify() != nil {
 		return Result{Status: Failed, Category: s.integration.category("skill_root_unavailable")}
+	}
+	if s.afterLock != nil {
+		s.afterLock()
 	}
 	replaces := false
 	for _, name := range skillNames {
@@ -142,19 +146,19 @@ func (s Service) Install(ctx context.Context) Result {
 			return Result{Status: Failed, Category: s.integration.category("skill_package_invalid")}
 		}
 		if !s.integration.installableOne(root, name, content) {
-			return s.inspectResult(Failed, s.integration.category("skill_conflict"))
+			return s.inspectResultIn(root, Failed, s.integration.category("skill_conflict"))
 		}
-		replaces = replaces || !matchesInstalled(s.root, name, content)
+		replaces = replaces || !matchesSkillIn(root, name, content)
 	}
 	// A receipt that is neither absent, current nor an earlier Axiom-owned
 	// receipt for this root is not Axiom evidence: no skill changes beside it.
-	if replaces && !s.integration.receiptRecognized(s.root) {
-		return s.inspectResult(Failed, s.integration.category("skill_conflict"))
+	if replaces && !s.integration.receiptRecognizedIn(root, s.root) {
+		return s.inspectResultIn(root, Failed, s.integration.category("skill_conflict"))
 	}
 	changed := false
 	for _, name := range skillNames {
 		if err := ctx.Err(); err != nil {
-			return s.inspectResult(Partial, s.integration.category("skill_install_partial"))
+			return s.inspectResultIn(root, Partial, s.integration.category("skill_install_partial"))
 		}
 		content, err := fs.ReadFile(skillFiles, "skills/"+name+"/SKILL.md")
 		if err != nil {
@@ -165,7 +169,7 @@ func (s Service) Install(ctx context.Context) Result {
 			return Result{Status: Failed, Category: s.integration.category("skill_root_unavailable")}
 		}
 		if err != nil {
-			return s.inspectResult(Partial, s.integration.category("skill_install_partial"))
+			return s.inspectResultIn(root, Partial, s.integration.category("skill_install_partial"))
 		}
 		_ = createdOne
 		if changedOne {
@@ -177,23 +181,23 @@ func (s Service) Install(ctx context.Context) Result {
 	}
 	receipt, err := s.integration.receipt(s.root)
 	if err != nil {
-		return s.inspectResult(Partial, s.integration.category("skill_receipt_incomplete"))
+		return s.inspectResultIn(root, Partial, s.integration.category("skill_receipt_incomplete"))
 	}
 	receiptChanged, receiptPublished := s.integration.publishReceiptIn(root, s.root, receipt, verify)
 	if !receiptPublished {
-		return s.inspectResult(Partial, s.integration.category("skill_receipt_incomplete"))
+		return s.inspectResultIn(root, Partial, s.integration.category("skill_receipt_incomplete"))
 	}
 	changed = changed || receiptChanged
 	if verify() != nil {
 		if changed {
-			return s.inspectResult(Partial, s.integration.category("skill_install_partial"))
+			return s.inspectResultIn(root, Partial, s.integration.category("skill_install_partial"))
 		}
 		return Result{Status: Failed, Category: s.integration.category("skill_root_unavailable")}
 	}
 	if !changed {
-		return s.inspectResult(Unchanged, s.integration.category("already_configured"))
+		return s.inspectResultIn(root, Unchanged, s.integration.category("already_configured"))
 	}
-	return s.inspectResult(Applied, s.integration.category("configured"))
+	return s.inspectResultIn(root, Applied, s.integration.category("configured"))
 }
 
 // installableOne decides, from the anchored skill root, whether name may be
@@ -260,18 +264,47 @@ func (s Service) inspectResult(status Status, category string) Result {
 	return result
 }
 
+func matchesSkillIn(root *os.Root, name string, content []byte) bool {
+	child, err := privateChild(root, name)
+	if err != nil {
+		return false
+	}
+	defer child.Close()
+	return matchesInstalledIn(child, content)
+}
+
+func (s Service) inspectResultIn(root *os.Root, status Status, category string) Result {
+	result := Result{Status: status, Category: category, SkillSetVersion: SkillSetVersion, BinaryCompatibility: s.binaryCompatibility, Skills: make([]SkillState, 0, len(skillNames))}
+	for _, name := range skillNames {
+		content, _ := fs.ReadFile(skillFiles, "skills/"+name+"/SKILL.md")
+		state := "missing"
+		if _, err := root.Lstat(name); err == nil {
+			state = "modified_or_foreign"
+		}
+		if child, err := privateChild(root, name); err == nil {
+			if matchesInstalledIn(child, content) {
+				state = "equivalent"
+			} else if s.integration.matchesLegacyInstalledIn(child, name) {
+				state = "owned_older"
+			}
+			child.Close()
+		}
+		result.Skills = append(result.Skills, SkillState{Name: name, Digest: digestOf(content), State: state})
+	}
+	return result
+}
+
 // publishReceiptIn publishes content as the receipt inside root, the same
 // anchored skill-root object Install validated once and holds open, never by
-// re-deriving rootPath (used only to evaluate matchesLegacyReceipt, which
-// still needs the root's string identity for the Claude receipt content).
+// re-deriving rootPath, which is used only as Claude receipt content.
 // verify must hold before the stage and the rename and again after the
 // rename; otherwise the receipt is not reported as published.
 func (i integration) publishReceiptIn(root *os.Root, rootPath string, content []byte, verify func() error) (bool, bool) {
 	if matchesPrivateFileIn(root, receiptName, content) {
-		return false, true
+		return false, verify() == nil
 	}
 	if _, err := root.Lstat(receiptName); err == nil {
-		if !i.matchesLegacyReceipt(rootPath) {
+		if !i.matchesLegacyReceiptIn(root, rootPath) {
 			return false, false
 		}
 		return i.replaceKnownReceiptIn(root, rootPath, content, verify)
@@ -293,7 +326,7 @@ func (i integration) publishReceiptIn(root *os.Root, rootPath string, content []
 	if writeErr != nil || syncErr != nil || closeErr != nil || written != len(content) {
 		return false, false
 	}
-	if _, err := root.Stat(receiptName); err == nil || !os.IsNotExist(err) {
+	if _, err := root.Lstat(receiptName); err == nil || !os.IsNotExist(err) {
 		return false, false
 	}
 	if verify() != nil {
@@ -306,6 +339,10 @@ func (i integration) publishReceiptIn(root *os.Root, rootPath string, content []
 }
 
 func (i integration) replaceKnownReceiptIn(root *os.Root, rootPath string, content []byte, verify func() error) (bool, bool) {
+	expected, ok := privateRegularFileIn(root, receiptName)
+	if !ok || !i.matchesLegacyReceiptIn(root, rootPath) {
+		return false, false
+	}
 	if verify() != nil {
 		return false, false
 	}
@@ -321,7 +358,7 @@ func (i integration) replaceKnownReceiptIn(root *os.Root, rootPath string, conte
 	if writeErr != nil || syncErr != nil || closeErr != nil || written != len(content) {
 		return false, false
 	}
-	if !i.matchesLegacyReceipt(rootPath) || verify() != nil {
+	if !matchesPrivateFileIn(root, receiptName, expected) || verify() != nil {
 		return false, false
 	}
 	if err := root.Rename(temporary, receiptName); err != nil {
@@ -891,6 +928,13 @@ func singleSkillContentIn(child *os.Root) ([]byte, bool) {
 }
 
 func (i integration) replaceKnownSkillIn(child *os.Root, name string, content []byte, still func() error) error {
+	expected, ok := privateRegularFileIn(child, "SKILL.md")
+	if !ok || !i.knownDigest(name, digestOf(expected)) {
+		return errors.New("skill changed during update")
+	}
+	if err := still(); err != nil {
+		return err
+	}
 	const temporary = ".axiom-skill-update"
 	file, err := child.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
@@ -904,11 +948,11 @@ func (i integration) replaceKnownSkillIn(child *os.Root, name string, content []
 		return errors.New("skill update write failed")
 	}
 	defer child.Remove(temporary)
-	current, err := child.ReadFile("SKILL.md")
-	if err != nil {
-		return err
+	current, ok := privateRegularFileIn(child, "SKILL.md")
+	if !ok {
+		return errors.New("skill changed during update")
 	}
-	if !i.knownDigest(name, digestOf(current)) {
+	if string(current) != string(expected) {
 		return errors.New("skill changed during update")
 	}
 	if err := still(); err != nil {

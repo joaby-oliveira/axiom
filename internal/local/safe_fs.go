@@ -360,6 +360,30 @@ func (d AnchoredDirectory) Lstat(name string) (os.FileInfo, error) {
 	return d.root.Lstat(name)
 }
 
+// ReadDir inspects entries through the already authorized directory object.
+func (d AnchoredDirectory) ReadDir() ([]os.DirEntry, error) {
+	directory, err := d.root.Open(".")
+	if err != nil {
+		return nil, err
+	}
+	defer directory.Close()
+	return directory.ReadDir(-1)
+}
+
+// AvailableBytes observes free space on this anchored filesystem.
+func (d AnchoredDirectory) AvailableBytes() (uint64, error) {
+	directory, err := d.root.Open(".")
+	if err != nil {
+		return 0, err
+	}
+	defer directory.Close()
+	var stat unix.Statfs_t
+	if err := unix.Fstatfs(int(directory.Fd()), &stat); err != nil {
+		return 0, err
+	}
+	return uint64(stat.Bavail) * uint64(stat.Bsize), nil
+}
+
 // CreateExclusive creates name inside this anchored directory in place (no
 // staging), failing if it already exists. It is for the first write of a
 // coordination artifact (a lock directory's wire content, a fresh marker)
