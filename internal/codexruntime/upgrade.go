@@ -112,11 +112,14 @@ func (s Service) inspectUpgradeSkill(name string) (UpgradeSkill, error) {
 // skill root, opened once by LockForUpgrade: every PublishSkill call for this
 // session resolves against that same validated directory object (and a
 // per-skill child directory opened from it), so a later replacement of the
-// root or a skill directory at its pathname cannot redirect a publication
-// (ADR-0005 property 3, controlled ancestor/leaf replacement).
+// root or a skill directory at its pathname cannot redirect a publication,
+// and the session's anchor lets every publication detect and refuse such a
+// replacement instead of completing in the displaced object (ADR-0005
+// property 3, controlled ancestor/leaf replacement).
 type UpgradeSession struct {
-	lock *os.File
-	root *os.Root
+	lock   *os.File
+	root   *os.Root
+	anchor anchor
 }
 
 // LockForUpgrade takes the same exclusive skill-set lock as Install and opens
@@ -124,9 +127,10 @@ type UpgradeSession struct {
 // user, without group/other write, without extended ACL, with every
 // container ancestor safe from replacement by another principal. The
 // returned session is what every PublishSkill call for this upgrade
-// operates through.
+// operates through. The lock is taken only while the root is still the object
+// visible at its authorized pathname.
 func (s Service) LockForUpgrade() (*UpgradeSession, error) {
-	root, err := anchoredRoot(s.root, false)
+	root, identity, err := anchoredRoot(s.root, false)
 	if err != nil {
 		return nil, ErrUpgradeConflict
 	}
@@ -146,12 +150,21 @@ func (s Service) LockForUpgrade() (*UpgradeSession, error) {
 		root.Close()
 		return nil, ErrUpgradeConflict
 	}
+	if identity.verify(root) != nil {
+		root.Close()
+		return nil, ErrTargetReplaced
+	}
 	lock, category := acquireInstallLock(root)
 	if category != "" {
 		root.Close()
 		return nil, errors.New(category)
 	}
-	return &UpgradeSession{lock: lock, root: root}, nil
+	if identity.verify(root) != nil {
+		_ = lock.Close()
+		root.Close()
+		return nil, ErrTargetReplaced
+	}
+	return &UpgradeSession{lock: lock, root: root, anchor: identity}, nil
 }
 
 // Close releases the install lock and the anchored skill-root handle.
@@ -178,6 +191,11 @@ func (u *UpgradeSession) RemoveSkillLeftover(name, leftoverName string) error {
 // has the expected digest, renames, and confirms the published digest,
 // entirely through this session's anchored skill-root handle and a child
 // directory opened from it once, never by re-deriving either by pathname.
+// Before the directory create, the stage, and the rename, the skill root (with
+// every ancestor) and the skill directory must still be the objects visible
+// at their authorized pathnames, otherwise ErrTargetReplaced is returned with
+// nothing committed; the same proof must hold after the rename for the
+// publication to be confirmed.
 func (u *UpgradeSession) PublishSkill(name string, content []byte, expected string) error {
 	known := false
 	for _, candidate := range skillNames {
@@ -188,6 +206,9 @@ func (u *UpgradeSession) PublishSkill(name string, content []byte, expected stri
 	}
 	nextDigest := sha256.Sum256(content)
 	next := hex.EncodeToString(nextDigest[:])
+	if err := u.anchor.verify(u.root); err != nil {
+		return err
+	}
 	if _, err := u.root.Lstat(name); os.IsNotExist(err) && expected == "" {
 		if err := u.root.Mkdir(name, 0o700); err != nil {
 			return err
@@ -199,6 +220,15 @@ func (u *UpgradeSession) PublishSkill(name string, content []byte, expected stri
 		return ErrUpgradeConflict
 	}
 	defer child.Close()
+	still := func() error {
+		if err := u.anchor.verify(u.root); err != nil {
+			return err
+		}
+		return childStillAt(u.root, child, name)
+	}
+	if err := still(); err != nil {
+		return err
+	}
 	var entropy [8]byte
 	if _, err := rand.Read(entropy[:]); err != nil {
 		return err
@@ -227,12 +257,15 @@ func (u *UpgradeSession) PublishSkill(name string, content []byte, expected stri
 	if current := currentSkillDigestIn(child); current != expected {
 		return ErrUpgradeConflict
 	}
+	if err := still(); err != nil {
+		return err
+	}
 	if err := child.Rename(stage, "SKILL.md"); err != nil {
 		return err
 	}
 	committed = true
 	syncRootObject(child)
-	if currentSkillDigestIn(child) != next {
+	if currentSkillDigestIn(child) != next || still() != nil {
 		return errors.New("skill publication uncertain")
 	}
 	return nil

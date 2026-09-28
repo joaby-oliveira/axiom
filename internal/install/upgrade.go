@@ -272,6 +272,15 @@ func Authorize(preview Preview, reviewedDigest string) (Authority, error) {
 // pathname again leaves a window in which the two operations could land on
 // different objects if the directory (or one of its ancestors) were replaced
 // in between (ADR-0005 property 3, controlled ancestor/leaf replacement).
+//
+// Binding to the object is not by itself truthful: each anchored directory
+// must also still be the object visible at its authorized pathname at every
+// inspection and commit boundary. The lock, the marker, every stage and
+// rename refuse once either directory or one of its ancestors was replaced;
+// each published effect is confirmed at its pathname after the commit; and
+// success is declared only after both directories are proven, once more, to
+// be the objects the operation was authorized for. A replacement is reported
+// as target_changed before a commit and never as a confirmed effect after one.
 func (s Service) Apply(ctx context.Context, preview Preview, authority Authority) (Result, error) {
 	result := Result{Status: "denied_authority", Ledger: []LedgerEntry{}}
 	if authority.digest == "" || authority.digest != preview.Digest {
@@ -285,6 +294,9 @@ func (s Service) Apply(ctx context.Context, preview Preview, authority Authority
 	defer receiptDir.Close()
 	if err := receiptDir.Mkdir(lockName); err != nil {
 		result.Status = "failure"
+		if errors.Is(err, local.ErrReplaced) {
+			return result, &Error{Category: "target_changed"}
+		}
 		return result, &Error{Category: "installation_busy_or_interrupted"}
 	}
 	defer func() { _ = receiptDir.Remove(lockName) }()
@@ -338,6 +350,9 @@ func (s Service) Apply(ctx context.Context, preview Preview, authority Authority
 			}
 		}
 		if err := writeMarker(receiptDir, current.candidate.ArchiveSHA256, "prepare", true, recorded); err != nil {
+			if errors.Is(err, local.ErrReplaced) {
+				return result, &Error{Category: "target_changed"}
+			}
 			return result, &Error{Category: "marker_unavailable"}
 		}
 	}
@@ -372,7 +387,9 @@ func (s Service) Apply(ctx context.Context, preview Preview, authority Authority
 		}
 		result.Ledger = append(result.Ledger, LedgerEntry{Kind: effect.Kind, Name: effect.Name, Target: effect.Target, Revision: effect.Next, Confirmed: true})
 		if effect.Kind == "binary" {
-			if err := writeMarker(receiptDir, current.candidate.ArchiveSHA256, "binary_committed", false, recorded); err != nil {
+			if err := writeMarker(receiptDir, current.candidate.ArchiveSHA256, "binary_committed", false, recorded); errors.Is(err, local.ErrReplaced) {
+				return partial(result), &Error{Category: "target_changed"}
+			} else if err != nil {
 				return partial(result), &Error{Category: "marker_unavailable"}
 			}
 		}
@@ -398,6 +415,11 @@ func (s Service) Apply(ctx context.Context, preview Preview, authority Authority
 			_ = skillSession.RemoveSkillLeftover(filepath.Base(parent), filepath.Base(leftover))
 		}
 	}
+	// The operation marker is recovery state for the authorized objects: it
+	// is cleared only while both directories are still those objects.
+	if receiptDir.StillAtPath() != nil || binaryDirOpen && binaryDir.StillAtPath() != nil {
+		return partial(result), &Error{Category: "final_verification_failed"}
+	}
 	if err := receiptDir.Remove(markerName); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return partial(result), &Error{Category: "marker_cleanup_failed"}
 	}
@@ -408,6 +430,9 @@ func (s Service) Apply(ctx context.Context, preview Preview, authority Authority
 	}
 	verified, err := planSkills(ctx, current.target.SkillsRoot, current.candidate, "", nil, false)
 	if err != nil || len(verified.effects) != 0 || len(verified.leftovers) != 0 {
+		return partial(result), &Error{Category: "final_verification_failed"}
+	}
+	if receiptDir.StillAtPath() != nil || binaryDirOpen && binaryDir.StillAtPath() != nil {
 		return partial(result), &Error{Category: "final_verification_failed"}
 	}
 	result.Skills, result.Status = verified.state, "success"
@@ -449,10 +474,14 @@ func partial(result Result) Result {
 // directory whose identity was just validated by its caller (OpenOwnedDirectory
 // or OpenPublicationDirectory), so this never re-derives the target by
 // pathname and cannot be redirected by a later replacement of dir at its
-// pathname.
+// pathname. A replacement of dir or an ancestor observed before the commit
+// is refused as target_changed with nothing renamed; one observed after the
+// commit is publication_uncertain, never a confirmed effect.
 func publishEffect(dir local.AnchoredDirectory, name, prefix string, wire []byte, effect Effect, mode os.FileMode, limit int) error {
 	stage, err := dir.Stage(prefix, wire, mode)
-	if err != nil {
+	if errors.Is(err, local.ErrReplaced) {
+		return &Error{Category: "target_changed"}
+	} else if err != nil {
 		return &Error{Category: "stage_unavailable"}
 	}
 	committed := false
@@ -469,13 +498,15 @@ func publishEffect(dir local.AnchoredDirectory, name, prefix string, wire []byte
 	if err != nil || digest(current) != effect.Expected {
 		return &Error{Category: "target_changed"}
 	}
-	if err := dir.Rename(stage, name); err != nil {
+	if err := dir.Rename(stage, name); errors.Is(err, local.ErrReplaced) {
+		return &Error{Category: "target_changed"}
+	} else if err != nil {
 		return &Error{Category: "publication_failed"}
 	}
 	committed = true
 	_ = dir.Sync()
 	confirmed, err := dir.ReadFile(name, limit)
-	if err != nil || digest(confirmed) != effect.Next {
+	if err != nil || digest(confirmed) != effect.Next || dir.StillAtPath() != nil {
 		return &Error{Category: "publication_uncertain"}
 	}
 	return nil
@@ -657,7 +688,10 @@ func writeMarker(receiptDir local.AnchoredDirectory, archive, stage string, crea
 		if err := receiptDir.CreateExclusive(markerName, wire, 0o600); err != nil {
 			return err
 		}
-		return receiptDir.Sync()
+		if err := receiptDir.Sync(); err != nil {
+			return err
+		}
+		return receiptDir.StillAtPath()
 	}
 	staged, err := receiptDir.Stage(markerName+".", wire, 0o600)
 	if err != nil {
@@ -673,7 +707,10 @@ func writeMarker(receiptDir local.AnchoredDirectory, archive, stage string, crea
 		return err
 	}
 	committed = true
-	return receiptDir.Sync()
+	if err := receiptDir.Sync(); err != nil {
+		return err
+	}
+	return receiptDir.StillAtPath()
 }
 
 func stageLeftovers(target Target) []string {

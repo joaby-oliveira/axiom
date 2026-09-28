@@ -137,124 +137,189 @@ func TestPublicationDirectoryRefusesUnsafeGrandparent(t *testing.T) {
 	}
 }
 
+// replacementScenarios move the directory validated at path (or one of its
+// ancestors) away and put something else at the authorized pathname. Each
+// returns the path where the ORIGINALLY validated object now lives and the
+// path of the object now visible at the authorized pathname.
+var replacementScenarios = []struct {
+	name    string
+	replace func(t *testing.T, path string) (original, replacement string)
+}{
+	{"leaf renamed away and replaced by a new directory", func(t *testing.T, path string) (string, string) {
+		renameOrFatal(t, path, path+"-moved")
+		mkdirOrFatal(t, path, 0o700)
+		return path + "-moved", path
+	}},
+	{"leaf renamed away and replaced by a symlink", func(t *testing.T, path string) (string, string) {
+		foreign := filepath.Join(filepath.Dir(path), "foreign")
+		mkdirOrFatal(t, foreign, 0o700)
+		renameOrFatal(t, path, path+"-moved")
+		if err := os.Symlink(foreign, path); err != nil {
+			t.Fatal(err)
+		}
+		return path + "-moved", foreign
+	}},
+	{"parent renamed away and the pathname recreated", func(t *testing.T, path string) (string, string) {
+		parent := filepath.Dir(path)
+		renameOrFatal(t, parent, parent+"-moved")
+		if err := os.MkdirAll(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		return filepath.Join(parent+"-moved", filepath.Base(path)), path
+	}},
+	{"parent replaced while the original leaf is moved back under it", func(t *testing.T, path string) (string, string) {
+		// The leaf object is again visible at its pathname, but through a
+		// different ancestor: ancestor identity changed, which ADR-0005
+		// property 3 also requires to be detected.
+		parent := filepath.Dir(path)
+		renameOrFatal(t, parent, parent+"-moved")
+		mkdirOrFatal(t, parent, 0o700)
+		renameOrFatal(t, filepath.Join(parent+"-moved", filepath.Base(path)), path)
+		return path, path
+	}},
+}
+
+func renameOrFatal(t *testing.T, from, to string) {
+	t.Helper()
+	if err := os.Rename(from, to); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mkdirOrFatal(t *testing.T, path string, mode os.FileMode) {
+	t.Helper()
+	if err := os.Mkdir(path, mode); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func entryNames(t *testing.T, path string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := []string{}
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	return names
+}
+
 // This is the review's core object-identity requirement: once a directory is
-// opened and validated as an AnchoredDirectory, replacing it at its pathname
-// (an ancestor/leaf replacement between validation and mutation) must not be
-// able to redirect a later Stage/Rename/ReadFile to the new, unvalidated
-// object. This is a real OS-level test of *os.Root's guarantee, not a
-// simulated seam: Go's os.Root binds later operations to the directory
-// object it opened, not to the name that led to it.
-func TestAnchoredDirectoryMutatesTheValidatedObjectDespiteReplacement(t *testing.T) {
-	for _, test := range []struct {
-		name    string
-		replace func(t *testing.T, path string) (searchRoot string)
+// opened and validated as an AnchoredDirectory, replacing it (or an ancestor)
+// at its authorized pathname must be DETECTED AND REFUSED at the next create
+// or commit, not tolerated by completing the mutation in the displaced
+// original object (ADR-0005 property 3, ADR-0007 invariant 7). Neither the
+// original object nor the replacement may gain an entry.
+func TestAnchoredDirectoryRefusesMutationAfterReplacement(t *testing.T) {
+	for _, open := range []struct {
+		name string
+		open func(string) (AnchoredDirectory, error)
 	}{
-		{"leaf renamed away and replaced by a new directory", func(t *testing.T, path string) string {
-			if err := os.Rename(path, path+"-moved"); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Mkdir(path, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			return filepath.Dir(path)
-		}},
-		{"leaf renamed away and replaced by a symlink", func(t *testing.T, path string) string {
-			foreign := filepath.Join(filepath.Dir(path), "foreign")
-			if err := os.Mkdir(foreign, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Rename(path, path+"-moved"); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Symlink(foreign, path); err != nil {
-				t.Fatal(err)
-			}
-			return filepath.Dir(path)
-		}},
-		{"parent renamed away, leaf still reachable only through the old name", func(t *testing.T, path string) string {
-			parent := filepath.Dir(path)
-			if err := os.Rename(parent, parent+"-moved"); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.MkdirAll(path, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			return filepath.Dir(parent)
-		}},
+		{"publication", OpenPublicationDirectory},
+		{"owned", OpenOwnedDirectory},
 	} {
+		for _, test := range replacementScenarios {
+			t.Run(open.name+"/"+test.name, func(t *testing.T) {
+				home := privateTestRoot(t)
+				parent := filepath.Join(home, "parent")
+				mkdirOrFatal(t, parent, 0o700)
+				path := filepath.Join(parent, "target")
+				mkdirOrFatal(t, path, 0o700)
+				directory, err := open.open(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer directory.Close()
+				if err := directory.StillAtPath(); err != nil {
+					t.Fatalf("unreplaced directory refused: %v", err)
+				}
+
+				original, replacement := test.replace(t, path)
+
+				if err := directory.StillAtPath(); !errors.Is(err, ErrReplaced) || !errors.Is(err, ErrUnsafe) {
+					t.Fatalf("replacement not detected: %v", err)
+				}
+				if _, err := directory.Stage(".axiom-test-stage.", []byte("payload"), 0o600); !errors.Is(err, ErrReplaced) {
+					t.Fatalf("stage after replacement: %v", err)
+				}
+				if err := directory.CreateExclusive("marker", []byte("x"), 0o600); !errors.Is(err, ErrReplaced) {
+					t.Fatalf("create after replacement: %v", err)
+				}
+				if err := directory.Mkdir("lock"); !errors.Is(err, ErrReplaced) {
+					t.Fatalf("mkdir after replacement: %v", err)
+				}
+				if names := entryNames(t, original); len(names) != 0 {
+					t.Fatalf("displaced original object mutated: %v", names)
+				}
+				if names := entryNames(t, replacement); len(names) != 0 {
+					t.Fatalf("replacement object mutated: %v", names)
+				}
+			})
+		}
+	}
+}
+
+// The commit itself is guarded: a stage prepared while the directory was
+// still authorized is not renamed into place once the directory was replaced,
+// and the handle can still discard its own stage from the displaced object.
+func TestAnchoredDirectoryRefusesCommitAfterReplacement(t *testing.T) {
+	for _, test := range replacementScenarios {
 		t.Run(test.name, func(t *testing.T) {
 			home := privateTestRoot(t)
-			original := filepath.Join(home, "bin")
-			if err := os.Mkdir(original, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			directory, err := OpenPublicationDirectory(original)
+			parent := filepath.Join(home, "parent")
+			mkdirOrFatal(t, parent, 0o700)
+			path := filepath.Join(parent, "bin")
+			mkdirOrFatal(t, path, 0o755)
+			directory, err := OpenPublicationDirectory(path)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer directory.Close()
-
-			searchRoot := test.replace(t, original)
-
 			staged, err := directory.Stage(".axiom-test-stage.", []byte("payload"), 0o700)
 			if err != nil {
-				t.Fatalf("stage after replacement: %v", err)
-			}
-			if err := directory.Rename(staged, "axiom"); err != nil {
 				t.Fatal(err)
 			}
-			confirmed, err := directory.ReadFile("axiom", 64)
-			if err != nil || string(confirmed) != "payload" {
-				t.Fatalf("confirm through the same handle: %q, %v", confirmed, err)
-			}
 
-			// The published file must exist in the ORIGINALLY validated
-			// object, wherever it now lives, never in whatever object
-			// currently occupies the original pathname.
-			found := false
-			_ = filepath.Walk(searchRoot, func(p string, info os.FileInfo, err error) error {
-				if err == nil && info.Name() == "axiom" && info.Mode().IsRegular() {
-					found = true
-				}
-				return nil
-			})
-			if !found {
-				t.Fatalf("published file not found anywhere under %s", searchRoot)
+			original, replacement := test.replace(t, path)
+
+			if err := directory.Rename(staged, "axiom"); !errors.Is(err, ErrReplaced) {
+				t.Fatalf("commit after replacement: %v", err)
 			}
 			if _, err := os.Lstat(filepath.Join(original, "axiom")); !os.IsNotExist(err) {
-				t.Fatalf("mutation leaked into the object now at the original pathname: %v", err)
+				t.Fatalf("commit landed in the displaced original object: %v", err)
+			}
+			if _, err := os.Lstat(filepath.Join(replacement, "axiom")); !os.IsNotExist(err) {
+				t.Fatalf("commit landed in the replacement object: %v", err)
+			}
+			if err := directory.Remove(staged); err != nil {
+				t.Fatalf("own stage cleanup: %v", err)
+			}
+			if names := entryNames(t, original); len(names) != 0 {
+				t.Fatalf("stage leftover in the original object: %v", names)
 			}
 		})
 	}
 }
 
-// The same guarantee for an owner-only (Axiom-owned) anchored directory.
-func TestAnchoredOwnedDirectoryMutatesTheValidatedObjectDespiteReplacement(t *testing.T) {
+// Moving the validated directory away and back restores the same object at
+// the same pathname through the same ancestors: that is not a replacement.
+func TestAnchoredDirectoryAcceptsSameObjectRestoredAtPath(t *testing.T) {
 	home := privateTestRoot(t)
-	original := filepath.Join(home, "state")
-	if err := os.Mkdir(original, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	directory, err := OpenOwnedDirectory(original)
+	path := filepath.Join(home, "state")
+	mkdirOrFatal(t, path, 0o700)
+	directory, err := OpenOwnedDirectory(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer directory.Close()
-
-	if err := os.Rename(original, original+"-moved"); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir(original, 0o700); err != nil {
-		t.Fatal(err)
-	}
-
+	renameOrFatal(t, path, path+"-moved")
+	renameOrFatal(t, path+"-moved", path)
 	if err := directory.CreateExclusive("marker", []byte("x"), 0o600); err != nil {
+		t.Fatalf("same object refused: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(path, "marker")); err != nil {
 		t.Fatal(err)
-	}
-	if _, err := os.Stat(filepath.Join(original+"-moved", "marker")); err != nil {
-		t.Fatalf("marker did not land on the validated object: %v", err)
-	}
-	if _, err := os.Lstat(filepath.Join(original, "marker")); !os.IsNotExist(err) {
-		t.Fatal("marker leaked into the replacement directory")
 	}
 }

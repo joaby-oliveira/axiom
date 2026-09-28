@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -19,47 +20,54 @@ import (
 // user-owned symlinks in its ancestry. The returned Root anchors later work to
 // directory objects instead of repeating absolute-path resolution.
 func privateRoot(path string) (*os.Root, error) {
+	root, _, err := privateRootAnchored(path)
+	return root, err
+}
+
+// privateRootAnchored is privateRoot that also returns the identity anchor
+// of the opened directory, for a caller that must later prove the object is
+// still the one visible at its authorized pathname.
+func privateRootAnchored(path string) (*os.Root, anchor, error) {
 	if !filepath.IsAbs(path) || filepath.Clean(path) == string(filepath.Separator) {
-		return nil, ErrUnsafe
+		return nil, anchor{}, ErrUnsafe
 	}
 	canonical, err := trustedCanonical(path)
 	if err != nil {
-		return nil, err
+		return nil, anchor{}, err
 	}
-	root, err := anchoredRoot(canonical, true)
+	root, identity, err := anchoredRoot(canonical, true)
 	if err != nil {
-		return nil, err
+		return nil, anchor{}, err
+	}
+	fail := func(err error) (*os.Root, anchor, error) {
+		root.Close()
+		return nil, anchor{}, err
 	}
 	info, err := root.Stat(".")
 	if err != nil || !ownedByUser(info) {
-		root.Close()
-		return nil, ErrUnsafe
+		return fail(ErrUnsafe)
 	}
 	if info.Mode().Perm()&0o077 != 0 {
 		directory, err := root.Open(".")
 		if err != nil {
-			root.Close()
-			return nil, ErrUnsafe
+			return fail(ErrUnsafe)
 		}
 		err = directory.Chmod(0o700)
 		directory.Close()
 		if err != nil {
-			root.Close()
-			return nil, ErrUnsafe
+			return fail(ErrUnsafe)
 		}
 	}
 	directory, err := root.Open(".")
 	if err != nil {
-		root.Close()
-		return nil, ErrUnsafe
+		return fail(ErrUnsafe)
 	}
 	err = checkPrivateACL(directory)
 	directory.Close()
 	if err != nil {
-		root.Close()
-		return nil, err
+		return fail(err)
 	}
-	return root, nil
+	return root, anchor{path: canonical, chain: identity}, nil
 }
 
 // anchoredRoot opens canonical one directory object at a time from "/",
@@ -67,50 +75,112 @@ func privateRoot(path string) (*os.Root, error) {
 // mutable by another principal (ADR-0005 property 3, controlled ancestor
 // replacement). With create, missing components are created owner-only. The
 // final component's own ownership/mode/ACL are the caller's responsibility;
-// this only protects the chain of containers leading to it.
-func anchoredRoot(canonical string, create bool) (*os.Root, error) {
+// this only protects the chain of containers leading to it. It also returns
+// the identity of every component it opened, in order, so a later
+// anchor.verify can prove the same objects are still the ones visible there.
+func anchoredRoot(canonical string, create bool) (*os.Root, []os.FileInfo, error) {
 	root, err := os.OpenRoot(string(filepath.Separator))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	container, err := root.Stat(".")
 	if err != nil {
 		root.Close()
-		return nil, ErrUnsafe
+		return nil, nil, ErrUnsafe
 	}
-	for _, part := range strings.Split(strings.TrimPrefix(canonical, string(filepath.Separator)), string(filepath.Separator)) {
-		if part == "" {
-			continue
-		}
+	var identity []os.FileInfo
+	for _, part := range pathComponents(canonical) {
 		if !ancestorSafe(container) {
 			root.Close()
-			return nil, ErrUnsafe
+			return nil, nil, ErrUnsafe
 		}
 		if create {
 			if err := root.Mkdir(part, 0o700); err != nil && !os.IsExist(err) {
 				root.Close()
-				return nil, err
+				return nil, nil, err
 			}
 		}
 		info, err := root.Lstat(part)
 		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 			root.Close()
-			return nil, ErrUnsafe
+			return nil, nil, ErrUnsafe
 		}
 		next, err := root.OpenRoot(part)
 		root.Close()
 		if err != nil {
-			return nil, ErrUnsafe
+			return nil, nil, ErrUnsafe
 		}
 		actual, err := next.Stat(".")
 		if err != nil || !os.SameFile(info, actual) {
 			next.Close()
-			return nil, ErrUnsafe
+			return nil, nil, ErrUnsafe
 		}
 		root = next
 		container = actual
+		identity = append(identity, actual)
 	}
-	return root, nil
+	return root, identity, nil
+}
+
+func pathComponents(canonical string) []string {
+	var parts []string
+	for _, part := range strings.Split(strings.TrimPrefix(canonical, string(filepath.Separator)), string(filepath.Separator)) {
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return parts
+}
+
+// anchor records the canonical pathname a directory handle was authorized
+// for and the identity of every directory object on that path, from the
+// first component under "/" down to the directory itself, as observed when
+// the handle was opened.
+type anchor struct {
+	path  string
+	chain []os.FileInfo
+}
+
+// verify re-walks the anchored pathname from "/" without following any
+// symlink and requires every component to still be the same object recorded
+// at open time, ending at root itself. A renamed, recreated, or symlinked
+// ancestor or leaf therefore fails with ErrReplaced (ADR-0005 property 3:
+// changed directory identity and controlled ancestor/leaf replacement are
+// detected and rejected, not tolerated). Callers invoke it at the declared
+// inspection and commit boundaries; interleavings between this check and the
+// following syscall are ADR-0005's excluded arbitrary same-UID interleavings.
+func (a anchor) verify(root *os.Root) error {
+	parts := pathComponents(a.path)
+	if len(parts) == 0 || len(parts) != len(a.chain) {
+		return ErrReplaced
+	}
+	walk, err := os.OpenRoot(string(filepath.Separator))
+	if err != nil {
+		return ErrReplaced
+	}
+	for index, part := range parts {
+		info, err := walk.Lstat(part)
+		if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() || !os.SameFile(info, a.chain[index]) {
+			walk.Close()
+			return ErrReplaced
+		}
+		next, err := walk.OpenRoot(part)
+		walk.Close()
+		if err != nil {
+			return ErrReplaced
+		}
+		walk = next
+	}
+	visible, err := walk.Stat(".")
+	walk.Close()
+	if err != nil {
+		return ErrReplaced
+	}
+	opened, err := root.Stat(".")
+	if err != nil || !os.SameFile(visible, opened) {
+		return ErrReplaced
+	}
+	return nil
 }
 
 // ancestorSafe reports whether a directory that CONTAINS a later path
@@ -144,78 +214,102 @@ func ancestorSafe(info os.FileInfo) bool {
 // owned by the user, without group or other write and without extended ACL.
 // Read or search access for others is allowed, and nothing is created or
 // re-moded. What Axiom publishes inside it stays owner-only.
-func existingPublicationRoot(path string) (*os.Root, error) {
+func existingPublicationRoot(path string) (*os.Root, anchor, error) {
 	if !filepath.IsAbs(path) || filepath.Clean(path) == string(filepath.Separator) {
-		return nil, ErrUnsafe
+		return nil, anchor{}, ErrUnsafe
 	}
 	info, err := os.Lstat(path)
 	if os.IsNotExist(err) {
-		return nil, ErrNotFound
+		return nil, anchor{}, ErrNotFound
 	}
 	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0o022 != 0 || !ownedByUser(info) {
-		return nil, ErrUnsafe
+		return nil, anchor{}, ErrUnsafe
 	}
 	canonical, err := trustedCanonical(path)
 	if err != nil {
-		return nil, err
+		return nil, anchor{}, err
 	}
-	root, err := anchoredRoot(canonical, false)
+	root, identity, err := anchoredRoot(canonical, false)
 	if err != nil {
-		return nil, err
+		return nil, anchor{}, err
+	}
+	fail := func(err error) (*os.Root, anchor, error) {
+		root.Close()
+		return nil, anchor{}, err
 	}
 	opened, err := root.Stat(".")
 	if err != nil || !os.SameFile(info, opened) || !ownedByUser(opened) || opened.Mode().Perm()&0o022 != 0 {
-		root.Close()
-		return nil, ErrUnsafe
+		return fail(ErrUnsafe)
 	}
 	directory, err := root.Open(".")
 	if err != nil {
-		root.Close()
-		return nil, ErrUnsafe
+		return fail(ErrUnsafe)
 	}
 	err = checkPrivateACL(directory)
 	directory.Close()
 	if err != nil {
-		root.Close()
-		return nil, err
+		return fail(err)
 	}
-	return root, nil
+	return root, anchor{path: canonical, chain: identity}, nil
 }
 
 func existingPrivateRoot(path string) (*os.Root, error) {
+	root, _, err := existingPrivateRootAnchored(path)
+	return root, err
+}
+
+func existingPrivateRootAnchored(path string) (*os.Root, anchor, error) {
 	info, err := os.Lstat(path)
 	if os.IsNotExist(err) {
-		return nil, ErrNotFound
+		return nil, anchor{}, ErrNotFound
 	}
 	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0o077 != 0 || !ownedByUser(info) {
-		return nil, ErrUnsafe
+		return nil, anchor{}, ErrUnsafe
 	}
-	return privateRoot(path)
+	return privateRootAnchored(path)
 }
 
 // AnchoredDirectory is an open, validated handle to one directory. Every
 // method resolves the given name against the directory OBJECT that was
-// opened and validated, not against its pathname: once open, replacing the
-// directory at its pathname (an ancestor rename, an unlink-and-recreate, a
-// symlink swap) cannot redirect a later ReadFile, Stage, Rename, Remove, or
-// Mkdir call to a different object. This closes the gap where validating a
-// directory by pathname and later mutating it by pathname again leaves a
-// window in which the two operations can land on different objects
-// (ADR-0005 property 3, controlled ancestor/leaf replacement). A caller that
-// validates once and then performs several related operations (stage,
-// reread, rename, confirm) MUST do all of them through the same
+// opened and validated, not against its pathname, so replacing the directory
+// at its pathname (an ancestor rename, an unlink-and-recreate, a symlink
+// swap) can never redirect a ReadFile, Stage, Rename, Remove, or Mkdir to a
+// different object.
+//
+// Confinement alone is not enough: a mutation of the original object after
+// the pathname stopped pointing at it would be confined yet untruthful, since
+// the canonical target a user or reader resolves would be a different object
+// (ADR-0005 property 3, ADR-0007 invariant 7). The handle therefore also
+// records the identity of every directory on its authorized pathname, and
+// every creating or committing method (CreateExclusive, Mkdir, Stage, Rename)
+// first proves with StillAtPath that the anchored object is still the one
+// visible there, refusing with ErrReplaced otherwise. Remove is deliberately
+// unguarded: it only discards this handle's own stages, locks, and markers,
+// which live in the anchored object wherever it now is. A caller that
+// commits through Rename must call StillAtPath again after the commit and
+// must not report the effect as confirmed if it fails.
+//
+// A caller that validates once and then performs several related operations
+// (stage, reread, rename, confirm) MUST do all of them through the same
 // AnchoredDirectory value, not by reopening the path.
-type AnchoredDirectory struct{ root *os.Root }
+type AnchoredDirectory struct {
+	root   *os.Root
+	anchor anchor
+}
+
+// ErrReplaced reports that an anchored directory, or one of its ancestors, is
+// no longer the object visible at its authorized pathname.
+var ErrReplaced = fmt.Errorf("%w: directory replaced at its authorized pathname", ErrUnsafe)
 
 // OpenOwnedDirectory opens an existing Axiom-owned directory: real, owned by
 // the current user, mode 0700, without extended ACL, with every container
 // ancestor safe from replacement by another principal.
 func OpenOwnedDirectory(path string) (AnchoredDirectory, error) {
-	root, err := existingPrivateRoot(path)
+	root, identity, err := existingPrivateRootAnchored(path)
 	if err != nil {
 		return AnchoredDirectory{}, err
 	}
-	return AnchoredDirectory{root: root}, nil
+	return AnchoredDirectory{root: root, anchor: identity}, nil
 }
 
 // OpenPublicationDirectory opens an existing directory Axiom publishes an
@@ -224,12 +318,17 @@ func OpenOwnedDirectory(path string) (AnchoredDirectory, error) {
 // ACL, with every container ancestor safe from replacement by another
 // principal. Content Axiom creates inside it must still be owner-only.
 func OpenPublicationDirectory(path string) (AnchoredDirectory, error) {
-	root, err := existingPublicationRoot(path)
+	root, identity, err := existingPublicationRoot(path)
 	if err != nil {
 		return AnchoredDirectory{}, err
 	}
-	return AnchoredDirectory{root: root}, nil
+	return AnchoredDirectory{root: root, anchor: identity}, nil
 }
+
+// StillAtPath reports ErrReplaced unless every directory on the authorized
+// pathname, including this one, is still the object observed when the handle
+// was opened.
+func (d AnchoredDirectory) StillAtPath() error { return d.anchor.verify(d.root) }
 
 // Close releases the underlying directory handle.
 func (d AnchoredDirectory) Close() error { return d.root.Close() }
@@ -269,6 +368,9 @@ func (d AnchoredDirectory) CreateExclusive(name string, content []byte, mode os.
 	if !safeEntryName(name) {
 		return ErrUnsafe
 	}
+	if err := d.StillAtPath(); err != nil {
+		return err
+	}
 	file, err := d.root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW, mode)
 	if err != nil {
 		return err
@@ -289,6 +391,9 @@ func (d AnchoredDirectory) Mkdir(name string) error {
 	if !safeEntryName(name) {
 		return ErrUnsafe
 	}
+	if err := d.StillAtPath(); err != nil {
+		return err
+	}
 	return d.root.Mkdir(name, 0o700)
 }
 
@@ -297,6 +402,9 @@ func (d AnchoredDirectory) Mkdir(name string) error {
 // generated name for a later Rename (commit) or Remove (discard) through
 // this same handle.
 func (d AnchoredDirectory) Stage(prefix string, content []byte, mode os.FileMode) (string, error) {
+	if err := d.StillAtPath(); err != nil {
+		return "", err
+	}
 	name, err := temporaryName(prefix)
 	if err != nil {
 		return "", err
@@ -323,10 +431,15 @@ func (d AnchoredDirectory) Stage(prefix string, content []byte, mode os.FileMode
 }
 
 // Rename commits a staged (or otherwise present) entry to newname within
-// this same anchored directory.
+// this same anchored directory, only while the directory is still the object
+// visible at its authorized pathname (ErrReplaced otherwise, with nothing
+// renamed). The caller confirms the commit with StillAtPath afterwards.
 func (d AnchoredDirectory) Rename(oldname, newname string) error {
 	if !safeEntryName(oldname) || !safeEntryName(newname) {
 		return ErrUnsafe
+	}
+	if err := d.StillAtPath(); err != nil {
+		return err
 	}
 	return d.root.Rename(oldname, newname)
 }

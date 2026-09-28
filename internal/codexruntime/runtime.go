@@ -110,11 +110,20 @@ func (s Service) Install(ctx context.Context) Result {
 	// This closes the gap where validating a directory by pathname and later
 	// mutating it by pathname again leaves a window in which the two
 	// operations can land on different objects (ADR-0005 property 3).
-	root, err := ensureRoot(s.root)
+	// Every lock, create, and commit additionally proves first that the
+	// anchored root (and, for a skill, its directory) is still the object
+	// visible at its authorized pathname, and the result is declared only
+	// after that proof holds once more: a replacement is refused, never
+	// tolerated by completing the install in the displaced original object.
+	root, identity, err := ensureRoot(s.root)
 	if err != nil {
 		return Result{Status: Failed, Category: s.integration.category("skill_root_unavailable")}
 	}
 	defer root.Close()
+	verify := func() error { return identity.verify(root) }
+	if verify() != nil {
+		return Result{Status: Failed, Category: s.integration.category("skill_root_unavailable")}
+	}
 	lock, category := acquireInstallLock(root)
 	if category == "skill_install_concurrent" {
 		category = s.integration.category(category)
@@ -123,6 +132,9 @@ func (s Service) Install(ctx context.Context) Result {
 		return s.inspectResult(Failed, category)
 	}
 	defer lock.Close()
+	if verify() != nil {
+		return Result{Status: Failed, Category: s.integration.category("skill_root_unavailable")}
+	}
 	replaces := false
 	for _, name := range skillNames {
 		content, err := fs.ReadFile(skillFiles, "skills/"+name+"/SKILL.md")
@@ -148,7 +160,10 @@ func (s Service) Install(ctx context.Context) Result {
 		if err != nil {
 			return Result{Status: Failed, Category: s.integration.category("skill_package_invalid")}
 		}
-		changedOne, createdOne, err := s.integration.installOne(root, name, content)
+		changedOne, createdOne, err := s.integration.installOne(root, name, content, verify)
+		if err == ErrTargetReplaced && !changed {
+			return Result{Status: Failed, Category: s.integration.category("skill_root_unavailable")}
+		}
 		if err != nil {
 			return s.inspectResult(Partial, s.integration.category("skill_install_partial"))
 		}
@@ -164,11 +179,17 @@ func (s Service) Install(ctx context.Context) Result {
 	if err != nil {
 		return s.inspectResult(Partial, s.integration.category("skill_receipt_incomplete"))
 	}
-	receiptChanged, receiptPublished := s.integration.publishReceiptIn(root, s.root, receipt)
+	receiptChanged, receiptPublished := s.integration.publishReceiptIn(root, s.root, receipt, verify)
 	if !receiptPublished {
 		return s.inspectResult(Partial, s.integration.category("skill_receipt_incomplete"))
 	}
 	changed = changed || receiptChanged
+	if verify() != nil {
+		if changed {
+			return s.inspectResult(Partial, s.integration.category("skill_install_partial"))
+		}
+		return Result{Status: Failed, Category: s.integration.category("skill_root_unavailable")}
+	}
 	if !changed {
 		return s.inspectResult(Unchanged, s.integration.category("already_configured"))
 	}
@@ -243,7 +264,9 @@ func (s Service) inspectResult(status Status, category string) Result {
 // anchored skill-root object Install validated once and holds open, never by
 // re-deriving rootPath (used only to evaluate matchesLegacyReceipt, which
 // still needs the root's string identity for the Claude receipt content).
-func (i integration) publishReceiptIn(root *os.Root, rootPath string, content []byte) (bool, bool) {
+// verify must hold before the stage and the rename and again after the
+// rename; otherwise the receipt is not reported as published.
+func (i integration) publishReceiptIn(root *os.Root, rootPath string, content []byte, verify func() error) (bool, bool) {
 	if matchesPrivateFileIn(root, receiptName, content) {
 		return false, true
 	}
@@ -251,8 +274,11 @@ func (i integration) publishReceiptIn(root *os.Root, rootPath string, content []
 		if !i.matchesLegacyReceipt(rootPath) {
 			return false, false
 		}
-		return i.replaceKnownReceiptIn(root, rootPath, content)
+		return i.replaceKnownReceiptIn(root, rootPath, content, verify)
 	} else if !os.IsNotExist(err) {
+		return false, false
+	}
+	if verify() != nil {
 		return false, false
 	}
 	const temporary = ".axiom-skill-set-receipt-stage"
@@ -270,13 +296,19 @@ func (i integration) publishReceiptIn(root *os.Root, rootPath string, content []
 	if _, err := root.Stat(receiptName); err == nil || !os.IsNotExist(err) {
 		return false, false
 	}
+	if verify() != nil {
+		return false, false
+	}
 	if err := root.Rename(temporary, receiptName); err != nil {
 		return false, false
 	}
-	return true, true
+	return true, verify() == nil
 }
 
-func (i integration) replaceKnownReceiptIn(root *os.Root, rootPath string, content []byte) (bool, bool) {
+func (i integration) replaceKnownReceiptIn(root *os.Root, rootPath string, content []byte, verify func() error) (bool, bool) {
+	if verify() != nil {
+		return false, false
+	}
 	const temporary = ".axiom-skill-set-receipt-stage"
 	file, err := root.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
@@ -289,13 +321,13 @@ func (i integration) replaceKnownReceiptIn(root *os.Root, rootPath string, conte
 	if writeErr != nil || syncErr != nil || closeErr != nil || written != len(content) {
 		return false, false
 	}
-	if !i.matchesLegacyReceipt(rootPath) {
+	if !i.matchesLegacyReceipt(rootPath) || verify() != nil {
 		return false, false
 	}
 	if err := root.Rename(temporary, receiptName); err != nil {
 		return false, false
 	}
-	return true, true
+	return true, verify() == nil
 }
 
 func matchesPrivateFile(path string, expected []byte) bool {
@@ -379,7 +411,7 @@ func skillRootDirectory(path string) bool {
 // no extended ACL. This closes controlled ancestor/leaf replacement
 // (ADR-0005 property 3), not only the final directory's own mode.
 func directoryWithoutPermissions(path string, forbidden os.FileMode) bool {
-	root, err := anchoredRoot(path, false)
+	root, _, err := anchoredRoot(path, false)
 	if err != nil {
 		return false
 	}
@@ -446,57 +478,138 @@ func trustedCanonical(path string) (string, error) {
 // component and any container ancestor mutable by another principal
 // (ancestorSafe). With create, missing components are created owner-only.
 // The final component's own ownership/mode/ACL are the caller's
-// responsibility.
-func anchoredRoot(path string, create bool) (*os.Root, error) {
+// responsibility. The returned anchor records the identity of every component
+// opened, for a later anchor.verify.
+func anchoredRoot(path string, create bool) (*os.Root, anchor, error) {
 	if !filepath.IsAbs(path) || filepath.Clean(path) != path || path == string(filepath.Separator) {
-		return nil, errors.New("unsafe path")
+		return nil, anchor{}, errors.New("unsafe path")
 	}
 	canonical, err := trustedCanonical(path)
 	if err != nil {
-		return nil, err
+		return nil, anchor{}, err
 	}
-	path = canonical
 	root, err := os.OpenRoot(string(filepath.Separator))
 	if err != nil {
-		return nil, err
+		return nil, anchor{}, err
 	}
 	container, err := root.Stat(".")
 	if err != nil {
 		root.Close()
-		return nil, errors.New("unsafe path")
+		return nil, anchor{}, errors.New("unsafe path")
 	}
-	for _, part := range strings.Split(strings.TrimPrefix(path, string(filepath.Separator)), string(filepath.Separator)) {
-		if part == "" {
-			continue
-		}
+	identity := anchor{path: canonical}
+	for _, part := range pathComponents(canonical) {
 		if !ancestorSafe(container) {
 			root.Close()
-			return nil, errors.New("unsafe ancestor")
+			return nil, anchor{}, errors.New("unsafe ancestor")
 		}
 		if create {
 			if err := root.Mkdir(part, 0o700); err != nil && !os.IsExist(err) {
 				root.Close()
-				return nil, err
+				return nil, anchor{}, err
 			}
 		}
 		info, err := root.Lstat(part)
 		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 			root.Close()
-			return nil, errors.New("unsafe path component")
+			return nil, anchor{}, errors.New("unsafe path component")
 		}
 		next, err := root.OpenRoot(part)
 		root.Close()
 		if err != nil {
-			return nil, errors.New("unsafe path component")
+			return nil, anchor{}, errors.New("unsafe path component")
 		}
 		actual, err := next.Stat(".")
 		if err != nil || !os.SameFile(info, actual) {
 			next.Close()
-			return nil, errors.New("unsafe path component")
+			return nil, anchor{}, errors.New("unsafe path component")
 		}
 		root, container = next, actual
+		identity.chain = append(identity.chain, actual)
 	}
-	return root, nil
+	return root, identity, nil
+}
+
+func pathComponents(canonical string) []string {
+	var parts []string
+	for _, part := range strings.Split(strings.TrimPrefix(canonical, string(filepath.Separator)), string(filepath.Separator)) {
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return parts
+}
+
+// ErrTargetReplaced reports that the skill root, one of its ancestors, or a
+// skill directory is no longer the object visible at its authorized pathname.
+var ErrTargetReplaced = errors.New("codex skill target replaced at its authorized pathname")
+
+// errCommitUnconfirmed reports an effect committed in its anchored object that
+// could not afterwards be proven visible at its authorized pathname: it is
+// never a confirmed change.
+var errCommitUnconfirmed = errors.New("codex skill commit not confirmed at its authorized pathname")
+
+// anchor records the canonical pathname a skill-root handle was authorized
+// for and the identity of every directory object on that path, as observed
+// when the handle was opened. It mirrors internal/local's anchor.
+type anchor struct {
+	path  string
+	chain []os.FileInfo
+}
+
+// verify re-walks the anchored pathname from "/" without following any
+// symlink and requires every component to still be the object recorded at
+// open time, ending at root itself: a renamed, recreated, or symlinked
+// ancestor or skill root is detected and rejected with ErrTargetReplaced,
+// not tolerated by mutating the original object (ADR-0005 property 3,
+// ADR-0007 invariant 7). Callers invoke it at the declared inspection and
+// commit boundaries.
+func (a anchor) verify(root *os.Root) error {
+	parts := pathComponents(a.path)
+	if len(parts) == 0 || len(parts) != len(a.chain) {
+		return ErrTargetReplaced
+	}
+	walk, err := os.OpenRoot(string(filepath.Separator))
+	if err != nil {
+		return ErrTargetReplaced
+	}
+	for index, part := range parts {
+		info, err := walk.Lstat(part)
+		if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() || !os.SameFile(info, a.chain[index]) {
+			walk.Close()
+			return ErrTargetReplaced
+		}
+		next, err := walk.OpenRoot(part)
+		walk.Close()
+		if err != nil {
+			return ErrTargetReplaced
+		}
+		walk = next
+	}
+	visible, err := walk.Stat(".")
+	walk.Close()
+	if err != nil {
+		return ErrTargetReplaced
+	}
+	opened, err := root.Stat(".")
+	if err != nil || !os.SameFile(visible, opened) {
+		return ErrTargetReplaced
+	}
+	return nil
+}
+
+// childStillAt reports ErrTargetReplaced unless child, a skill directory
+// opened from parent, is still the real directory visible as name in parent.
+func childStillAt(parent, child *os.Root, name string) error {
+	visible, err := parent.Lstat(name)
+	if err != nil || visible.Mode()&os.ModeSymlink != 0 || !visible.IsDir() {
+		return ErrTargetReplaced
+	}
+	opened, err := child.Stat(".")
+	if err != nil || !os.SameFile(visible, opened) {
+		return ErrTargetReplaced
+	}
+	return nil
 }
 
 // ancestorSafe reports whether a directory that CONTAINS a later path
@@ -557,28 +670,28 @@ func privateChild(parent *os.Root, name string) (*os.Root, error) {
 // returns it opened and anchored: every container ancestor up to "/" is
 // validated safe from replacement by another principal, and the returned
 // object is what Install operates on for the rest of the call.
-func ensureRoot(root string) (*os.Root, error) {
-	opened, err := anchoredRoot(root, true)
+func ensureRoot(root string) (*os.Root, anchor, error) {
+	opened, identity, err := anchoredRoot(root, true)
 	if err != nil {
-		return nil, errors.New("invalid root")
+		return nil, anchor{}, errors.New("invalid root")
 	}
 	info, err := opened.Stat(".")
 	if err != nil || info.Mode().Perm()&0o022 != 0 || !ownedByUser(info) {
 		opened.Close()
-		return nil, errors.New("invalid root")
+		return nil, anchor{}, errors.New("invalid root")
 	}
 	directory, err := opened.Open(".")
 	if err != nil {
 		opened.Close()
-		return nil, errors.New("invalid root")
+		return nil, anchor{}, errors.New("invalid root")
 	}
 	aclErr := checkPrivateACL(directory)
 	directory.Close()
 	if aclErr != nil {
 		opened.Close()
-		return nil, aclErr
+		return nil, anchor{}, aclErr
 	}
-	return opened, nil
+	return opened, identity, nil
 }
 
 // acquireInstallLock takes the skill-set lock inside root, the same anchored
@@ -663,7 +776,11 @@ func ownedByUser(info os.FileInfo) bool {
 // every check and mutation on it (the "still matches" recheck, the replace,
 // or the fresh write) through the same object, so a later replacement of the
 // skill directory at its pathname cannot redirect any of them elsewhere.
-func (i integration) installOne(parent *os.Root, name string, content []byte) (bool, bool, error) {
+// verify (the skill root's identity proof) and the skill directory's own
+// identity at name are checked before each create or commit and again after
+// it: a replacement seen first is ErrTargetReplaced with nothing committed;
+// one seen only after the commit is errCommitUnconfirmed, never a change.
+func (i integration) installOne(parent *os.Root, name string, content []byte, verify func() error) (bool, bool, error) {
 	info, err := parent.Lstat(name)
 	if err == nil {
 		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
@@ -674,15 +791,33 @@ func (i integration) installOne(parent *os.Root, name string, content []byte) (b
 			return false, false, errors.New("skill conflict")
 		}
 		defer child.Close()
-		if matchesInstalledIn(child, content) {
-			return false, false, nil
+		still := func() error {
+			if err := verify(); err != nil {
+				return err
+			}
+			return childStillAt(parent, child, name)
 		}
-		if !i.matchesLegacyInstalledIn(child, name) || i.replaceKnownSkillIn(child, name, content) != nil {
+		if matchesInstalledIn(child, content) {
+			return false, false, still()
+		}
+		if !i.matchesLegacyInstalledIn(child, name) {
 			return false, false, errors.New("skill conflict")
+		}
+		if err := i.replaceKnownSkillIn(child, name, content, still); err != nil {
+			if errors.Is(err, ErrTargetReplaced) {
+				return false, false, err
+			}
+			return false, false, errors.New("skill conflict")
+		}
+		if still() != nil {
+			return false, false, errCommitUnconfirmed
 		}
 		return true, false, nil
 	}
 	if !os.IsNotExist(err) {
+		return false, false, err
+	}
+	if err := verify(); err != nil {
 		return false, false, err
 	}
 	if err := parent.Mkdir(name, 0o700); err != nil {
@@ -694,6 +829,10 @@ func (i integration) installOne(parent *os.Root, name string, content []byte) (b
 		return false, false, err
 	}
 	defer child.Close()
+	if err := errors.Join(verify(), childStillAt(parent, child, name)); err != nil {
+		_ = parent.Remove(name)
+		return false, false, ErrTargetReplaced
+	}
 	file, err := child.OpenFile("SKILL.md", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		_ = parent.Remove(name)
@@ -705,6 +844,9 @@ func (i integration) installOne(parent *os.Root, name string, content []byte) (b
 		_ = child.Remove("SKILL.md")
 		_ = parent.Remove(name)
 		return false, false, errors.New("skill write failed")
+	}
+	if errors.Join(verify(), childStillAt(parent, child, name)) != nil {
+		return false, false, errCommitUnconfirmed
 	}
 	return true, true, nil
 }
@@ -748,7 +890,7 @@ func singleSkillContentIn(child *os.Root) ([]byte, bool) {
 	return privateRegularFileIn(child, "SKILL.md")
 }
 
-func (i integration) replaceKnownSkillIn(child *os.Root, name string, content []byte) error {
+func (i integration) replaceKnownSkillIn(child *os.Root, name string, content []byte, still func() error) error {
 	const temporary = ".axiom-skill-update"
 	file, err := child.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
@@ -768,6 +910,9 @@ func (i integration) replaceKnownSkillIn(child *os.Root, name string, content []
 	}
 	if !i.knownDigest(name, digestOf(current)) {
 		return errors.New("skill changed during update")
+	}
+	if err := still(); err != nil {
+		return err
 	}
 	return child.Rename(temporary, "SKILL.md")
 }

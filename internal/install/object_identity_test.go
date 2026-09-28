@@ -1,6 +1,8 @@
 package install
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,94 +16,90 @@ func publishTestEffect(name string, expected, content []byte) Effect {
 	return Effect{Kind: "binary", Name: "", Target: name, Expected: digest(expected), Next: digest(content)}
 }
 
-// These tests prove the review's core object-identity requirement directly
+// replaceDirectory scenarios move the directory validated at path (or its
+// parent) away and put another object at the authorized pathname. Each
+// returns where the ORIGINALLY validated object now lives and the directory
+// now visible at the authorized pathname.
+var replaceDirectory = []struct {
+	name    string
+	replace func(t *testing.T, path string) (original, replacement string)
+}{
+	{"root replaced by another directory", func(t *testing.T, path string) (string, string) {
+		if err := os.Rename(path, path+"-moved"); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		return path + "-moved", path
+	}},
+	{"root replaced by a symlink", func(t *testing.T, path string) (string, string) {
+		foreign := filepath.Join(filepath.Dir(path), "foreign")
+		if err := os.Mkdir(foreign, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Rename(path, path+"-moved"); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(foreign, path); err != nil {
+			t.Fatal(err)
+		}
+		return path + "-moved", foreign
+	}},
+	{"ancestor replaced", func(t *testing.T, path string) (string, string) {
+		parent := filepath.Dir(path)
+		if err := os.Rename(parent, parent+"-moved"); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		return filepath.Join(parent+"-moved", filepath.Base(path)), path
+	}},
+}
+
+// These tests prove the review's object-identity requirement directly
 // against publishEffect, the function Apply uses for both the binary and the
 // receipt file: once dir (an already-opened, validated local.AnchoredDirectory)
-// is handed to publishEffect, replacing the directory at its pathname between
-// validation and this call cannot redirect the stage, the expected-revision
-// reread, the rename, or the confirmation to a different object. This is a
-// real OS-level guarantee (os.Root binds later operations to the directory
-// object it opened, not to the name that led to it), not a simulated seam.
-func TestPublishEffectMutatesTheValidatedDirectoryDespiteReplacement(t *testing.T) {
-	for _, test := range []struct {
-		name    string
-		replace func(t *testing.T, path string) (searchRoot string)
-	}{
-		{"root replaced by another directory", func(t *testing.T, path string) string {
-			if err := os.Rename(path, path+"-moved"); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Mkdir(path, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			return filepath.Dir(path)
-		}},
-		{"root replaced by a symlink", func(t *testing.T, path string) string {
-			foreign := filepath.Join(filepath.Dir(path), "foreign")
-			if err := os.Mkdir(foreign, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Rename(path, path+"-moved"); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Symlink(foreign, path); err != nil {
-				t.Fatal(err)
-			}
-			return filepath.Dir(path)
-		}},
-		{"ancestor replaced", func(t *testing.T, path string) string {
-			parent := filepath.Dir(path)
-			if err := os.Rename(parent, parent+"-moved"); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.MkdirAll(path, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			return filepath.Dir(parent)
-		}},
-	} {
+// is handed to publishEffect, replacing the directory or an ancestor at its
+// authorized pathname is DETECTED AND REFUSED as target_changed. Nothing is
+// committed in the displaced original object (which keeps its prior binary
+// and no stage) nor in the replacement (which stays byte-for-byte intact),
+// and no success is reported (ADR-0005 property 3, ADR-0007 invariant 7).
+func TestPublishEffectRefusesReplacedDirectory(t *testing.T) {
+	for _, test := range replaceDirectory {
 		t.Run(test.name, func(t *testing.T) {
 			home := t.TempDir()
-			binaryDir := filepath.Join(home, "bin")
-			if err := os.Mkdir(binaryDir, 0o755); err != nil {
+			binaryDir := filepath.Join(home, "parent", "bin")
+			if err := os.MkdirAll(binaryDir, 0o755); err != nil {
 				t.Fatal(err)
 			}
 			old := []byte("old-binary\n")
-			if err := os.WriteFile(filepath.Join(binaryDir, binaryName), old, 0o700); err != nil {
-				t.Fatal(err)
-			}
+			writeFile(t, filepath.Join(binaryDir, binaryName), old, 0o700)
 			dir, err := local.OpenPublicationDirectory(binaryDir)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer dir.Close()
 
-			searchRoot := test.replace(t, binaryDir)
+			original, replacement := test.replace(t, binaryDir)
+			foreign := []byte("attacker-controlled\n")
+			writeFile(t, filepath.Join(replacement, binaryName), foreign, 0o755)
+			before := snapshot(t, replacement)
 
 			next := []byte("new-binary\n")
 			effect := publishTestEffect(binaryName, old, next)
-			if err := publishEffect(dir, binaryName, binaryStage, next, effect, 0o700, maxBinaryBytes); err != nil {
+			if err := publishEffect(dir, binaryName, binaryStage, next, effect, 0o700, maxBinaryBytes); category(err) != "target_changed" {
 				t.Fatalf("publish after replacement: %v", err)
 			}
-
-			// The publication must land in the ORIGINALLY validated
-			// directory, wherever it now lives, never in whatever object
-			// currently occupies the original pathname.
-			found := false
-			_ = filepath.Walk(searchRoot, func(p string, info os.FileInfo, err error) error {
-				if err == nil && info.Name() == binaryName && info.Mode().IsRegular() {
-					data, readErr := os.ReadFile(p)
-					if readErr == nil && string(data) == string(next) {
-						found = true
-					}
-				}
-				return nil
-			})
-			if !found {
-				t.Fatalf("published binary not found under %s", searchRoot)
+			if got := read(t, filepath.Join(original, binaryName)); got != string(old) {
+				t.Fatalf("displaced original object was published: %q", got)
 			}
-			if data, err := os.ReadFile(filepath.Join(binaryDir, binaryName)); err == nil && string(data) == string(next) {
-				t.Fatal("publication leaked into the object now at the original pathname")
+			if entries, err := os.ReadDir(original); err != nil || len(entries) != 1 {
+				t.Fatalf("displaced original object gained entries: %v, %v", entries, err)
+			}
+			if after := snapshot(t, replacement); after != before {
+				t.Fatal("replacement object was modified")
 			}
 		})
 	}
@@ -109,7 +107,7 @@ func TestPublishEffectMutatesTheValidatedDirectoryDespiteReplacement(t *testing.
 
 // The target file itself changing between validation and publish (not the
 // directory) is refused by the existing expected-revision check, independent
-// of the object-identity fix: no misleading success.
+// of the object-identity check: no misleading success.
 func TestPublishEffectRefusesWhenTargetFileChangedAfterOpen(t *testing.T) {
 	binaryDir := t.TempDir()
 	if err := os.Chmod(binaryDir, 0o755); err != nil {
@@ -145,48 +143,82 @@ func TestPublishEffectRefusesWhenTargetFileChangedAfterOpen(t *testing.T) {
 	}
 }
 
-// A foreign directory that happens to sit beside the target during a
-// replacement is never touched: publishEffect only ever creates or renames
-// its own randomly named stage entry and the exact target name.
-func TestPublishEffectNeverTouchesForeignTargetDuringReplacement(t *testing.T) {
-	home := t.TempDir()
-	binaryDir := filepath.Join(home, "bin")
-	if err := os.Mkdir(binaryDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	old := []byte("old-binary\n")
-	if err := os.WriteFile(filepath.Join(binaryDir, binaryName), old, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	dir, err := local.OpenPublicationDirectory(binaryDir)
+// End to end through Apply: ReceiptDir is replaced after the binary commit.
+// The next marker/receipt step must refuse as target_changed, the result
+// must stay partial with only the binary confirmed, the displaced original
+// receipt must keep its prior content, and the replacement must stay empty
+// (no receipt, marker, stage, or lock published into it).
+func TestApplyRefusesReceiptDirectoryReplacedMidOperation(t *testing.T) {
+	installed := install(t, newBundle("1.0.0", []byte("old-binary\n")))
+	candidate := installed.candidate(t, newBundle("1.1.0", []byte("new-binary\n")))
+	service := NewService()
+	preview, err := service.Preview(context.Background(), installed.target, candidate)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer dir.Close()
+	authority, _ := Authorize(preview, preview.Digest)
+	receiptDir := installed.target.ReceiptDir
+	priorReceipt := read(t, filepath.Join(receiptDir, receiptName))
+	service.afterEffect = func(kind string) error {
+		if kind == "binary" {
+			if err := os.Rename(receiptDir, receiptDir+"-moved"); err != nil {
+				return err
+			}
+			return os.Mkdir(receiptDir, 0o700)
+		}
+		return nil
+	}
+	result, err := service.Apply(context.Background(), preview, authority)
+	if category(err) != "target_changed" || result.Status != "partial" || len(result.Ledger) != 1 || result.Ledger[0].Kind != "binary" {
+		t.Fatalf("result=%+v err=%v", result, err)
+	}
+	if got := read(t, filepath.Join(receiptDir+"-moved", receiptName)); got != priorReceipt {
+		t.Fatal("receipt published into the displaced original directory")
+	}
+	if entries, err := os.ReadDir(receiptDir); err != nil || len(entries) != 0 {
+		t.Fatalf("replacement receipt directory mutated: %v, %v", entries, err)
+	}
+}
 
-	if err := os.Rename(binaryDir, binaryDir+"-moved"); err != nil {
+// End to end through Apply: BinaryDir is replaced after every effect was
+// confirmed but before the operation reports completion. Apply must not
+// declare success for an installation whose canonical binary pathname no
+// longer shows the object it published into; the replacement stays intact.
+func TestApplyDoesNotDeclareSuccessAfterBinaryDirectoryReplaced(t *testing.T) {
+	installed := install(t, newBundle("1.0.0", []byte("old-binary\n")))
+	candidate := installed.candidate(t, newBundle("1.1.0", []byte("new-binary\n")))
+	service := NewService()
+	preview, err := service.Preview(context.Background(), installed.target, candidate)
+	if err != nil {
 		t.Fatal(err)
 	}
-	foreignDir := binaryDir
-	if err := os.Mkdir(foreignDir, 0o755); err != nil {
-		t.Fatal(err)
+	authority, _ := Authorize(preview, preview.Digest)
+	binaryDir := installed.target.BinaryDir
+	service.afterEffect = func(kind string) error {
+		if kind == "receipt" {
+			if err := os.Rename(binaryDir, binaryDir+"-moved"); err != nil {
+				return err
+			}
+			return os.Mkdir(binaryDir, 0o700)
+		}
+		return nil
 	}
-	foreignContent := []byte("attacker-controlled\n")
-	if err := os.WriteFile(filepath.Join(foreignDir, binaryName), foreignContent, 0o755); err != nil {
-		t.Fatal(err)
+	result, err := service.Apply(context.Background(), preview, authority)
+	if category(err) != "final_verification_failed" || result.Status != "partial" {
+		t.Fatalf("result=%+v err=%v", result, err)
 	}
+	if entries, err := os.ReadDir(binaryDir); err != nil || len(entries) != 0 {
+		t.Fatalf("replacement binary directory mutated: %v, %v", entries, err)
+	}
+	if _, err := os.Lstat(filepath.Join(installed.target.ReceiptDir, markerName)); err != nil {
+		t.Fatalf("operation marker cleared despite the replacement: %v", err)
+	}
+}
 
-	next := []byte("new-binary\n")
-	effect := publishTestEffect(binaryName, old, next)
-	if err := publishEffect(dir, binaryName, binaryStage, next, effect, 0o700, maxBinaryBytes); err != nil {
-		t.Fatalf("publish after replacement: %v", err)
-	}
-	data, err := os.ReadFile(filepath.Join(foreignDir, binaryName))
-	if err != nil || string(data) != string(foreignContent) {
-		t.Fatalf("foreign target modified: %q, %v", data, err)
-	}
-	entries, err := os.ReadDir(foreignDir)
-	if err != nil || len(entries) != 1 || entries[0].Name() != binaryName {
-		t.Fatalf("foreign directory gained unexpected entries: %v, %v", entries, err)
+// The ErrReplaced sentinel stays an ErrUnsafe so existing unsafe-target
+// handling keeps classifying it conservatively.
+func TestReplacedIsUnsafe(t *testing.T) {
+	if !errors.Is(local.ErrReplaced, local.ErrUnsafe) {
+		t.Fatal("ErrReplaced must wrap ErrUnsafe")
 	}
 }

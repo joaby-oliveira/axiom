@@ -306,15 +306,18 @@ func TestPublishReceiptUpgradesOnlyExactPriorAxiomReceipt(t *testing.T) {
 	if err := os.WriteFile(path, prior, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	var identity anchor
 	openRoot := func() *os.Root {
-		opened, err := anchoredRoot(root, false)
+		opened, opening, err := anchoredRoot(root, false)
 		if err != nil {
 			t.Fatal(err)
 		}
+		identity = opening
 		return opened
 	}
 	anchored := openRoot()
-	if changed, published := codexIntegration.publishReceiptIn(anchored, root, current); !changed || !published {
+	verify := func() error { return identity.verify(anchored) }
+	if changed, published := codexIntegration.publishReceiptIn(anchored, root, current, verify); !changed || !published {
 		t.Fatalf("known prior receipt upgrade = changed %t published %t", changed, published)
 	}
 	anchored.Close()
@@ -326,7 +329,7 @@ func TestPublishReceiptUpgradesOnlyExactPriorAxiomReceipt(t *testing.T) {
 	}
 	anchored = openRoot()
 	defer anchored.Close()
-	if changed, published := codexIntegration.publishReceiptIn(anchored, root, current); changed || published {
+	if changed, published := codexIntegration.publishReceiptIn(anchored, root, current, verify); changed || published {
 		t.Fatalf("foreign receipt changed = changed %t published %t", changed, published)
 	}
 }

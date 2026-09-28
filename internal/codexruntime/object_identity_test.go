@@ -2,62 +2,76 @@ package codexruntime
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 // These tests prove the review's object-identity requirement for the T40
-// skill-root mutation path: once a Runtime skill root (or, for Install, an
-// individual skill directory reached through it) is opened and validated,
-// replacing it at its pathname before the mutation completes must never
-// redirect that mutation to a different, unvalidated object — the mutation
-// either lands on the originally validated object (immune to the
-// replacement, the same real os.Root guarantee proven in internal/local) or
-// is refused; a foreign object is never silently accepted as success.
+// skill-root mutation path: once a Runtime skill root (or a skill directory
+// reached through it) is opened and validated, replacing it or an ancestor at
+// its authorized pathname before the mutation completes must be DETECTED AND
+// REFUSED. The mutation neither lands in the replacement nor completes in the
+// displaced original object, and no success is reported (ADR-0005 property 3,
+// ADR-0007 invariant 7).
 
-func TestUpgradeSessionPublishesToValidatedRootDespiteReplacement(t *testing.T) {
-	for _, test := range []struct {
-		name    string
-		replace func(t *testing.T, root string) (searchRoot string)
-	}{
-		{"root replaced by another directory", func(t *testing.T, root string) string {
-			if err := os.Rename(root, root+"-moved"); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Mkdir(root, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			return filepath.Dir(root)
-		}},
-		{"root replaced by a symlink", func(t *testing.T, root string) string {
-			foreign := filepath.Join(filepath.Dir(root), "foreign-root")
-			if err := os.Mkdir(foreign, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Rename(root, root+"-moved"); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Symlink(foreign, root); err != nil {
-				t.Fatal(err)
-			}
-			return filepath.Dir(root)
-		}},
-		{"ancestor replaced", func(t *testing.T, root string) string {
-			parent := filepath.Dir(root)
-			if err := os.Rename(parent, parent+"-moved"); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.MkdirAll(root, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			return filepath.Dir(parent)
-		}},
-	} {
+var replaceSkillRoot = []struct {
+	name    string
+	replace func(t *testing.T, root string) (original, replacement string)
+}{
+	{"root replaced by another directory", func(t *testing.T, root string) (string, string) {
+		if err := os.Rename(root, root+"-moved"); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(root, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return root + "-moved", root
+	}},
+	{"root replaced by a symlink", func(t *testing.T, root string) (string, string) {
+		foreign := filepath.Join(filepath.Dir(root), "foreign-root")
+		if err := os.Mkdir(foreign, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Rename(root, root+"-moved"); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(foreign, root); err != nil {
+			t.Fatal(err)
+		}
+		return root + "-moved", foreign
+	}},
+	{"ancestor replaced", func(t *testing.T, root string) (string, string) {
+		parent := filepath.Dir(root)
+		if err := os.Rename(parent, parent+"-moved"); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(root, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return filepath.Join(parent+"-moved", filepath.Base(root)), root
+	}},
+}
+
+func directoryNames(t *testing.T, path string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := []string{}
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	return names
+}
+
+func TestUpgradeSessionRefusesReplacedRoot(t *testing.T) {
+	for _, test := range replaceSkillRoot {
 		t.Run(test.name, func(t *testing.T) {
-			parent := t.TempDir()
-			root := filepath.Join(parent, "skills")
-			if err := os.Mkdir(root, 0o755); err != nil {
+			root := filepath.Join(t.TempDir(), "parent", "skills")
+			if err := os.MkdirAll(root, 0o755); err != nil {
 				t.Fatal(err)
 			}
 			service, err := New(root)
@@ -70,31 +84,94 @@ func TestUpgradeSessionPublishesToValidatedRootDespiteReplacement(t *testing.T) 
 			}
 			defer session.Close()
 
-			searchRoot := test.replace(t, root)
+			original, replacement := test.replace(t, root)
 
 			name := skillNames[0]
-			content := []byte("skill content\n")
-			if err := session.PublishSkill(name, content, ""); err != nil {
+			if err := session.PublishSkill(name, []byte("skill content\n"), ""); !errors.Is(err, ErrTargetReplaced) {
 				t.Fatalf("publish after replacement: %v", err)
 			}
-
-			found := false
-			_ = filepath.Walk(searchRoot, func(p string, info os.FileInfo, err error) error {
-				if err == nil && info.Name() == "SKILL.md" && info.Mode().IsRegular() {
-					data, readErr := os.ReadFile(p)
-					if readErr == nil && string(data) == string(content) {
-						found = true
-					}
-				}
-				return nil
-			})
-			if !found {
-				t.Fatalf("published skill not found under %s", searchRoot)
+			if _, err := os.Lstat(filepath.Join(original, name)); !os.IsNotExist(err) {
+				t.Fatalf("skill published into the displaced original root: %v", err)
 			}
-			if _, err := os.Lstat(filepath.Join(root, name)); err == nil {
-				t.Fatal("publication leaked into the object now at the original pathname")
+			if names := directoryNames(t, replacement); len(names) != 0 {
+				t.Fatalf("replacement root mutated: %v", names)
 			}
 		})
+	}
+}
+
+// Install detects a skill root replaced between two skills: with no change
+// committed yet it fails without changes, and it never completes the install
+// (remaining skills, receipt) in the displaced original root nor writes into
+// the replacement.
+func TestInstallRefusesRootReplacedBeforeAnyChange(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "parent", "skills")
+	service, err := New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := service.Install(context.Background()); got.Status != Applied {
+		t.Fatalf("initial install = %#v", got)
+	}
+	// Make the last skill an earlier state (absent) so the rerun would
+	// have to change something after the replacement.
+	last := skillNames[len(skillNames)-1]
+	if err := os.RemoveAll(filepath.Join(root, last)); err != nil {
+		t.Fatal(err)
+	}
+	replaced := false
+	service.afterSkill = func(string) {
+		if !replaced {
+			replaced = true
+			if err := os.Rename(root, root+"-moved"); err != nil {
+				t.Error(err)
+			}
+			if err := os.Mkdir(root, 0o755); err != nil {
+				t.Error(err)
+			}
+		}
+	}
+	if got := service.Install(context.Background()); got.Status != Failed || got.Category != "codex_skill_root_unavailable" {
+		t.Fatalf("install after replacement = %#v", got)
+	}
+	if _, err := os.Lstat(filepath.Join(root+"-moved", last)); !os.IsNotExist(err) {
+		t.Fatalf("install completed in the displaced original root: %v", err)
+	}
+	if names := directoryNames(t, root); len(names) != 0 {
+		t.Fatalf("replacement root mutated: %v", names)
+	}
+}
+
+// With a skill already changed by this run, a later replacement makes the
+// install partial, never applied, and the receipt is not published anywhere.
+func TestInstallIsPartialWhenRootReplacedAfterAChange(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "parent", "skills")
+	service, err := New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replaced := false
+	service.afterSkill = func(string) {
+		if !replaced {
+			replaced = true
+			if err := os.Rename(root, root+"-moved"); err != nil {
+				t.Error(err)
+			}
+			if err := os.Mkdir(root, 0o755); err != nil {
+				t.Error(err)
+			}
+		}
+	}
+	if got := service.Install(context.Background()); got.Status != Partial || got.Category != "codex_skill_install_partial" {
+		t.Fatalf("install after replacement = %#v", got)
+	}
+	for _, directory := range []string{root, root + "-moved"} {
+		if _, err := os.Lstat(filepath.Join(directory, receiptName)); !os.IsNotExist(err) {
+			t.Fatalf("receipt published in %s despite the replacement: %v", directory, err)
+		}
+	}
+	if names := directoryNames(t, root); len(names) != 0 {
+		t.Fatalf("replacement root mutated: %v", names)
 	}
 }
 
