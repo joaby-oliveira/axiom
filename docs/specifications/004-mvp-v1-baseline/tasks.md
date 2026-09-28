@@ -1099,7 +1099,7 @@ not completion Evidence.
 | ADR-0006 | T02, T03, T09–T13, T15, T18, T19, T21, T24–T29 |
 | ADR-0007 | T02–T05, T07, T09–T13, T17–T24, T26–T29 |
 | ADR-0008 | T10–T15, T18, T19, T21, T24–T27, T29 |
-| ADR-0009 (Accepted 2026-09-26; T30–T36 implementation authorized 2026-09-27; real T36 run separately gated) | T30–T36, T24, T25 |
+| ADR-0009 (Accepted 2026-09-26; T30–T36 implementation authorized 2026-09-27; real T36 run separately authorized, executed and evidenced) | T30–T36, T24, T25 |
 
 No approved FR/AC, approved security/NFR clause, inherited SEC requirement, HD
 decision, or Accepted ADR is silently deferred. ADR-0009 acceptance is recorded
@@ -1215,9 +1215,10 @@ bounded real Codex Runtime Evidence. Human acceptance is not inferred.**
 **S7 (T16–T22) — Explicitly authorized on 2026-09-25 and technically complete; final Evidence at implementation commit `ceb6d0288039793d15a98003d5b30a28a2f19122` (T18 retirement at `ffc2515`). T22 is complete under the revised S7 acceptance scope (HD-S7-T22); the Ubuntu 26.04 amd64/arm64 ext4 native rows are deferred to T24 and remain mandatory before RC acceptance or release claims for those targets. See [S7 Evidence](evidence-s7.md). Human acceptance is not inferred.**
 
 **S8 (T30–T36) — Implementation authorized on 2026-09-27 by explicit human
-decision (Issue #97 comment #5852650410); that authority excludes the real T36
-Runtime run beyond its own gate, push, merge, Provider mutation, release, deploy,
-credential provisioning, S9 and human acceptance. T30–T32 and the deterministic
+decision (Issue #97 comment #5852650410); the real T36 Runtime run later received
+its own exact authority and was executed. Neither authority includes push, merge,
+Provider mutation, release, deploy, credential provisioning, S9 or human
+acceptance. T30–T32 and the deterministic
 T34 foundation exist at `21f4f7c` plus the publication read-back correction
 `e654f83`; T33 and T35 are technically complete at `e884a46` plus composition
 fix `7bfadc3`, with concrete Git workspace/integration adapters, combined
