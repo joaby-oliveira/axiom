@@ -291,6 +291,57 @@ recovery markers with:
 ./scripts/test-release-archives.sh
 ```
 
+## Prepare a release artifact set (S9/T38)
+
+Public release tags are `vMAJOR.MINOR.PATCH` (stable) or
+`vMAJOR.MINOR.PATCH-rc.N` (release candidate). Release metadata records the
+semantic version without the leading `v`:
+
+```bash
+./scripts/release-tag-version.sh v0.1.0-rc.2
+# tag=v0.1.0-rc.2
+# version=0.1.0-rc.2
+# channel=rc
+```
+
+The manually dispatched `Release artifacts` workflow
+(`.github/workflows/release-artifacts.yml`) takes one `tag` input, checks out the
+dispatched revision, requires it to be clean and equal to `GITHUB_SHA`, builds
+the three supported rows with `build-release-archives.sh`, verifies the complete
+set, and retains `artifacts/` plus `release-evidence.txt` as a workflow artifact.
+It has a read-only token and never creates tags, GitHub Releases, prereleases,
+or `latest`, and never writes to the repository. Cross-built artifacts are not
+native target acceptance; publication and native acceptance stay with T23/T24.
+
+Verify an artifact set locally from a clean checkout at its exact revision:
+
+```bash
+./scripts/verify-release-artifacts.sh \
+  --dir /absolute/release \
+  --version 0.1.0-rc.2 \
+  --revision "$(git rev-parse HEAD)"
+```
+
+The verifier requires exactly `SHA256SUMS` plus one archive per supported row,
+correct checksums, the closed bundle entry set with a `0700` `axiom` executable,
+a complete `MANIFEST.sha256`, exact release metadata, `LICENSE`, `install.sh`
+and skills identical to the source, the executable format of each row, and Go
+build information naming the exact revision with `vcs.modified=false`. The
+executable for the host's own row must report the exact provenance. It prints
+closed `key=value` Evidence ending in `publication=none` and `result=pass`.
+
+Test the tag contract, clean/dirty source, the full matrix, rerun equivalence,
+fail-closed incomplete or foreign sets, and the workflow's no-publication
+boundary (builds run in a clean clone of the committed `HEAD`):
+
+```bash
+./scripts/test-release-pipeline.sh
+```
+
+A rerun from the same revision yields identical bundle contents and
+executables; archive bytes (tar timestamps) may differ, so the published
+`SHA256SUMS` is the one produced by the run that is published.
+
 ## CLI output and help
 
 Direct Lingo use defaults to a concise human status. Skills and scripts use the

@@ -11,6 +11,14 @@
   packages, `cmd/lingo`, `LINGO_*` variables and state roots are unchanged. A
   prior `lingo` executable or pre-`axiom` release receipt is preserved, not
   migrated.
+- implementation (S9/T38): manually dispatched `Release artifacts` workflow
+  prepares the complete macOS 27/arm64, Ubuntu 26.04/amd64 and Ubuntu
+  26.04/arm64 set from one exact clean revision and one tag
+  (`vX.Y.Z` or `vX.Y.Z-rc.N`, recorded as version `X.Y.Z[-rc.N]`), verifies it
+  with `scripts/verify-release-artifacts.sh`, and retains the files plus
+  Evidence as a workflow artifact. Read-only token; no tag, release,
+  prerelease, `latest` or repository effect. Not native acceptance.
+  `scripts/test-release-pipeline.sh` covers the contract.
 - fix: `build-release-archives.sh` builds from its own checkout instead of the
   caller's working directory.
 - fix: `install-release.sh` read owner, mode and link count with
