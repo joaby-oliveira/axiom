@@ -542,6 +542,35 @@ func CheckPrivateDirectory(path string) error {
 	return root.Close()
 }
 
+// CheckPublicationDirectory validates an existing directory that Axiom
+// publishes into without owning it, such as a user bin directory: user-owned,
+// not a symlink, no group or other write, no extended ACL.
+func CheckPublicationDirectory(path string) error {
+	root, err := existingPublicationRoot(path)
+	if err != nil {
+		return err
+	}
+	return root.Close()
+}
+
+// ReadPublishedFile reads one bounded owner-only regular file directly inside
+// a publication directory. It never follows links and rejects unsafe
+// ownership, modes, ACLs, and additional hard links on the file.
+func ReadPublishedFile(directory, name string, limit int) ([]byte, error) {
+	if name == "" || name == "." || name == ".." || strings.ContainsRune(name, filepath.Separator) {
+		return nil, ErrUnsafe
+	}
+	root, err := existingPublicationRoot(filepath.Clean(directory))
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	if info, err := root.Lstat(name); err != nil || !info.Mode().IsRegular() {
+		return nil, ErrUnsafe
+	}
+	return readPrivateFileBounded(root, name, limit)
+}
+
 // pocWorkflowDTO is frozen from v0.1.0-poc.1
 // (242d67c4cf2d4c3efe534dd894cb56a05558e139), internal/local/workflow_store.go.
 type pocWorkflowDTO struct {

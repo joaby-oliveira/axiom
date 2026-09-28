@@ -198,6 +198,29 @@ private_directory() {
   private_acl "$directory"
 }
 
+# The binary root may be a pre-existing user directory such as ~/.local/bin,
+# commonly 0755. It holds only the owner-only binary Axiom publishes, so the
+# unsafe condition is mutation by another principal: it must be a real
+# user-owned directory without group or other write and without extended ACL.
+# The receipt root is Axiom-owned state and stays private_directory.
+publication_directory() {
+  local directory=$1 mode
+  [[ -d "$directory" && ! -L "$directory" && $(file_owner "$directory") == "$(id -u)" ]] || return 1
+  mode=$(file_mode "$directory") || return 1
+  [[ "$mode" =~ ^[0-7]{3,4}$ ]] || return 1
+  (( (8#$mode & 8#022) == 0 )) || return 1
+  private_acl "$directory"
+}
+
+# destination_directory applies the rule of the given root.
+destination_directory() {
+  if [[ "$1" == "$binary_root" && "$binary_root" != "$receipt_root" ]]; then
+    publication_directory "$1"
+  else
+    private_directory "$1"
+  fi
+}
+
 safe_components() {
   local current=$1
   while [[ "$current" != / ]]; do
@@ -212,7 +235,7 @@ safe_components() {
 for directory in "$binary_root" "$receipt_root"; do
   safe_components "$directory" || { printf 'install_error: symlink destination refused\n' >&2; exit 1; }
   if [[ -e "$directory" ]]; then
-    private_directory "$directory" || { printf 'install_error: unsafe destination ownership, permissions, ACL, or type\n' >&2; exit 1; }
+    destination_directory "$directory" || { printf 'install_error: unsafe destination ownership, permissions, ACL, or type\n' >&2; exit 1; }
   fi
 done
 if [[ -e "$binary_root/axiom" || -L "$binary_root/axiom" ]] && [[ ! -e "$receipt_root/installation.receipt" && ! -L "$receipt_root/installation.receipt" ]] \
@@ -228,7 +251,7 @@ prepare_directory() {
     chmod 700 "$directory"
   fi
   safe_components "$directory" || { printf 'install_error: symlink destination refused\n' >&2; exit 1; }
-  private_directory "$directory" || { printf 'install_error: unsafe destination ownership, permissions, ACL, or type\n' >&2; exit 1; }
+  destination_directory "$directory" || { printf 'install_error: unsafe destination ownership, permissions, ACL, or type\n' >&2; exit 1; }
 }
 
 # The lock lives in the receipt root; the binary root is created only while

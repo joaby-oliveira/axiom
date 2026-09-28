@@ -224,9 +224,11 @@ revision12=$(git -C "$repository_root" rev-parse --verify HEAD | cut -c1-12)
 asset_sha() { awk -v name="axiom-${1#v}-$row.tar.gz" '$2 == name {print $1}' "$fixtures/releases/$1/SHA256SUMS"; }
 
 bin_of() { printf '%s/.local/bin/axiom\n' "$1"; }
+mode_of() { if [[ $(uname -s) == Darwin ]]; then stat -f %Lp "$1"; else stat -c %a "$1"; fi; }
+owner_of() { if [[ $(uname -s) == Darwin ]]; then stat -f %u "$1"; else stat -c %u "$1"; fi; }
 receipt_of() { printf '%s/.local/state/axiom/install/installation.receipt\n' "$1"; }
 installed_version() { awk -F= '$1 == "version" {print $2}' "$(receipt_of "$1")"; }
-export -f bin_of receipt_of installed_version asset_sha
+export -f bin_of receipt_of installed_version asset_sha mode_of owner_of
 export row revision12
 
 # 0. Row selection: each supported row requests exactly its own asset. v2.0.0
@@ -371,12 +373,71 @@ step invalid-receipt bash -eo pipefail -c '
   printf "unknown=value\n" >>"$(receipt_of "$home")"
   refused "$home" "invalid receipt schema preserved" --version v1.1.0
 '
-home=$(new_home unsafe)
+# A pre-existing --bin-dir only has to be safe from mutation by another
+# principal (user-owned, no symlink, no group/other write, no ACL); what the
+# installer creates and publishes stays owner-only.
+for mode in 700 750 755; do
+  home=$(new_home "bin-$mode")
+  export home mode
+  step "bin-dir-$mode-install-reinstall-upgrade-downgrade" bash -eo pipefail -c '
+    mkdir -m 700 "$home/.local"; mkdir -m "$mode" "$home/.local/bin"
+    run_bootstrap "$home" --version v1.0.0 || { cat "$temporary/stderr"; exit 1; }
+    grep -Fxq "install_status=installed" "$temporary/stdout"
+    [[ $(mode_of "$home/.local/bin") == "$mode" && $(mode_of "$(bin_of "$home")") == 700 && $(mode_of "$(receipt_of "$home")") == 600 ]]
+    [[ $(mode_of "$home/.local/state") == 700 && $(mode_of "$home/.local/state/axiom/install") == 700 ]]
+    before=$(snapshot "$home")
+    run_bootstrap "$home" --version v1.0.0
+    grep -Fxq "install_status=unchanged" "$temporary/stdout"
+    [[ $(snapshot "$home") == "$before" ]]
+    run_bootstrap "$home" --version v1.1.0 || { cat "$temporary/stderr"; exit 1; }
+    grep -Fxq "install_status=upgraded" "$temporary/stdout"
+    [[ $(installed_version "$home") == 1.1.0 && $(mode_of "$home/.local/bin") == "$mode" && $(mode_of "$(bin_of "$home")") == 700 && $(mode_of "$(receipt_of "$home")") == 600 ]]
+    grep -Fxq "sha256=$(digest "$(bin_of "$home")")" "$(receipt_of "$home")"
+    refused "$home" "downgrade_refused" --version v1.0.0
+  '
+done
+home=$(new_home bin-755-foreign)
 export home
-step unsafe-destination-permissions bash -eo pipefail -c '
-  mkdir -p "$home/.local/bin"; chmod 755 "$home/.local/bin"
-  refused "$home" "unsafe destination ownership, permissions, ACL, or type" --version v1.1.0
+step bin-dir-755-foreign-target-preserved bash -eo pipefail -c '
+  mkdir -m 700 "$home/.local"; mkdir -m 755 "$home/.local/bin"
+  printf "#!/bin/sh\necho foreign\n" >"$home/.local/bin/axiom"; chmod 700 "$home/.local/bin/axiom"
+  refused "$home" "foreign binary preserved" --version v1.1.0
 '
+for mode in 702 720 770 775 777; do
+  home=$(new_home "bin-$mode")
+  export home mode
+  step "bin-dir-$mode-refused" bash -eo pipefail -c '
+    mkdir -m 700 "$home/.local"; mkdir "$home/.local/bin"; chmod "$mode" "$home/.local/bin"
+    refused "$home" "unsafe destination ownership, permissions, ACL, or type" --version v1.1.0
+    [[ ! -e "$home/.local/state" ]]
+  '
+done
+home=$(new_home bin-foreign-owner)
+export home
+if [[ $(id -u) == 0 ]]; then
+  printf 'case=bin-dir-foreign-owner-refused result=not_run reason=running_as_root\n'
+else
+  step bin-dir-foreign-owner-refused bash -eo pipefail -c '
+    [[ $(owner_of /usr/bin) != "$(id -u)" && $(mode_of /usr/bin) == 755 ]]
+    refused "$home" "unsafe destination ownership, permissions, ACL, or type" --version v1.1.0 --bin-dir /usr/bin
+    [[ ! -e "$home/.local" ]]
+  '
+fi
+home=$(new_home bin-acl)
+export home
+acl_ready=false
+mkdir -m 700 "$home/.local"; mkdir -m 755 "$home/.local/bin"
+case "$(uname -s)" in
+  Darwin) /bin/chmod +a "everyone allow add_file,delete_child" "$home/.local/bin" && acl_ready=true ;;
+  Linux) command -v setfacl >/dev/null 2>&1 && setfacl -m "u:nobody:rwx" "$home/.local/bin" 2>/dev/null && acl_ready=true ;;
+esac
+if [[ "$acl_ready" == true ]]; then
+  step bin-dir-755-mutation-acl-refused bash -eo pipefail -c '
+    refused "$home" "unsafe destination ownership, permissions, ACL, or type" --version v1.1.0
+  '
+else
+  printf 'case=bin-dir-755-mutation-acl-refused result=not_run reason=acl_tool_unavailable\n'
+fi
 home=$(new_home symlink)
 export home
 step symlinked-destination bash -eo pipefail -c '

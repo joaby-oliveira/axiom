@@ -26,34 +26,9 @@ func privateRoot(path string) (*os.Root, error) {
 	if err != nil {
 		return nil, err
 	}
-	root, err := os.OpenRoot(string(filepath.Separator))
+	root, err := anchoredRoot(canonical, true)
 	if err != nil {
 		return nil, err
-	}
-	for _, part := range strings.Split(strings.TrimPrefix(canonical, string(filepath.Separator)), string(filepath.Separator)) {
-		if part == "" {
-			continue
-		}
-		if err := root.Mkdir(part, 0o700); err != nil && !os.IsExist(err) {
-			root.Close()
-			return nil, err
-		}
-		info, err := root.Lstat(part)
-		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-			root.Close()
-			return nil, ErrUnsafe
-		}
-		next, err := root.OpenRoot(part)
-		root.Close()
-		if err != nil {
-			return nil, ErrUnsafe
-		}
-		actual, err := next.Stat(".")
-		if err != nil || !os.SameFile(info, actual) {
-			next.Close()
-			return nil, ErrUnsafe
-		}
-		root = next
 	}
 	info, err := root.Stat(".")
 	if err != nil || !ownedByUser(info) {
@@ -72,6 +47,88 @@ func privateRoot(path string) (*os.Root, error) {
 			root.Close()
 			return nil, ErrUnsafe
 		}
+	}
+	directory, err := root.Open(".")
+	if err != nil {
+		root.Close()
+		return nil, ErrUnsafe
+	}
+	err = checkPrivateACL(directory)
+	directory.Close()
+	if err != nil {
+		root.Close()
+		return nil, err
+	}
+	return root, nil
+}
+
+// anchoredRoot opens canonical one directory object at a time from "/",
+// rejecting a symlinked or replaced component. With create, missing
+// components are created owner-only.
+func anchoredRoot(canonical string, create bool) (*os.Root, error) {
+	root, err := os.OpenRoot(string(filepath.Separator))
+	if err != nil {
+		return nil, err
+	}
+	for _, part := range strings.Split(strings.TrimPrefix(canonical, string(filepath.Separator)), string(filepath.Separator)) {
+		if part == "" {
+			continue
+		}
+		if create {
+			if err := root.Mkdir(part, 0o700); err != nil && !os.IsExist(err) {
+				root.Close()
+				return nil, err
+			}
+		}
+		info, err := root.Lstat(part)
+		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			root.Close()
+			return nil, ErrUnsafe
+		}
+		next, err := root.OpenRoot(part)
+		root.Close()
+		if err != nil {
+			return nil, ErrUnsafe
+		}
+		actual, err := next.Stat(".")
+		if err != nil || !os.SameFile(info, actual) {
+			next.Close()
+			return nil, ErrUnsafe
+		}
+		root = next
+	}
+	return root, nil
+}
+
+// existingPublicationRoot opens an existing directory that Axiom publishes
+// an owned file into but does not own, such as a user bin directory. Only
+// mutation by another principal is unsafe there: it must be a real directory
+// owned by the user, without group or other write and without extended ACL.
+// Read or search access for others is allowed, and nothing is created or
+// re-moded. What Axiom publishes inside it stays owner-only.
+func existingPublicationRoot(path string) (*os.Root, error) {
+	if !filepath.IsAbs(path) || filepath.Clean(path) == string(filepath.Separator) {
+		return nil, ErrUnsafe
+	}
+	info, err := os.Lstat(path)
+	if os.IsNotExist(err) {
+		return nil, ErrNotFound
+	}
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0o022 != 0 || !ownedByUser(info) {
+		return nil, ErrUnsafe
+	}
+	canonical, err := trustedCanonical(path)
+	if err != nil {
+		return nil, err
+	}
+	root, err := anchoredRoot(canonical, false)
+	if err != nil {
+		return nil, err
+	}
+	opened, err := root.Stat(".")
+	if err != nil || !os.SameFile(info, opened) || !ownedByUser(opened) || opened.Mode().Perm()&0o022 != 0 {
+		root.Close()
+		return nil, ErrUnsafe
 	}
 	directory, err := root.Open(".")
 	if err != nil {

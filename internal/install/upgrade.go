@@ -133,9 +133,12 @@ func (s Service) preview(ctx context.Context, target Target, candidate Candidate
 		if !filepath.IsAbs(directory) || filepath.Clean(directory) != directory || directory == string(filepath.Separator) {
 			return Preview{}, &Error{Category: "invalid_target"}
 		}
-		if local.CheckPrivateDirectory(directory) != nil {
-			return Preview{}, &Error{Category: "unsafe_target"}
-		}
+	}
+	// The binary directory may be a pre-existing user directory such as
+	// ~/.local/bin, which only has to be safe from other principals; the
+	// receipt directory is Axiom-owned state and stays owner-only.
+	if local.CheckPublicationDirectory(target.BinaryDir) != nil || local.CheckPrivateDirectory(target.ReceiptDir) != nil {
+		return Preview{}, &Error{Category: "unsafe_target"}
 	}
 	if len(candidate.Binary) == 0 || candidate.ArchiveSHA256 == "" || candidate.Values == nil {
 		return Preview{}, &Error{Category: "invalid_candidate"}
@@ -168,7 +171,7 @@ func (s Service) preview(ctx context.Context, target Target, candidate Candidate
 	if err != nil || values["destination"] != destination {
 		return Preview{}, &Error{Category: "receipt_invalid"}
 	}
-	binary, err := local.ReadOwnedFile(target.BinaryDir, binaryName, maxBinaryBytes)
+	binary, err := local.ReadPublishedFile(target.BinaryDir, binaryName, maxBinaryBytes)
 	if err != nil {
 		return Preview{}, &Error{Category: "unsafe_binary"}
 	}
@@ -310,9 +313,9 @@ func (s Service) Apply(ctx context.Context, preview Preview, authority Authority
 		var err error
 		switch effect.Kind {
 		case "binary":
-			err = publishEffect(current.target.BinaryDir, binaryName, binaryStage, current.candidate.Binary, effect, 0o700, maxBinaryBytes)
+			err = publishEffect(current.target.BinaryDir, binaryName, binaryStage, current.candidate.Binary, effect, 0o700, maxBinaryBytes, local.ReadPublishedFile)
 		case "receipt":
-			err = publishEffect(current.target.ReceiptDir, receiptName, receiptStage, current.nextReceipt, effect, 0o600, maxReceiptBytes)
+			err = publishEffect(current.target.ReceiptDir, receiptName, receiptStage, current.nextReceipt, effect, 0o600, maxReceiptBytes, local.ReadOwnedFile)
 		case "skill":
 			expected := effect.Expected
 			if expected == absentRevision {
@@ -393,7 +396,8 @@ func partial(result Result) Result {
 
 // publishEffect stages private bytes beside the target, rechecks the exact
 // expected current revision, renames, and confirms the published revision.
-func publishEffect(directory, name, prefix string, wire []byte, effect Effect, mode os.FileMode, limit int) error {
+// read applies the directory's safety rule to every reread.
+func publishEffect(directory, name, prefix string, wire []byte, effect Effect, mode os.FileMode, limit int, read func(string, string, int) ([]byte, error)) error {
 	var entropy [8]byte
 	if _, err := rand.Read(entropy[:]); err != nil {
 		return err
@@ -416,11 +420,11 @@ func publishEffect(directory, name, prefix string, wire []byte, effect Effect, m
 	if writeErr != nil || chmodErr != nil || syncErr != nil || closeErr != nil || written != len(wire) {
 		return &Error{Category: "stage_write_failed"}
 	}
-	staged, err := local.ReadOwnedFile(directory, filepath.Base(stage), limit)
+	staged, err := read(directory, filepath.Base(stage), limit)
 	if err != nil || digest(staged) != effect.Next {
 		return &Error{Category: "stage_verification_failed"}
 	}
-	current, err := local.ReadOwnedFile(directory, name, limit)
+	current, err := read(directory, name, limit)
 	if err != nil || digest(current) != effect.Expected {
 		return &Error{Category: "target_changed"}
 	}
@@ -429,7 +433,7 @@ func publishEffect(directory, name, prefix string, wire []byte, effect Effect, m
 	}
 	committed = true
 	syncDirectory(directory)
-	confirmed, err := local.ReadOwnedFile(directory, name, limit)
+	confirmed, err := read(directory, name, limit)
 	if err != nil || digest(confirmed) != effect.Next {
 		return &Error{Category: "publication_uncertain"}
 	}

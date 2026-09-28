@@ -677,12 +677,40 @@ func TestUpgradeRefusalsHaveZeroEffects(t *testing.T) {
 			writeFile(t, path, []byte(wire), 0o600)
 			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
 		}, "receipt_invalid"},
-		{"permissive target directory", func(t *testing.T, i *installation) Candidate {
-			if err := os.Chmod(i.target.BinaryDir, 0o755); err != nil {
+		{"shared receipt directory", func(t *testing.T, i *installation) Candidate {
+			if err := os.Chmod(i.target.ReceiptDir, 0o755); err != nil {
 				t.Fatal(err)
 			}
 			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
 		}, "unsafe_target"},
+		{"symlinked binary directory", func(t *testing.T, i *installation) Candidate {
+			real := privateDirectory(t, filepath.Dir(i.target.BinaryDir), "real-bin")
+			if err := os.Rename(filepath.Join(i.target.BinaryDir, binaryName), filepath.Join(real, binaryName)); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Remove(i.target.BinaryDir); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(real, i.target.BinaryDir); err != nil {
+				t.Fatal(err)
+			}
+			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
+		}, "unsafe_target"},
+	}
+	// Any group or other write on the pre-existing binary directory lets
+	// another principal replace the binary: refused before any effect.
+	for _, mode := range []os.FileMode{0o702, 0o720, 0o770, 0o775, 0o777, 0o757} {
+		mode := mode
+		tests = append(tests, struct {
+			name   string
+			mutate func(*testing.T, *installation) Candidate
+			want   string
+		}{fmt.Sprintf("binary directory %04o", mode), func(t *testing.T, i *installation) Candidate {
+			if err := os.Chmod(i.target.BinaryDir, mode); err != nil {
+				t.Fatal(err)
+			}
+			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
+		}, "unsafe_target"})
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -694,6 +722,41 @@ func TestUpgradeRefusalsHaveZeroEffects(t *testing.T) {
 			}
 			if after := snapshot(t, filepath.Dir(installed.target.BinaryDir)); after != before {
 				t.Fatal("refused upgrade changed owned state")
+			}
+		})
+	}
+}
+
+// A pre-existing user binary directory such as ~/.local/bin is commonly 0755.
+// Only mutation by another principal matters there, so 0700, 0750 and 0755
+// upgrade; the directory mode is left alone and the binary and receipt Axiom
+// publishes stay owner-only.
+func TestUpgradeAcceptsBinaryDirectoryOnlyTheOwnerCanWrite(t *testing.T) {
+	for _, mode := range []os.FileMode{0o700, 0o750, 0o755} {
+		t.Run(fmt.Sprintf("%04o", mode), func(t *testing.T) {
+			installed := install(t, newBundle("1.0.0", []byte("old-binary\n")))
+			if err := os.Chmod(installed.target.BinaryDir, mode); err != nil {
+				t.Fatal(err)
+			}
+			next := newBundle("1.1.0", []byte("new-binary\n"))
+			service := NewService()
+			preview, err := service.Preview(context.Background(), installed.target, installed.candidate(t, next))
+			if err != nil {
+				t.Fatal(err)
+			}
+			authority, _ := Authorize(preview, preview.Digest)
+			if result, err := service.Apply(context.Background(), preview, authority); err != nil || result.Status != "success" {
+				t.Fatalf("result=%+v err=%v", result, err)
+			}
+			if read(t, filepath.Join(installed.target.BinaryDir, binaryName)) != string(next.binary) {
+				t.Fatal("binary not upgraded")
+			}
+			assertMode(t, installed.target.BinaryDir, mode)
+			assertMode(t, filepath.Join(installed.target.BinaryDir, binaryName), 0o700)
+			assertMode(t, filepath.Join(installed.target.ReceiptDir, receiptName), 0o600)
+			older := installed.candidate(t, newBundle("1.0.0", []byte("old-binary\n")))
+			if _, err := service.Preview(context.Background(), installed.target, older); category(err) != "downgrade_refused" {
+				t.Fatalf("downgrade error=%v", err)
 			}
 		})
 	}
