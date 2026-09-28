@@ -33,7 +33,7 @@ func (s CoordinationStore) Latest(ctx context.Context, parentID, childID string)
 	}
 	root, streams, version, project, err := s.openProject(false)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, os.ErrNotExist) || errors.Is(err, ErrNotFound) {
 			return coordination.Record{}, false, nil
 		}
 		return coordination.Record{}, false, err
