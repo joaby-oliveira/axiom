@@ -30,8 +30,8 @@ remote bootstrap has never installed a real published Axiom release.
 |---|---|---|
 | T37 public `axiom` CLI and distribution identity | implemented; validated locally | `096acb0`, `e4361fa` |
 | T38 automated release artifact pipeline | implemented; validated locally; workflow never dispatched | `90f1eab` |
-| T39 stable remote installer and owned upgrade | implemented; validated with local fixtures; no published release exists | `eb88832`, `c9ec3a3`, `9e474e4`, `7d78156` |
-| T40 Codex + Claude first-run bootstrap | implemented; validated with fake Runtime executables; real Runtimes never invoked | `721acd0`, `9c14299` |
+| T39 stable remote installer and owned upgrade | implemented; validated with local fixtures; no published release exists | `eb88832`, `c9ec3a3`, `9e474e4`, `7d78156`, `eafaa95` |
+| T40 Codex + Claude first-run bootstrap | implemented; validated with fake Runtime executables; real Runtimes never invoked | `721acd0`, `9c14299`, `e127892` |
 
 ## Requirement traceability
 
@@ -39,9 +39,9 @@ remote bootstrap has never installed a real published Axiom release.
 |---|---|---|---|---|
 | FR-062 public `axiom` identity | `build-release-archives.sh`, `install-release.sh`, `install-axiom.sh`, `internal/install`, help, diagnostics, skills | `internal/cli` help test, `TestPreAxiomExecutableSkillsAndReceiptRemainUpgradeable`, `test-release-archives.sh`, `test-install-axiom.sh`, `verify-release-artifacts.sh` | confirmed (local deterministic tests; native macOS 27 host; synthetic Ubuntu row) | met for delivered surfaces |
 | FR-063 release artifacts from one revision | `release-artifacts.yml`, `release-tag-version.sh`, `verify-release-artifacts.sh` | `test-release-pipeline.sh`, local replay of the workflow `run:` steps | confirmed locally; GitHub workflow **not run** | implemented; GitHub execution unverified |
-| FR-064 stable remote installation and selection policy | `scripts/install.sh` | `test-install-bootstrap.sh` (fake `curl`, local release fixtures) | confirmed on native macOS 27/arm64 host and synthetic Ubuntu 26.04/amd64 row; live GitHub read-only checks | selection/verification logic met; installation of a published release **not run** (none exists) |
-| FR-065 convergent reinstall/upgrade | `install-release.sh` handing to the candidate's protected `axiom upgrade` | `test-install-bootstrap.sh`, `test-s7-native.sh`, `internal/install` | confirmed with local fixtures (native macOS 27 host, synthetic Ubuntu) | met for local fixtures |
-| FR-066 multi-runtime first run | `internal/runtimebootstrap`, `internal/codexruntime` integration descriptor, `cmd/lingo/runtime_bootstrap.go` | `internal/runtimebootstrap`, `internal/codexruntime`, executable matrix `TestExecutableFirstRunRuntimeMatrix`, `dogfood-poc.sh`, `test-release-archives.sh` | confirmed with fake `codex`/`claude` executables; **real Runtime not run** | met for the four-state matrix; see findings F6–F8 |
+| FR-064 stable remote installation and selection policy | `scripts/install.sh`; default `~/.local/bin` accepted when only its owner can write it (F9) | `test-install-bootstrap.sh` (fake `curl`, local release fixtures, `--bin-dir` mode matrix) | confirmed on native macOS 27/arm64 host and synthetic Ubuntu 26.04/amd64 row; live GitHub read-only checks | selection/verification logic met; installation of a published release **not run** (none exists) |
+| FR-065 convergent reinstall/upgrade | `install-release.sh` handing to the candidate's protected `axiom upgrade` | `test-install-bootstrap.sh`, `test-s7-native.sh`, `internal/install`, `internal/local` publication-directory tests | confirmed with local fixtures (native macOS 27 host, synthetic Ubuntu) | met for local fixtures |
+| FR-066 multi-runtime first run | `internal/runtimebootstrap`, `internal/codexruntime` integration descriptor, `cmd/lingo/runtime_bootstrap.go` | `internal/runtimebootstrap`, `internal/codexruntime`, executable matrix `TestExecutableFirstRunRuntimeMatrix`, `dogfood-poc.sh`, `test-release-archives.sh` | confirmed with fake `codex`/`claude` executables and simulated N→N+1 skill releases; **real Runtime not run** | met for the four-state matrix and post-upgrade convergence (F6 fixed); see findings F7, F8 |
 | FR-067 self-hosted acceptance | — | — | **not run** | not started (T24/T25) |
 | AC-44 | FR-062/FR-064 above | as above | installation from a published release **not run** | open until T23/T24 |
 | AC-45 | FR-063 above | as above | local only | open until the workflow runs for T23 |
@@ -131,6 +131,72 @@ has **not run** on GitHub.
   or incompatible state is refused. Only an interrupted owned upgrade of the
   same archive resumes.
 
+### Binary directory permissions (finding F9)
+
+**Observed.** `install-release.sh` (inherited from S7) required an existing
+`--bin-dir` to be exactly `0700`, and the Go owned upgrade checked the binary
+directory with the same owner-only rule (`local.CheckPrivateDirectory` and
+`ReadOwnedFile`). A user's `~/.local/bin` is commonly `0755` (created by other
+tools or Runtime installers), so the default remote install of FR-064/FR-065
+refused with `unsafe destination ownership, permissions, ACL, or type`, and an
+owned upgrade into it would have refused with `unsafe_target`
+(`test-install-bootstrap.sh` asserted that refusal as
+`unsafe-destination-permissions`).
+
+**Cause.** The installer applied the rule for Axiom-owned state to a directory
+Axiom publishes into but does not own. [ADR-0005](../../decisions/0005-bounded-local-filesystem-threat-model.md)
+property 9 requires restrictive ownership/permissions for machine-local
+**state, staging, recovery metadata and artifacts**, and failing closed on
+unsafe observed conditions; Plan §13 step 1 requires validating ownership,
+type, mode/ACL and ancestry. Same-UID actors are out of scope; for a shared
+binary directory the unsafe condition is **mutation by another principal**
+(replacing `axiom`, planting entries), not read or search access to a
+directory whose only Axiom content is a public, owner-only `0700` executable.
+This is the same analysis as the skill root (F1). It corrects the
+interpretation of properties ADR-0005/ADR-0007 already require; it is not a new
+architectural decision, so no ADR or Specification text changed.
+
+**Fix (`eafaa95`).** For an existing binary directory, both the release
+installer (`publication_directory`) and the Go upgrade
+(`local.CheckPublicationDirectory`, `local.ReadPublishedFile`) require: a real
+directory (not a symlink; the Go path also walks the canonical path through
+anchored directory objects and re-verifies the opened directory), owned by the
+current UID, without group or other write, and without any extended ACL (any
+ACL fails closed, including one granting write). The receipt directory is
+Axiom-owned state and keeps the exact owner-only `0700` rule. A missing binary
+directory is still created `0700`; staging, the published `axiom` (`0700`), the
+receipt (`0600`), link-count, ownership and ACL checks on files are unchanged.
+
+| Existing `--bin-dir` mode | Group/other can mutate entries | Result |
+|---|---|---|
+| `0700` | no | accepted |
+| `0750` | no | accepted |
+| `0755` | no | accepted |
+| `0702`, `0720` | yes | refused before any effect |
+| `0770`, `0775`, `0777` | yes | refused before any effect |
+| symlink, foreign owner, extended ACL | — | refused before any effect |
+
+Known asymmetry, fail-closed: on Linux the shell ACL heuristic (`ls -ld` mode
+string) also refuses a binary directory carrying setgid/sticky bits, which the
+Go check would accept; the installer refuses first.
+
+**Tests.** `test-install-bootstrap.sh`: for `0700`, `0750` and `0755`, clean
+install, reinstall no-op (unchanged snapshot), owned upgrade `1.0.0`→`1.1.0`
+and downgrade refusal, each asserting the directory mode is untouched and the
+binary/receipt/state modes stay `0700`/`0600`/`0700`; a foreign `axiom` in a
+`0755` directory is preserved; `0702`, `0720`, `0770`, `0775`, `0777`, a
+symlinked directory (existing case), a foreign-owned directory (`/usr/bin`,
+`not_run` as root) and a `0755` directory with a mutation ACL (macOS
+`chmod +a`; Linux `setfacl` when available, else `not_run`) are refused with
+an unchanged HOME. `internal/install`:
+`TestUpgradeAcceptsBinaryDirectoryOnlyTheOwnerCanWrite` (apply for each
+accepted mode, downgrade refused) and refusal cases for six writable modes, a
+symlinked binary directory and a `0755` receipt directory. `internal/local`:
+`TestPublicationDirectoryModeMatrix` (ten modes; the private rule still refuses
+every non-`0700` mode), symlink/foreign-owner/missing and file-rule tests, and
+ACL tests on macOS and Linux. `test-release-archives.sh` keeps its `0770`
+binary-directory and ACL refusals.
+
 Earlier run (synthetic Ubuntu 26.04/amd64 row, `dash` and `bash --posix`):
 `test-install-bootstrap.sh` passed all 48 cases, and every refusal left HOME and
 the temporary directory unchanged. Live read-only checks against GitHub: the
@@ -168,7 +234,65 @@ Implementation choices assessed (not Specification rules):
 | Presence = `exec.LookPath` resolves `codex`/`claude` to an absolute path; a configuration directory alone is absence | Satisfies "no invented availability" and is fully reversible. It gives false negatives when a Runtime is installed but not on the invoking process's `PATH` (for example a native installer's `~/.local/bin` not yet on `PATH`, or a desktop-app-bundled executable). Such a Runtime is reported absent, with `configurationWithoutExecutable` when its directory exists, and `axiom runtime <id> install` configures it explicitly. Finding F7, not blocking. |
 | Exit `0` when every detected Runtime converges, including none; `1` when any detected Runtime fails; canonical `success` / `partial` / `failure` / `interrupted` | Each required state is distinguishable: none (`success`, `detected=0`), all configured (`success`), partial (`partial`, exit `1`), all failed (`failure`, exit `1`). No-Runtime success matches "Axiom remains installed and reports that no supported Runtime is available". Consistent with the CLI's canonical completion model. |
 | Partial success keeps the converged Runtime and does not roll back | Each Runtime converges under its own lock and ownership rules; the result names each Runtime's state and reason; a rerun is a no-op for the converged Runtime and retries only the failed one (executable matrix `one converges while the other conflicts`). Consistent and idempotent. |
-| Claude ownership: shared skill set and existing Codex ownership mechanics, a separate empty history of previously owned Claude revisions, a receipt with `runtime=claude`, the skill root and each skill digest | Absent skills install; current content is a no-op; only a registered previous Claude revision upgrades (none exist); unknown or modified content is preserved and fails Claude; a previous Codex revision found in the Claude root is a conflict (`TestClaudeHasNoInventedHistory`); the receipt never authorizes overwriting changed content (`TestModifiedOwnedSkillIsNotRepairedDespiteReceipt`); a partial prior owned install converges (`TestPartialPriorOwnedInstallConverges`). See findings F6 and F8. |
+| Claude ownership: shared skill set and existing Codex ownership mechanics, the shared history of skill sets published through the Runtime integration (no Claude-only history), a receipt with `runtime=claude`, the skill root and each skill digest | Absent skills install; current content is a no-op; a skill set published earlier through the shared integration upgrades (F6, below); unknown or modified content is preserved and fails Claude; a pre-shared Codex-only revision found in the Claude root is a conflict (`TestClaudeHasNoInventedHistory`, `TestSharedHistoryDoesNotAdoptCodexOnlyRevisionsForClaude`); the receipt never authorizes overwriting changed content (`TestModifiedOwnedSkillIsNotRepairedDespiteReceipt`); a partial prior owned install converges (`TestPartialPriorOwnedInstallConverges`). See finding F8. |
+
+### Runtime convergence after an upgrade (finding F6)
+
+**Observed.** `axiom upgrade` publishes skill files only to the Codex root.
+Each Runtime integration recognized as owned only this binary's skill set and
+its own earlier history; Codex had one (`legacySkillDigests`,
+`legacyReceiptWires`), Claude's was empty by design. When release N+1 changes
+the shared skill text, Codex is upgraded while Claude keeps revision N, which
+no Claude history knew, so the next `axiom first-run` failed Claude with
+`claude_skill_conflict` and reruns could never converge that Axiom-owned
+state. The same gap applied to the Codex skill-set receipt whenever a revision
+was not also appended to `legacyReceiptWires`.
+
+**Cause.** Ownership history was per Runtime and maintained by hand, so a
+revision published to every Runtime could be registered for Codex only.
+
+**Fix (`e127892`).** One `sharedSkillHistory` (in `internal/codexruntime`)
+lists every earlier skill set published through the shared Runtime
+integration, each as its skill-set version, binary compatibility and per-skill
+digests. Every Runtime installer consults it: `knownDigest` (install,
+`InspectUpgrade`, inventory) and `matchesLegacyReceipt`, which derives each
+Runtime's exact receipt bytes for those revisions (the Claude receipt still
+binds the skill root). The Codex-only pre-shared history is frozen
+(`TestRuntimeOnlyHistoryIsFrozen`), and
+`TestEveryPublishedSharedRevisionStaysOwned` pins the manifest digest of every
+published shared skill set, so changing the skill text without recording the
+replaced revision fails the build. The history is empty today: the embedded
+skill set (manifest `98c861ec…`) is the first one published to Claude, and no
+release exists yet. Ownership is still exact evidence only, never a content
+comparison: modified, foreign, ambiguous or unsafe skills are refused,
+pre-shared Codex-only revisions are not adopted in a Claude root, and `Install`
+now refuses before any change when a skill would be replaced beside a receipt
+that is neither absent, this binary's receipt nor an earlier Axiom receipt for
+that Runtime and root (previously the skills were replaced first and the
+receipt then failed as `partial`). When every skill is already current and only
+the receipt is unrecognized, the earlier behavior is kept (F8). Receipt bytes
+of the current skill set are byte-identical before and after the change. The
+partial `axiom upgrade` next action now names `axiom first-run` (or
+`axiom runtime codex install` when Codex is not on `PATH`).
+
+**Tests** (`internal/codexruntime/shared_history_test.go`, simulating the N+1
+binary by replacing the embedded skills and appending revision N to the shared
+history):
+
+| Case | Result |
+|---|---|
+| Claude revision N → N+1 → first-run (`TestClaudeRevisionNConvergesAfterUpgradeToNPlusOne`) | inventory `upgradable`/receipt `legacy`; converges to N+1, receipt refreshed, `Ready`; rerun `unchanged` with an identical tree |
+| Claude revision N modified by the user, replaced by foreign content, with an extra file, or `0644` → N+1 (`TestModifiedClaudeRevisionNIsRefusedAfterUpgrade`) | `claude_skill_conflict`; tree byte- and mode-identical |
+| Codex + Claude at N; `PublishUpgradeSkill` (the `axiom upgrade` primitive) moves Codex to N+1 leaving its receipt at N; then first-run (`TestCodexAndClaudeConvergeTogetherAfterUpgrade`) | both converge to N+1 with refreshed receipts; rerun idempotent |
+| Partial Claude state: no receipt, one skill missing, one already N+1, the rest N (`TestPartialClaudeStateConvergesAfterUpgrade`) | converges; rerun `unchanged` |
+| Old valid receipt (Claude N for this root) | accepted and replaced (first case) |
+| Invalid receipt: Claude N receipt of another root, the Codex receipt, a foreign receipt, a `0644` receipt (`TestClaudeReceiptMustBeAxiomEvidenceForThisRoot`) | `claude_skill_conflict`; skills and receipt unchanged |
+| Pre-shared Codex-only revision in a Claude root after N+1 (`TestSharedHistoryDoesNotAdoptCodexOnlyRevisionsForClaude`) | conflict; content unchanged |
+
+**Limit.** The N+1 binary is simulated inside the test process; no second real
+release binary with different skill text exists, and `axiom upgrade` itself
+was exercised for Codex by `internal/install` and `test-s7-native.sh`, not
+chained with a real Claude root.
 
 ### Skill root permissions (FR-066/AC-47)
 
@@ -230,7 +354,30 @@ refusals still pass.
 
 ## Validation
 
-### Native macOS 27.0/arm64 host — 2026-09-28 (this reconciliation)
+### Native macOS 27.0/arm64 host — 2026-09-28 (F6/F9 final review)
+
+Same host and isolation as the run below (maintainer workstation, **not a
+clean environment**; isolated HOME, state and skill roots). All suites ran on
+the clean tree at `420d642` (`e127892` F6, `eafaa95` F9, `420d642` docs;
+`archive_kind=release`); this Evidence commit changes documentation only.
+
+| Command | Result |
+|---|---|
+| `go build ./...`, `go vet ./...`, `gofmt -l .` (empty), `go mod verify` | pass |
+| `go test ./... -count=1` | pass |
+| `go test -race ./... -count=1` (default `umask 022`) | pass |
+| `go test -race ./... -count=1` under `umask 077` | only F10 fails (`TestCoordinationLatestRejectsUnsafeHierarchy`, pre-existing on `main`); a new F9 test that first depended on `umask` was fixed before `eafaa95` was final |
+| `./scripts/validate-repository.sh .`, `./scripts/check-sensitive-files.sh .` | pass |
+| `./scripts/test-install-bootstrap.sh` under `sh` and under `bash --posix` | each `host_row=macos-27-arm64`: 56 cases pass, including the eleven `--bin-dir` cases (`0700`/`0750`/`0755` lifecycle, foreign target in `0755`, five writable modes, foreign owner, mutation ACL); the two Ubuntu row-selection cases `not_run` |
+| `./scripts/test-install-axiom.sh`, `./scripts/test-release-archives.sh`, `./scripts/test-release-pipeline.sh`, `./scripts/test-codex-skills.sh`, `./scripts/test-s7-security.sh`, `./scripts/dogfood-poc.sh` | pass |
+| `./scripts/test-s7-native.sh` | `native_row=macos-27.0-arm64-apfs`, `source_state=clean`: 32 steps pass (install, no-op, installer owned upgrade, owned upgrade, stale-digest denial, downgrade refusal, interrupted-upgrade resume, skills); only `race` fails, on F10 under the suite's `umask 077` |
+| `gitleaks git --log-opts=origin/main..HEAD` | 17 commits, no leaks |
+| `git diff --check origin/main...HEAD` | clean |
+
+Not run in this round: any Ubuntu row (synthetic or native) for the F6/F9
+changes, a real Codex or Claude, a published release, the GitHub workflow.
+
+### Native macOS 27.0/arm64 host — 2026-09-28 (earlier reconciliation)
 
 Host: macOS 27.0 (26A428), arm64, APFS, Go 1.26.1. This is the maintainer's
 workstation, **not a clean environment**: it has real Codex/Claude installs and
@@ -271,8 +418,11 @@ version bound in metadata, build information and verifier), archive and
 checksum validation (digest before any read, closed entry sets, regular files
 only, manifests), path confinement (fixed member and skill names, canonical
 absolute directories, no `=` or newlines), symlinks and hard links, ownership,
-permissions and ACLs (skill root rule above; installer and Axiom-owned entries
-unchanged), TOCTOU (the upgrade re-previews under its own lock and compares the
+permissions and ACLs (skill root and binary directory rules above: only
+directories Axiom does not own accept read/search by others, never write or
+ACLs; the receipt directory and every Axiom-created file keep the owner-only
+rule), skill ownership after upgrades (exact shared digests and receipts only;
+no skill replaced beside an unrecognized receipt), TOCTOU (the upgrade re-previews under its own lock and compares the
 digest; skill checks re-verify the opened descriptor), network failure
 (explicit, no effects), interruption (only the same archive resumes), foreign
 installations and skills (preserved), downgrade (refused), selector ambiguity
@@ -293,10 +443,10 @@ upgrade before any effect.
 | F3 | Bootstrap usage advertised `--channel stable\|rc` | fixed (`7d78156`) |
 | F4 | `test-s7-native.sh` owned-upgrade step not isolated from real HOME | fixed (`7185a1e`) |
 | F5 | Ubuntu row-selection cases passed only on Ubuntu hosts and were reported as general Evidence | fixed (`7185a1e`, reported `not_run` elsewhere) |
-| F6 | `axiom upgrade` publishes skills only to the Codex root. After a binary upgrade that changes the shared skill text, Claude keeps the previous revision, and the next `first-run` reports `claude_skill_conflict` unless that revision was registered in Claude's history (empty today). | **open**; must be resolved before T23 identifies an RC (register each shipped revision in both histories as part of release preparation, or converge Claude in the upgrade path) |
+| F6 | `axiom upgrade` publishes skills only to the Codex root. After a binary upgrade that changes the shared skill text, Claude kept the previous revision, and the next `first-run` reported `claude_skill_conflict` because only Codex had an ownership history. | fixed (`e127892`): shared revision history known to every Runtime installer, frozen Codex-only history, pinned published revisions; see "Runtime convergence after an upgrade" |
 | F7 | `exec.LookPath` discovery misses Runtimes that are installed but not on the invoking `PATH` | open, low; truthful `absent` plus `configurationWithoutExecutable`; explicit `axiom runtime <id> install` path exists |
 | F8 | The Claude receipt binds the absolute skill root. A Claude configuration copied or synced to another path yields `claude_skill_receipt_incomplete` (partial) on every run; removing that receipt lets the next run recreate it when all skills are current | open, low; fail-closed; recovery not yet documented in diagnostics |
-| F9 | `install-release.sh` (S7 contract) requires an existing `--bin-dir` to be exactly `0700`; a default `~/.local/bin` created `0755` by other tools refuses the default remote install | **open**; the F1 analysis suggests "no group/other write" suffices for a directory Axiom does not own, but this changes the S7 installer contract and needs a decision before T24 (T24 rows will also carry Runtime installs that may create `~/.local/bin`) |
+| F9 | `install-release.sh` (S7) and the Go owned upgrade required an existing `--bin-dir` to be exactly `0700`; a default `~/.local/bin` created `0755` by other tools refused the default remote install | fixed (`eafaa95`): assessed against ADR-0005 as a corrected interpretation (mutation by another principal is the unsafe condition), no ADR/Specification change; receipt directory and Axiom-created files unchanged; see "Binary directory permissions" |
 | F10 | `internal/local` `TestCoordinationLatestRejectsUnsafeHierarchy` (S8, on `main`) fails under `umask 077`, which `test-s7-native.sh` uses | open, pre-existing on `main`, outside PR #106; separate fix proposed |
 | F11 | The persistent `.axiom-skill-set.lock` is created in a detected Runtime's root even when that Runtime then fails on a conflict | open, low; conflicting and foreign content is never changed |
 | F12 | Release workflow `tag` input is not checked against an existing tag at the dispatched revision | open, low; T23 must bind tag to recorded revision before publication |
@@ -305,9 +455,9 @@ upgrade before any effect.
 
 | Kind | Claims |
 |---|---|
-| **confirmed** (executed deterministic tests) | Go packages; release build, verifier and workflow `run:` replay; bootstrap selection/verification logic; release installer and protected upgrade with local fixtures; T40 four-state matrix with fake Runtime executables; skill root permission matrix |
-| **native** (supported row, local fixtures, not a clean environment, not a published release) | macOS 27.0/arm64: install, reinstall no-op, owned upgrade, downgrade refusal, recovery, skills publication and bootstrap cases on this host (results above) |
-| **synthetic** | Ubuntu 26.04/amd64 install/upgrade/refusal suites and Ubuntu row selection (Ubuntu 24.04 userland, replaced `/etc/os-release`) |
+| **confirmed** (executed deterministic tests) | Go packages; release build, verifier and workflow `run:` replay; bootstrap selection/verification logic; release installer and protected upgrade with local fixtures; T40 four-state matrix with fake Runtime executables; skill root permission matrix; F6 post-upgrade convergence with a simulated N+1 skill set (in-process); F9 binary-directory matrix |
+| **native** (supported row, local fixtures, not a clean environment, not a published release) | macOS 27.0/arm64 local-fixture validation: install, reinstall no-op, owned upgrade, downgrade refusal, recovery, skills publication, bootstrap cases and the `0700`/`0750`/`0755` binary-directory lifecycle on this host (results above). macOS 27 clean-environment published-RC acceptance is **not run** (T24) |
+| **synthetic** | Ubuntu 26.04/amd64 install/upgrade/refusal suites and Ubuntu row selection (Ubuntu 24.04 userland, replaced `/etc/os-release`), on earlier commits only; the F6/F9 changes were **not** re-run on a synthetic or native Ubuntu row (CI runs the Go suites on `ubuntu-24.04`) |
 | **real Runtime** | none. Codex and Claude were never invoked; T40 used fake executables |
 | **not run** | Ubuntu 26.04/arm64 installation; any native Ubuntu 26.04 row; the GitHub `Release artifacts` workflow and artifact upload; installation of a published release; FR-067/AC-49 dogfooding |
 | **blocked** | T24 native acceptance on every row (needs T23 and a published RC) |
@@ -325,6 +475,7 @@ S9 is not complete, and no MVP acceptance is claimed.
 
 T24 installs one exact published RC with `--version vX.Y.Z-rc.N` on every row
 (AC-48), never a floating selector. It requires S8/T36 technical completion,
-T23 with explicit publication authority, and resolution of findings F6 and F9.
+T23 with explicit publication authority. Findings F6 and F9, previously listed
+here as prerequisites, are fixed.
 The S7 Ubuntu 26.04 native rows deferred to T24 remain mandatory. Synthetic and
 native-host results above do not satisfy any T24 row.
