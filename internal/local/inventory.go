@@ -533,42 +533,42 @@ func ReadOwnedFile(base, relative string, limit int) ([]byte, error) {
 }
 
 // CheckPrivateDirectory validates an existing owner-only directory with the
-// same ownership, link, mode, and ACL checks used by local stores.
+// same ownership, link, mode, and ACL checks used by local stores. It is a
+// one-shot check: a caller that will then mutate the directory should use
+// OpenOwnedDirectory instead and keep operating through that same handle, so
+// validation and mutation cannot land on different objects.
 func CheckPrivateDirectory(path string) error {
-	root, err := existingPrivateRoot(path)
+	directory, err := OpenOwnedDirectory(path)
 	if err != nil {
 		return err
 	}
-	return root.Close()
+	return directory.Close()
 }
 
 // CheckPublicationDirectory validates an existing directory that Axiom
 // publishes into without owning it, such as a user bin directory: user-owned,
-// not a symlink, no group or other write, no extended ACL.
+// not a symlink, no group or other write, no extended ACL. It is a one-shot
+// check; see OpenPublicationDirectory for a caller that will also mutate it.
 func CheckPublicationDirectory(path string) error {
-	root, err := existingPublicationRoot(path)
+	directory, err := OpenPublicationDirectory(path)
 	if err != nil {
 		return err
 	}
-	return root.Close()
+	return directory.Close()
 }
 
 // ReadPublishedFile reads one bounded owner-only regular file directly inside
 // a publication directory. It never follows links and rejects unsafe
-// ownership, modes, ACLs, and additional hard links on the file.
+// ownership, modes, ACLs, and additional hard links on the file. It is a
+// one-shot open; a caller that will also stage/rename in the same directory
+// should use OpenPublicationDirectory once and call ReadFile on that handle.
 func ReadPublishedFile(directory, name string, limit int) ([]byte, error) {
-	if name == "" || name == "." || name == ".." || strings.ContainsRune(name, filepath.Separator) {
-		return nil, ErrUnsafe
-	}
-	root, err := existingPublicationRoot(filepath.Clean(directory))
+	opened, err := OpenPublicationDirectory(filepath.Clean(directory))
 	if err != nil {
 		return nil, err
 	}
-	defer root.Close()
-	if info, err := root.Lstat(name); err != nil || !info.Mode().IsRegular() {
-		return nil, ErrUnsafe
-	}
-	return readPrivateFileBounded(root, name, limit)
+	defer opened.Close()
+	return opened.ReadFile(name, limit)
 }
 
 // pocWorkflowDTO is frozen from v0.1.0-poc.1
