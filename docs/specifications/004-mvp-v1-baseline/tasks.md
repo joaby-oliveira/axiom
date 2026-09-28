@@ -1105,6 +1105,7 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
 - **Expected Evidence:** Revision/source state, build commands/exits, per-target archive and entry hashes, `SHA256SUMS`, release URL/asset IDs/read-back, effect ledger, limitations, and explicit candidate status.
 - **Completion criteria:** The exact RC consumed by T24 is immutable, traceable, published through the approved adapter, and not represented as human-accepted/final.
 - **Risks / gates:** Distribution authenticity remains unclaimed. Any signing or alternate trust topology requires **Human decision required**.
+- **Release flow reconciliation (2026-09-28, proposed for human review):** the "preview exact release/tag/assets/body/effects" step is the publication envelope of a prepared set: `release-artifacts.yml` builds and verifies it, `scripts/release.sh` / `$axiom-release` re-verifies it and prints the envelope and its digest, the human gate authorizes that digest, and `.github/workflows/publish-release.yml` publishes the same bytes only if its recomputed envelope matches (Plan §13 reconciliation, [CONTRIBUTING.md](../../../CONTRIBUTING.md#release-flow)). It stages a draft, reads back assets and publishes once; its fake-adapter failure/ambiguity/duplicate/rerun and stale-authority matrix is `scripts/test-release-flow.sh`. The infrastructure performed no publication; T23 remains not started and keeps its human gate, and no real publication is authorized by it.
 
 ### T24 — Clean-environment CLI/Codex/Claude/GitHub acceptance matrix
 

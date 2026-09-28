@@ -1,0 +1,4 @@
+# Required reviewers for protected branches (the main ruleset requires code
+# owner review). Keep this aligned with the maintainers who hold merge and
+# release authority.
+* @rgomids

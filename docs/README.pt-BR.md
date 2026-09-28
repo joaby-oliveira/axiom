@@ -134,7 +134,7 @@ Consulte a [visão geral da arquitetura](architecture/README.md), o
 | Arquitetura | [Visão geral](architecture/README.md) · [ADRs](decisions/README.md) |
 | Entrega | [Specifications e Evidence](specifications/README.md) |
 | Pesquisa | [Índice de pesquisa](research/README.md) |
-| Desenvolvimento | [Getting Started](development/getting-started.md) · [Comandos](commands.md) |
+| Desenvolvimento | [Getting Started](development/getting-started.md) · [Comandos](commands.md) · [Fluxo de desenvolvimento e release](../CONTRIBUTING.md#development-flow) |
 | Comunidade | [Contribuição](../CONTRIBUTING.md) · [Código de Conduta](../CODE_OF_CONDUCT.md) · [Suporte](../SUPPORT.md) |
 | Segurança | [Política de segurança](../SECURITY.md) · [Segurança do repositório](security/repository-security.md) |
 | Histórico | [Changelog](../CHANGELOG.md) |

@@ -1,0 +1,44 @@
+name: Release PR
+# Maintains the Release PR with Release Please: SemVer from Conventional
+# Commits, CHANGELOG.md and .release-please-manifest.json. It never creates
+# tags or GitHub Releases (skip-github-release); merging the Release PR only
+# records the versioned state. Publication is the separately authorized
+# publish-release.yml workflow.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-pr:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: write
+    steps:
+      - name: Create or update the Release PR
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          skip-github-release: true
+      - name: Run required CI on the Release PR head
+        if: steps.release.outputs.pr != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+        run: |
+          [[ "$RELEASE_BRANCH" =~ ^release-please--[A-Za-z0-9._/-]+$ ]]
+          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$RELEASE_BRANCH"

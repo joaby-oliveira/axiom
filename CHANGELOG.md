@@ -2,6 +2,24 @@
 
 ## [2026-09-28]
 
+- ci/release: adopt GitHub Flow with a release-gated `main`. `ci.yml`
+  (formerly the POC verification workflow) runs on every PR and push to
+  `main` with stable required checks `verify (linux)`, `verify (macos)` and
+  `release-contract`. Release Please maintains the Release PR
+  (`CHANGELOG.md`, `.release-please-manifest.json`) and never tags or
+  releases. `publish-release.yml` is the only publication path: manual
+  dispatch from `main`, protected `release` environment, re-verification of
+  the prepared set, draft, asset read-back, single publication (RC prerelease, stable `latest` only
+  when highest) and convergent reruns. Publication has two phases: the
+  prepare workflow (`release-artifacts.yml`) builds and verifies the exact
+  set, `release.sh` prints its publication envelope, a human authorizes that
+  envelope digest, and `publish-release.yml` publishes the same prepared bytes
+  only if its recomputed envelope matches; it never rebuilds. New
+  `scripts/release-preflight.sh`, `verify-prepared-release.sh`,
+  `release-notes.sh`, `publish-release.sh`, `release.sh` and
+  `test-release-flow.sh`; maintainer skill `$axiom-release`; `CODEOWNERS`
+  and versioned ruleset desired state. Repository settings changes are
+  documented, not applied, and nothing was published.
 - fix (S9/T40, finding F6): every Runtime installer now recognizes the skill
   sets Axiom published through the shared Runtime integration as Axiom-owned.
   After `axiom upgrade` changes the skill text (which it publishes only to the
