@@ -6,8 +6,6 @@ package install
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -264,36 +262,73 @@ func Authorize(preview Preview, reviewedDigest string) (Authority, error) {
 // skill files); there is no cross-root transaction. A later failure is
 // reported as partial with every confirmed effect listed, and the owned
 // operation marker keeps the installation resumable.
+//
+// ReceiptDir is opened exactly once, as an anchored, validated directory
+// object: the install lock, every marker write and its final removal, and the
+// receipt file publication all resolve through that same object for the rest
+// of this call, never by re-deriving ReceiptDir's pathname. BinaryDir is
+// opened the same way, lazily, the first time it is needed. This closes the
+// gap where validating a directory by pathname and later mutating it by
+// pathname again leaves a window in which the two operations could land on
+// different objects if the directory (or one of its ancestors) were replaced
+// in between (ADR-0005 property 3, controlled ancestor/leaf replacement).
 func (s Service) Apply(ctx context.Context, preview Preview, authority Authority) (Result, error) {
 	result := Result{Status: "denied_authority", Ledger: []LedgerEntry{}}
 	if authority.digest == "" || authority.digest != preview.Digest {
 		return result, &Error{Category: "authority_denied"}
 	}
-	lock := filepath.Join(preview.target.ReceiptDir, lockName)
-	if err := os.Mkdir(lock, 0o700); err != nil {
+	receiptDir, err := local.OpenOwnedDirectory(preview.target.ReceiptDir)
+	if err != nil {
+		result.Status = "failure"
+		return result, &Error{Category: "unsafe_target"}
+	}
+	defer receiptDir.Close()
+	if err := receiptDir.Mkdir(lockName); err != nil {
 		result.Status = "failure"
 		return result, &Error{Category: "installation_busy_or_interrupted"}
 	}
-	defer os.Remove(lock)
+	defer func() { _ = receiptDir.Remove(lockName) }()
 	var skills codexruntime.Service
+	var skillSession *codexruntime.UpgradeSession
 	if touchesSkills(preview) {
 		var err error
 		if skills, err = codexruntime.New(preview.target.SkillsRoot); err != nil {
 			result.Status = "failure"
 			return result, &Error{Category: "skill_inspection_failed"}
 		}
-		unlock, err := skills.LockForUpgrade()
+		skillSession, err = skills.LockForUpgrade()
 		if err != nil {
 			result.Status = "failure"
 			return result, &Error{Category: "skill_set_busy_or_interrupted"}
 		}
-		defer unlock()
+		defer skillSession.Close()
 	}
 	current, err := s.preview(ctx, preview.target, preview.candidate, true)
 	if err != nil || current.Digest != preview.Digest {
 		return result, &Error{Category: "authority_denied"}
 	}
 	result.Status = "failure"
+	// binaryDir is opened lazily against current.target.BinaryDir, the first
+	// time an effect or cleanup step needs it, and kept open (and reused) for
+	// the rest of this call.
+	var binaryDir local.AnchoredDirectory
+	binaryDirOpen := false
+	openBinaryDir := func() (local.AnchoredDirectory, error) {
+		if binaryDirOpen {
+			return binaryDir, nil
+		}
+		opened, err := local.OpenPublicationDirectory(current.target.BinaryDir)
+		if err != nil {
+			return local.AnchoredDirectory{}, err
+		}
+		binaryDir, binaryDirOpen = opened, true
+		return binaryDir, nil
+	}
+	defer func() {
+		if binaryDirOpen {
+			_ = binaryDir.Close()
+		}
+	}()
 	recorded := current.markerSkills
 	if !current.Resume {
 		recorded = map[string]string{}
@@ -302,7 +337,7 @@ func (s Service) Apply(ctx context.Context, preview Preview, authority Authority
 				recorded[effect.Name] = effect.Expected
 			}
 		}
-		if err := writeMarker(current.target.ReceiptDir, current.candidate.ArchiveSHA256, "prepare", true, recorded); err != nil {
+		if err := writeMarker(receiptDir, current.candidate.ArchiveSHA256, "prepare", true, recorded); err != nil {
 			return result, &Error{Category: "marker_unavailable"}
 		}
 	}
@@ -313,15 +348,20 @@ func (s Service) Apply(ctx context.Context, preview Preview, authority Authority
 		var err error
 		switch effect.Kind {
 		case "binary":
-			err = publishEffect(current.target.BinaryDir, binaryName, binaryStage, current.candidate.Binary, effect, 0o700, maxBinaryBytes, local.ReadPublishedFile)
+			directory, openErr := openBinaryDir()
+			if openErr != nil {
+				err = &Error{Category: "unsafe_target"}
+				break
+			}
+			err = publishEffect(directory, binaryName, binaryStage, current.candidate.Binary, effect, 0o700, maxBinaryBytes)
 		case "receipt":
-			err = publishEffect(current.target.ReceiptDir, receiptName, receiptStage, current.nextReceipt, effect, 0o600, maxReceiptBytes, local.ReadOwnedFile)
+			err = publishEffect(receiptDir, receiptName, receiptStage, current.nextReceipt, effect, 0o600, maxReceiptBytes)
 		case "skill":
 			expected := effect.Expected
 			if expected == absentRevision {
 				expected = ""
 			}
-			if skills.PublishUpgradeSkill(effect.Name, current.candidate.SkillFiles[effect.Name], expected) != nil {
+			if skillSession.PublishSkill(effect.Name, current.candidate.SkillFiles[effect.Name], expected) != nil {
 				err = &Error{Category: "skill_publication_failed"}
 			}
 		default:
@@ -332,7 +372,7 @@ func (s Service) Apply(ctx context.Context, preview Preview, authority Authority
 		}
 		result.Ledger = append(result.Ledger, LedgerEntry{Kind: effect.Kind, Name: effect.Name, Target: effect.Target, Revision: effect.Next, Confirmed: true})
 		if effect.Kind == "binary" {
-			if err := writeMarker(current.target.ReceiptDir, current.candidate.ArchiveSHA256, "binary_committed", false, recorded); err != nil {
+			if err := writeMarker(receiptDir, current.candidate.ArchiveSHA256, "binary_committed", false, recorded); err != nil {
 				return partial(result), &Error{Category: "marker_unavailable"}
 			}
 		}
@@ -347,12 +387,21 @@ func (s Service) Apply(ctx context.Context, preview Preview, authority Authority
 		}
 	}
 	for _, leftover := range current.Leftovers {
-		_ = os.Remove(leftover)
+		switch parent := filepath.Dir(leftover); {
+		case parent == current.target.BinaryDir:
+			if directory, err := openBinaryDir(); err == nil {
+				_ = directory.Remove(filepath.Base(leftover))
+			}
+		case parent == current.target.ReceiptDir:
+			_ = receiptDir.Remove(filepath.Base(leftover))
+		case skillSession != nil && filepath.Dir(parent) == current.target.SkillsRoot:
+			_ = skillSession.RemoveSkillLeftover(filepath.Base(parent), filepath.Base(leftover))
+		}
 	}
-	if err := os.Remove(filepath.Join(current.target.ReceiptDir, markerName)); err != nil && !os.IsNotExist(err) {
+	if err := receiptDir.Remove(markerName); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return partial(result), &Error{Category: "marker_cleanup_failed"}
 	}
-	syncDirectory(current.target.ReceiptDir)
+	_ = receiptDir.Sync()
 	final, err := compatibility.Inspect(ctx, current.target.State)
 	if err != nil || final.Classification != compatibility.AbsentV1 && final.Classification != compatibility.ValidV1 {
 		return partial(result), &Error{Category: "final_verification_failed"}
@@ -394,46 +443,38 @@ func partial(result Result) Result {
 	return result
 }
 
-// publishEffect stages private bytes beside the target, rechecks the exact
-// expected current revision, renames, and confirms the published revision.
-// read applies the directory's safety rule to every reread.
-func publishEffect(directory, name, prefix string, wire []byte, effect Effect, mode os.FileMode, limit int, read func(string, string, int) ([]byte, error)) error {
-	var entropy [8]byte
-	if _, err := rand.Read(entropy[:]); err != nil {
-		return err
-	}
-	stage := filepath.Join(directory, prefix+hex.EncodeToString(entropy[:]))
-	file, err := os.OpenFile(stage, os.O_WRONLY|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW, mode)
+// publishEffect stages private bytes inside dir, rechecks the exact expected
+// current revision, renames, and confirms the published revision, all
+// through the same anchored directory object: dir must already be the
+// directory whose identity was just validated by its caller (OpenOwnedDirectory
+// or OpenPublicationDirectory), so this never re-derives the target by
+// pathname and cannot be redirected by a later replacement of dir at its
+// pathname.
+func publishEffect(dir local.AnchoredDirectory, name, prefix string, wire []byte, effect Effect, mode os.FileMode, limit int) error {
+	stage, err := dir.Stage(prefix, wire, mode)
 	if err != nil {
 		return &Error{Category: "stage_unavailable"}
 	}
 	committed := false
 	defer func() {
 		if !committed {
-			_ = os.Remove(stage)
+			_ = dir.Remove(stage)
 		}
 	}()
-	written, writeErr := file.Write(wire)
-	chmodErr := file.Chmod(mode)
-	syncErr := file.Sync()
-	closeErr := file.Close()
-	if writeErr != nil || chmodErr != nil || syncErr != nil || closeErr != nil || written != len(wire) {
-		return &Error{Category: "stage_write_failed"}
-	}
-	staged, err := read(directory, filepath.Base(stage), limit)
+	staged, err := dir.ReadFile(stage, limit)
 	if err != nil || digest(staged) != effect.Next {
 		return &Error{Category: "stage_verification_failed"}
 	}
-	current, err := read(directory, name, limit)
+	current, err := dir.ReadFile(name, limit)
 	if err != nil || digest(current) != effect.Expected {
 		return &Error{Category: "target_changed"}
 	}
-	if err := os.Rename(stage, filepath.Join(directory, name)); err != nil {
+	if err := dir.Rename(stage, name); err != nil {
 		return &Error{Category: "publication_failed"}
 	}
 	committed = true
-	syncDirectory(directory)
-	confirmed, err := read(directory, name, limit)
+	_ = dir.Sync()
+	confirmed, err := dir.ReadFile(name, limit)
 	if err != nil || digest(confirmed) != effect.Next {
 		return &Error{Category: "publication_uncertain"}
 	}
@@ -600,7 +641,10 @@ func recordedSkills(marker map[string]string) map[string]string {
 // installer and the upgrade path refuse each other's interrupted state. It
 // also records each skill's authorized expected revision so a resumed upgrade
 // can prove ownership of skills an interruption left unpublished.
-func writeMarker(directory, archive, stage string, create bool, skills map[string]string) error {
+// writeMarker publishes the operation marker inside receiptDir, the same
+// anchored directory object Apply validated once and holds open for the rest
+// of the call, never by re-deriving ReceiptDir's pathname.
+func writeMarker(receiptDir local.AnchoredDirectory, archive, stage string, create bool, skills map[string]string) error {
 	var builder strings.Builder
 	fmt.Fprintf(&builder, "formatVersion=1\nstage=%s\narchiveSha256=%s\noperation=upgrade\n", stage, archive)
 	for _, name := range skillNames {
@@ -609,37 +653,27 @@ func writeMarker(directory, archive, stage string, create bool, skills map[strin
 		}
 	}
 	wire := []byte(builder.String())
-	path := filepath.Join(directory, markerName)
 	if create {
-		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW, 0o600)
-		if err != nil {
+		if err := receiptDir.CreateExclusive(markerName, wire, 0o600); err != nil {
 			return err
 		}
-		_, writeErr := file.Write(wire)
-		syncErr := file.Sync()
-		if err := errors.Join(writeErr, syncErr, file.Close()); err != nil {
-			return err
-		}
-		syncDirectory(directory)
-		return nil
+		return receiptDir.Sync()
 	}
-	temporary := path + ".next"
-	file, err := os.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW, 0o600)
+	staged, err := receiptDir.Stage(markerName+".", wire, 0o600)
 	if err != nil {
 		return err
 	}
-	_, writeErr := file.Write(wire)
-	syncErr := file.Sync()
-	if err := errors.Join(writeErr, syncErr, file.Close()); err != nil {
-		_ = os.Remove(temporary)
+	committed := false
+	defer func() {
+		if !committed {
+			_ = receiptDir.Remove(staged)
+		}
+	}()
+	if err := receiptDir.Rename(staged, markerName); err != nil {
 		return err
 	}
-	if err := os.Rename(temporary, path); err != nil {
-		_ = os.Remove(temporary)
-		return err
-	}
-	syncDirectory(directory)
-	return nil
+	committed = true
+	return receiptDir.Sync()
 }
 
 func stageLeftovers(target Target) []string {
