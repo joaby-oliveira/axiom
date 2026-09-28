@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/v17.11.2/schemas/config.json",
+  "bootstrap-sha": "9613fa9880cf25f8908ea8f0e651239d57fd79f1",
+  "include-v-in-tag": true,
+  "include-component-in-tag": false,
+  "skip-github-release": true,
+  "pull-request-header": "Release PR maintained by Release Please. Merging it records the version in `.release-please-manifest.json` and `CHANGELOG.md` only: it creates no tag, GitHub Release or artifact. Publication is a separate, explicitly authorized step (`$axiom-release`); see CONTRIBUTING.md.",
+  "packages": {
+    ".": {
+      "release-type": "go",
+      "package-name": "axiom",
+      "initial-version": "0.1.0",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": false,
+      "changelog-path": "CHANGELOG.md",
+      "changelog-sections": [
+        { "type": "feat", "section": "Features" },
+        { "type": "fix", "section": "Bug Fixes" },
+        { "type": "security", "section": "Security" },
+        { "type": "perf", "section": "Performance" },
+        { "type": "revert", "section": "Reverts" },
+        { "type": "docs", "section": "Documentation", "hidden": true },
+        { "type": "test", "section": "Tests", "hidden": true },
+        { "type": "refactor", "section": "Refactoring", "hidden": true },
+        { "type": "build", "section": "Build", "hidden": true },
+        { "type": "ci", "section": "CI", "hidden": true },
+        { "type": "chore", "section": "Chores", "hidden": true }
+      ]
+    }
+  }
+}

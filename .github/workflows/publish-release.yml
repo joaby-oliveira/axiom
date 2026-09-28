@@ -1,0 +1,138 @@
+name: Publish release
+# The only workflow that creates tags and GitHub Releases. It runs only when a
+# maintainer dispatches it from main with an exact tag and revision, and its
+# publish job waits for the protected `release` environment approval.
+# Order: preflight -> build -> verify -> draft -> assets -> read-back ->
+# publish -> read-back. Reruns converge; conflicts fail closed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-rc.N)
+        required: true
+        type: string
+      revision:
+        description: Full 40-character commit SHA on main to publish
+        required: true
+        type: string
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.preflight.outputs.version }}
+      make_latest: ${{ steps.preflight.outputs.make_latest }}
+    steps:
+      - name: Require dispatch from main
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+        run: '[[ "$DISPATCH_REF" == refs/heads/main ]]'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Release preflight
+        id: preflight
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_REVISION: ${{ inputs.revision }}
+        run: |
+          [[ $(git rev-parse --verify HEAD) == "$RELEASE_REVISION" ]]
+          ./scripts/release-preflight.sh --tag "$RELEASE_TAG" --revision "$RELEASE_REVISION" --main-ref origin/main >"$RUNNER_TEMP/preflight.txt"
+          cat "$RUNNER_TEMP/preflight.txt" >>"$GITHUB_STEP_SUMMARY"
+          grep -E '^(version|make_latest)=' "$RUNNER_TEMP/preflight.txt" >>"$GITHUB_OUTPUT"
+
+  build:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.revision }}
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Build and verify the complete artifact set
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_REVISION: ${{ inputs.revision }}
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          [[ $(git rev-parse --verify HEAD) == "$RELEASE_REVISION" ]]
+          [[ -z $(git status --porcelain --untracked-files=normal) ]]
+          out="$RUNNER_TEMP/axiom-release"
+          go mod verify
+          ./scripts/build-release-archives.sh --version "$RELEASE_VERSION" --output "$out/artifacts"
+          ./scripts/verify-release-artifacts.sh --dir "$out/artifacts" --version "$RELEASE_VERSION" --revision "$RELEASE_REVISION" >"$out/release-evidence.txt"
+          ./scripts/release-notes.sh --tag "$RELEASE_TAG" --revision "$RELEASE_REVISION" --repo "$GITHUB_REPOSITORY" >"$out/release-notes.md"
+          [[ -z $(git status --porcelain --untracked-files=normal) ]]
+          cat "$out/release-evidence.txt" >>"$GITHUB_STEP_SUMMARY"
+      - name: Hand the verified set to the publish job
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: axiom-release-${{ inputs.tag }}
+          path: ${{ runner.temp }}/axiom-release
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 30
+
+  publish:
+    needs: [preflight, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: axiom-release-${{ inputs.tag }}
+          path: ${{ runner.temp }}/axiom-release
+      - name: Re-verify, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_REVISION: ${{ inputs.revision }}
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+          RELEASE_MAKE_LATEST: ${{ needs.preflight.outputs.make_latest }}
+        run: |
+          [[ $(git rev-parse --verify HEAD) == "$RELEASE_REVISION" ]]
+          out="$RUNNER_TEMP/axiom-release"
+          # The preflight is repeated at publication time: main and remote tags may have moved.
+          ./scripts/release-preflight.sh --tag "$RELEASE_TAG" --revision "$RELEASE_REVISION" --main-ref origin/main >/dev/null
+          ./scripts/verify-release-artifacts.sh --dir "$out/artifacts" --version "$RELEASE_VERSION" --revision "$RELEASE_REVISION" >"$RUNNER_TEMP/reverified.txt"
+          cmp -s "$out/release-evidence.txt" "$RUNNER_TEMP/reverified.txt"
+          ./scripts/publish-release.sh --repo "$GITHUB_REPOSITORY" --tag "$RELEASE_TAG" --revision "$RELEASE_REVISION" \
+            --make-latest "$RELEASE_MAKE_LATEST" --dir "$out/artifacts" --evidence "$out/release-evidence.txt" \
+            --notes "$out/release-notes.md" | tee "$RUNNER_TEMP/publication.txt"
+          cat "$RUNNER_TEMP/publication.txt" >>"$GITHUB_STEP_SUMMARY"

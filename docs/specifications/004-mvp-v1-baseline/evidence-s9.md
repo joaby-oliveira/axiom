@@ -752,3 +752,49 @@ T23 with explicit publication authority. Findings F6, F9 and F13, previously
 listed here (or identified in final review) as prerequisites, are fixed.
 The S7 Ubuntu 26.04 native rows deferred to T24 remain mandatory. Synthetic and
 native-host results above do not satisfy any T24 row.
+
+## Release flow infrastructure (pre-T23, 2026-09-28)
+
+**Authority.** Local repository changes only, under the operator's
+2026-09-28 request to consolidate CI, Release PR and publication. Nothing here
+merged, pushed, tagged, published, dispatched a workflow or changed repository
+settings. T23 is not started; its human gate is unchanged.
+
+**Delivered.** `ci.yml` (formerly `poc-verification.yml`; PR + push to `main`;
+required checks `verify (linux)`, `verify (macos)`, `release-contract`);
+`release-please.yml` with `skip-github-release` (Release PR only);
+`publish-release.yml` (dispatch from `main`, `release` environment, preflight
+-> build -> verify -> draft -> read-back -> publish -> read-back);
+`scripts/release-preflight.sh`, `release-notes.sh`, `publish-release.sh`,
+`release.sh`, `test-release-flow.sh`; maintainer skill `$axiom-release`;
+`.github/CODEOWNERS`; ruleset desired state in `.github/rulesets/`. The T38
+scripts (`build-release-archives.sh`, `verify-release-artifacts.sh`,
+`release-tag-version.sh`) are reused unchanged.
+
+**Release Please evaluation.** Adopted for the Release PR only.
+`googleapis/release-please-action` v5.0.0 (pinned
+`45996ed1f6d02564a971a2fa1b5860e934307cf7`) supports `skip-github-release`;
+release-please v17.11.2 finds the previous release from GitHub Releases or,
+failing that, the tag of the manifest version, and refuses a new Release PR
+while a merged one is labelled `autorelease: pending`. `publish-release.sh`
+therefore relabels the release commit's PR to `autorelease: tagged` after a
+verified stable publication, which is the handoff Release Please documents for
+external tagging. RCs need no Release PR and do not affect Release Please
+(their tags never equal the manifest version).
+
+| Check | Result |
+|---|---|
+| `./scripts/test-release-flow.sh` (local bash 3.2, macOS 27/arm64) | PASS: preflight SemVer/revision/Release PR binding, notes, first publication, reruns, partial draft, conflicts, stable vs prerelease/latest, `release.sh` authority boundary, workflow triggers/permissions/pins |
+| `./scripts/test-release-pipeline.sh` | PASS at committed `HEAD` `9613fa9` |
+| replay of `publish-release.yml` steps in a clean clone (temporary local commit), real `build-release-archives.sh` + `verify-release-artifacts.sh` output, fake GitHub | PASS: draft, 4 uploads, single publication as prerelease, `latest=none`; rerun `publication=already_published` with no effect; source clean |
+| read-only against `rgomids/axiom`: `publish-release.sh --check`, `release.sh status [--tag v0.1.0-rc.1]` | PASS; `next_action=blocked` because required CI on `main` is missing and the `release` environment does not exist |
+| `go test -race ./...`, `go vet ./...`, `go build ./...`, `go mod verify`, `./scripts/validate-repository.sh .`, `git diff --check`, `gitleaks detect --no-git` | PASS |
+
+**Not verified.** GitHub-hosted execution of `ci.yml`, `release-please.yml`
+and `publish-release.yml`; Release Please's live Release PR, labels and
+CHANGELOG insertion; `gh` upload to `uploads.github.com` and asset `digest`
+fields against the real API; the `workflow_dispatch` CI run satisfying required
+checks on the Release PR; the repository settings in
+[repository security](../../security/repository-security.md#release-and-branch-protection),
+which remain pending administrator application. `actionlint` and `shellcheck`
+were not available locally.

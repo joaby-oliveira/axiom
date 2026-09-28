@@ -986,6 +986,22 @@ activity in S9 must be coordinated through Axiom's own parent/child graph with
 Codex and Claude, structured coordination, Integration/Reconciliation and
 inspectable Evidence.
 
+**Release flow reconciliation (2026-09-28, proposed for human review; no
+publication authority).** Development follows GitHub Flow into a protected
+`main` with required CI and squash merge. Release Please maintains a Release PR
+(SemVer from Conventional Commits, `CHANGELOG.md`,
+`.release-please-manifest.json`) with `skip-github-release`, so merging it only
+records the versioned state. Publication is the separate, manually dispatched
+`publish-release.yml`, gated by the protected `release` environment: it
+re-checks tag/revision/Release PR binding (`release-preflight.sh`), builds and
+verifies with the T38 scripts, stages one draft bound to the revision, uploads
+and reads back every asset digest, then publishes once (RC as prerelease, never
+`latest`; stable from its release commit, `latest` only when highest). Reruns
+converge; duplicates, foreign draft assets, moved tags and inconsistent
+published releases fail closed. The staged draft is never installable, so the
+T23 objective "publish once as a non-draft prerelease" is unchanged. Process
+and authority: [CONTRIBUTING.md](../../../CONTRIBUTING.md#release-flow).
+
 RC is an identified candidate version/revision with immutable checksums and a
 declared support matrix, tagged `vX.Y.Z-rc.N` and published as a GitHub
 prerelease only under T23 authority. For each OS/architecture row, an isolated

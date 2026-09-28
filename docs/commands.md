@@ -469,7 +469,8 @@ the three supported rows with `build-release-archives.sh`, verifies the complete
 set, and retains `artifacts/` plus `release-evidence.txt` as a workflow artifact.
 It has a read-only token and never creates tags, GitHub Releases, prereleases,
 or `latest`, and never writes to the repository. Cross-built artifacts are not
-native target acceptance; publication and native acceptance stay with T23/T24.
+native target acceptance; publication (see [Release flow](#release-flow)) and
+native acceptance stay with T23/T24.
 
 Verify an artifact set locally from a clean checkout at its exact revision:
 
@@ -499,6 +500,83 @@ boundary (builds run in a clean clone of the committed `HEAD`):
 A rerun from the same revision yields identical bundle contents and
 executables; archive bytes (tar timestamps) may differ, so the published
 `SHA256SUMS` is the one produced by the run that is published.
+
+## Release flow
+
+The process, versioning and authority rules are in
+[CONTRIBUTING.md](../CONTRIBUTING.md#release-flow). Workflows:
+
+| Workflow | Trigger | Effect |
+|---|---|---|
+| `.github/workflows/ci.yml` | every PR, push to `main`, dispatch | required checks only; read-only token |
+| `.github/workflows/release-please.yml` | push to `main`, dispatch | opens/updates the Release PR (`CHANGELOG.md`, `.release-please-manifest.json`); never tags or releases; dispatches CI on the Release PR branch |
+| `.github/workflows/release-artifacts.yml` | manual dispatch with `tag` | prepares and verifies the artifact set as a workflow artifact; never publishes |
+| `.github/workflows/publish-release.yml` | manual dispatch from `main` with `tag` and `revision` | preflight, build, verify, draft, upload, read-back, publish; `publish` job gated by the `release` environment |
+
+Discover the state and the next step (read-only apart from `git fetch` of
+`main`):
+
+```bash
+./scripts/release.sh status
+./scripts/release.sh status --tag v0.1.0-rc.1
+./scripts/release.sh status --tag v0.1.0
+```
+
+`status` prints closed `key=value` facts (repository, branch, HEAD, worktree,
+`main`, required CI from `.github/rulesets/main.json`, `release` environment,
+open and merged-unpublished Release PRs) and `next_action`: `none`,
+`review_release_pr`, `blocked` with `reason`, `verify_published`, or
+`authorize_publication` with `preview.*` lines and a `preview_digest`. A stable
+tag resolves to its release commit (the first-parent `main` commit whose
+manifest introduced the version); a release candidate defaults to
+`origin/main`. Publication is previewed only when required CI on the revision
+is green and the `release` environment requires a reviewer.
+
+Dispatch publication of exactly the reviewed preview, only after explicit human
+authorization, then approve the `release` environment in GitHub:
+
+```bash
+./scripts/release.sh publish --tag v0.1.0-rc.1 --revision <full-sha> \
+  --preview-digest <preview_digest> --authorize-publication
+gh run watch <run_id> --repo rgomids/axiom --exit-status
+```
+
+Without `--authorize-publication`, or when the recomputed preview differs from
+`--preview-digest`, nothing is dispatched. Verify a published release; with
+`--download`, the assets are re-verified with `verify-release-artifacts.sh` in a
+clean clone at the tagged revision:
+
+```bash
+./scripts/release.sh verify --tag v0.1.0-rc.1 --download
+```
+
+Building blocks, each read-only unless stated:
+
+```bash
+./scripts/release-preflight.sh --tag v0.1.0 --revision <full-sha> --main-ref origin/main
+./scripts/release-notes.sh --tag v0.1.0 --revision <full-sha> --repo rgomids/axiom
+./scripts/publish-release.sh --check --repo rgomids/axiom --tag v0.1.0 --revision <full-sha> --make-latest true
+```
+
+`release-preflight.sh` requires a full revision on the first-parent history of
+`main` that already carries `.release-please-manifest.json`; for a stable tag,
+the release commit of that version; for an RC, a manifest version not newer
+than the RC, no existing stable of that version and an RC number greater than
+every existing one; the version must be newer than the latest stable tag, and
+an existing tag is accepted only at the same revision. It prints `make_latest`.
+`publish-release.sh` without `--check` performs the publication (only the
+`publish-release.yml` job runs it): it requires the verifier Evidence, the
+artifact directory and the notes, and prints each remote `effect=` line.
+
+Test the whole contract with a stateful fake `gh` and local Git fixtures (no
+network or GitHub effects): preflight rules, notes, first publication, reruns,
+partial drafts, conflicts, stable versus prerelease and `latest`, the
+authorization boundary of `release.sh`, and the workflows' triggers,
+permissions and pins:
+
+```bash
+./scripts/test-release-flow.sh
+```
 
 ## CLI output and help
 

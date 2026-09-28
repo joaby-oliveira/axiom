@@ -1,0 +1,75 @@
+name: CI
+# Required product checks for every pull request and every push to main. Job
+# names are the stable required-check contexts in .github/rulesets/main.json.
+# workflow_dispatch exists only so the Release Please workflow can run CI on
+# its Release PR branch (events created with GITHUB_TOKEN start no other
+# workflow runs). Read-only token; this workflow never publishes anything.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: verify (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            runner: ubuntu-24.04
+          - platform: macos
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Unit, integration and black-box tests
+        run: go test -race ./...
+      - name: Static and build checks
+        run: |
+          go vet ./...
+          go build ./...
+          go mod verify
+      - name: Repository checks
+        run: ./scripts/validate-repository.sh .
+      - name: Bounded dogfooding smoke test
+        run: ./scripts/dogfood-poc.sh
+
+  release-contract:
+    name: release-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Release artifact pipeline contract
+        run: ./scripts/test-release-pipeline.sh
+      - name: Release flow and publication contract
+        run: ./scripts/test-release-flow.sh

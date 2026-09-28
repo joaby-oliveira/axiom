@@ -69,6 +69,7 @@ Use the skills below instead of reproducing long procedures in this file.
 - Review and validation → `.agents/skills/axiom-review/SKILL.md`
 - Documentation reconciliation → `.agents/skills/axiom-document/SKILL.md`
 - Generate another Codex agent/harness → `.agents/skills/axiom-agent-factory/SKILL.md`
+- Release / publication → `.agents/skills/axiom-release/SKILL.md`
 
 Load only the skill(s) required for the current task.
 

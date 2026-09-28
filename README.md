@@ -134,7 +134,7 @@ See the [architecture overview](docs/architecture/README.md),
 | Architecture | [Architecture overview](docs/architecture/README.md) · [ADRs](docs/decisions/README.md) |
 | Delivery | [Specifications and Evidence](docs/specifications/README.md) |
 | Research | [Research index](docs/research/README.md) |
-| Development | [Getting Started](docs/development/getting-started.md) · [Commands](docs/commands.md) |
+| Development | [Getting Started](docs/development/getting-started.md) · [Commands](docs/commands.md) · [Development and release flow](CONTRIBUTING.md#development-flow) |
 | Community | [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Support](SUPPORT.md) |
 | Security | [Security policy](SECURITY.md) · [Repository security](docs/security/repository-security.md) |
 | History | [Changelog](CHANGELOG.md) |
