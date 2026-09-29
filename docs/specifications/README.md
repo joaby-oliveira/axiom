@@ -5,6 +5,15 @@ plans. Approval gates remain separate: an approved Specification permits plannin
 implementation requires an approved Plan/Tasks and explicit authorization for the
 bounded delivery unit. Technical merge does not imply human acceptance or next-Task authority.
 
+## 005 — Native Windows Support
+
+[Specification](005-windows-native-support/spec.md),
+[Plan](005-windows-native-support/plan.md), and
+[Tasks](005-windows-native-support/tasks.md): **Proposed**. This is the
+reviewable native Windows contract; it preserves the existing POSIX release and
+filesystem guarantees until Windows-specific security and native Evidence are
+delivered.
+
 ## 001 — Codex agent harness generation
 
 [Specification](001-codex-agent-harness-generation/spec.md): **Proposed**.
