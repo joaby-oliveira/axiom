@@ -314,7 +314,12 @@ candidate may be published from any `main` revision that does not record a
 newer version (typically `main` before the Release PR, or the release commit
 itself). Reruns converge: a consistent published release is a no-op, and any
 duplicate, foreign asset, moved tag or inconsistent release fails closed
-without changes. Because an interrupted publication changes the remote state
+without changes. Every draft write carries the full release identity (tag,
+name, revision, channel) and is checked on its response and on an independent
+read-back before publication. A release that belongs to the candidate but is
+not bound to its tag (for example `untagged-*`) is reported as
+`publication_state=orphan_conflict`: `status` blocks, no envelope is offered
+and nothing is created until a recorded human decision resolves it. Because an interrupted publication changes the remote state
 (for example to a partial draft), completing it needs a new envelope and a new
 authorization.
 

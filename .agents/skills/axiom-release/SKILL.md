@@ -42,6 +42,9 @@ report its message; do not work around it.
    - `blocked`: show `reason` and the smallest action that unblocks it
      (for example: wait for or fix required CI; merge the Release PR; apply the
      pending repository settings in `docs/security/repository-security.md`).
+     `publication_state=orphan_conflict` means a release of this candidate
+     exists without its tag (for example `untagged-*`): report its id and
+     assets and ask for a human decision; never delete, edit or re-tag it.
      Stop.
    - `prepare`: run `scripts/release.sh prepare --tag <tag> --revision <revision>`.
      It dispatches only the preparation workflow (`release-artifacts.yml`,

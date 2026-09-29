@@ -10,6 +10,11 @@ envelope, and missing native/Runtime/Provider/dogfood Evidence. T24 and T25
 remain blocked; human acceptance PENDING. Earlier no-release/not-started
 statements below describe their original productization/pre-T23 snapshots.
 
+`v0.1.2-rc.2` is **BLOCKED**: publication run 36599923652 made release
+`399339376` public as `untagged-898fac51a51187009dea` without the tag
+`v0.1.2-rc.2`. See the [rc.2 orphan release incident](evidence-s9-t23-rc2-incident.md).
+No new publication is authorized; T24/T25 and acceptance are not inferred.
+
 ## Claim and authority boundary
 
 This record describes the implementation of Specification 004 Slice S9 Tasks

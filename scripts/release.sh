@@ -235,6 +235,9 @@ status() {
       grep -E '^(channel|prerelease|manifest_version|latest_stable|tag_state|make_latest)=' "$temporary/preflight" >>"$out"
       if ! "$scripts/publish-release.sh" --check --repo "$repository" --tag "$tag" --revision "$revision" \
         --make-latest "$(value make_latest "$temporary/preflight")" >"$temporary/remote" 2>"$temporary/remote-error"; then
+        # A refused check still reports the remote state it classified (for
+        # example orphan_conflict), so status never shows it as absent.
+        grep -E '^(publication_state|release_id|orphan_[a-z_]+|orphan_asset\.[^=]+)=' "$temporary/remote" >>"$out" || true
         next=blocked; reason=$(sed 's/^release_publish_error: //' "$temporary/remote-error" | head -n 1)
       else
         grep -E '^(publication_state|release_id)=' "$temporary/remote" >>"$out"

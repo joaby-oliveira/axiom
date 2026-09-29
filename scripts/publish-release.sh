@@ -14,6 +14,11 @@
 # release, tag and latest pointer. Published releases are never modified: a
 # consistent one is a convergent no-op, any other is a conflict. Duplicate
 # releases, foreign draft assets and tags at another revision fail closed.
+# The draft identity (tag_name, name, target_commitish, prerelease, draft) is
+# sent explicitly on every write and checked on every response and read-back:
+# GitHub can detach a draft whose tag does not exist yet into untagged-*.
+# A release that belongs to the candidate but is not bound to its tag is an
+# orphan_conflict: reported, never treated as absent, never duplicated.
 # Every remote effect is printed as an effect= line.
 set -euo pipefail
 
@@ -225,10 +230,56 @@ label_release_pr() {
   printf 'release_pr=%s\n' "$release_pr"
 }
 
+# check_identity JSON DRAFT CONTEXT fails unless the release is bound to
+# exactly this tag, name, revision and channel and has the expected draft
+# state. It never trusts GitHub to have preserved a field implicitly.
+check_identity() {
+  local release=$1 draft=$2 context=$3 value
+  value=$(jq -r '.tag_name' <<<"$release")
+  [[ "$value" == "$tag" ]] || fail "$context: release tag_name is '$value', expected $tag; nothing published"
+  value=$(jq -r '.name' <<<"$release")
+  [[ "$value" == "$tag" ]] || fail "$context: release name is '$value', expected $tag"
+  value=$(jq -r '.target_commitish' <<<"$release")
+  [[ "$value" == "$revision" ]] || fail "$context: release targets '$value', expected $revision"
+  [[ $(jq -r '.prerelease' <<<"$release") == "$prerelease" ]] || fail "$context: release has the wrong prerelease flag"
+  [[ $(jq -r '.draft' <<<"$release") == "$draft" ]] || fail "$context: release draft state is not $draft"
+}
+
+# identity_json DRAFT prints the identity fields every draft write carries.
+identity_json() {
+  jq -n --arg tag "$tag" --arg revision "$revision" --argjson prerelease "$prerelease" --argjson draft "$1" \
+    '{tag_name: $tag, target_commitish: $revision, name: $tag, draft: $draft, prerelease: $prerelease}'
+}
+
 releases=$(releases_json) || fail 'cannot list releases'
 matching=$(jq -c --arg tag "$tag" '[.[] | select(.tag_name == $tag)]' <<<"$releases")
 count=$(jq 'length' <<<"$matching")
 ((count <= 1)) || fail "more than one release uses $tag; resolve the duplicates manually"
+
+# Orphans: releases that carry evidence of belonging to this candidate but are
+# not bound to its tag -- the release name, or an untagged-* release at this
+# revision holding this version's artifacts. Publishing again would create a
+# second public release of the same candidate, so this state is a conflict
+# that needs a recorded human decision; it is never absent.
+orphans=$(jq -c --arg tag "$tag" --arg revision "$revision" --arg prefix "axiom-$version-" \
+  '[.[] | select(.tag_name != $tag)
+        | select(.name == $tag
+                 or ((.tag_name | startswith("untagged-")) and .target_commitish == $revision
+                     and any(.assets[]?; .name | startswith($prefix))))]' <<<"$releases")
+if (($(jq 'length' <<<"$orphans") > 0)); then
+  orphan=$(jq -c '.[0]' <<<"$orphans")
+  if [[ "$check" == true ]]; then
+    printf 'publicationVersion=1\nrepository=%s\ntag=%s\nrevision=%s\nchannel=%s\n' "$repository" "$tag" "$revision" "$channel"
+    printf 'publication_state=orphan_conflict\n'
+    jq -r '"release_id=\(.id)", "orphan_tag_name=\(.tag_name)", "orphan_name=\(.name)",
+           "orphan_target=\(.target_commitish)", "orphan_draft=\(.draft)", "orphan_prerelease=\(.prerelease)",
+           "orphan_immutable=\(if has("immutable") then .immutable else "unknown" end)",
+           (.assets | sort_by(.name) | .[] | "orphan_asset.\(.name)=\(.digest // "unknown" | sub("^sha256:"; ""))")' <<<"$orphan"
+    printf 'orphan_count=%s\nresult=conflict\n' "$(jq 'length' <<<"$orphans")"
+  fi
+  fail "orphan_conflict: release $(jq -r '.id' <<<"$orphan") named '$(jq -r '.name' <<<"$orphan")' has tag_name '$(jq -r '.tag_name' <<<"$orphan")' (draft=$(jq -r '.draft' <<<"$orphan")); it is not bound to $tag. No draft or release is created until a recorded human decision resolves it"
+fi
+
 tag_commit=$(remote_tag_commit)
 [[ -z "$tag_commit" || "$tag_commit" == "$revision" ]] || fail "tag $tag exists at another revision"
 
@@ -245,8 +296,10 @@ if ((count == 1)); then
         grep -q "^$name " "$temporary/expected" || { printf 'release_publish_error: draft has an asset outside the verified set: %s\n' "$name" >&2; exit 1; }
       done
     fi
+    check_identity "$release" true 'existing draft'
   else
     state=published
+    check_identity "$release" false 'existing published release'
     check_published "$release"
   fi
 fi
@@ -338,21 +391,20 @@ if [[ "$state" == published ]]; then
 fi
 
 # --- Draft: create or reconcile -----------------------------------------------
+# Every draft write carries the full identity, and its response is checked.
+identity_json true | jq --rawfile body "$notes" '. + {body: $body}' >"$temporary/draft.json"
 if [[ "$state" == absent ]]; then
-  jq -n --arg tag "$tag" --arg revision "$revision" --rawfile body "$notes" --argjson prerelease "$prerelease" \
-    '{tag_name: $tag, target_commitish: $revision, name: $tag, body: $body, draft: true, prerelease: $prerelease}' \
-    >"$temporary/create.json"
-  release=$(gh api --method POST "repos/$repository/releases" --input "$temporary/create.json") || fail 'cannot create draft release'
+  release=$(gh api --method POST "repos/$repository/releases" --input "$temporary/draft.json") || fail 'cannot create draft release'
   printf 'effect=draft_created release_id=%s\n' "$(jq -r '.id' <<<"$release")"
+  check_identity "$release" true 'created draft'
 else
-  jq -n --rawfile body "$notes" '{body: $body}' >"$temporary/body.json"
-  release=$(gh api --method PATCH "repos/$repository/releases/$(jq -r '.id' <<<"$release")" --input "$temporary/body.json") \
+  release=$(gh api --method PATCH "repos/$repository/releases/$(jq -r '.id' <<<"$release")" --input "$temporary/draft.json") \
     || fail 'cannot refresh draft notes'
   printf 'effect=draft_notes_refreshed release_id=%s\n' "$(jq -r '.id' <<<"$release")"
+  check_identity "$release" true 'refreshed draft'
 fi
 release_id=$(jq -r '.id' <<<"$release")
 [[ "$release_id" =~ ^[0-9]+$ ]] || fail 'draft release has no id'
-[[ $(jq -r '.draft' <<<"$release") == true ]] || fail 'release is not a draft'
 
 # Draft assets from an earlier interrupted run are kept only when they are
 # byte-identical to this verified set; otherwise they are replaced.
@@ -369,6 +421,7 @@ while IFS= read -r asset; do
 done < <(jq -c '.assets[]' <<<"$release")
 
 release=$(gh api "repos/$repository/releases/$release_id") || fail 'cannot read draft release'
+check_identity "$release" true 'draft before upload'
 upload_url=$(jq -r '.upload_url' <<<"$release")
 upload_url=${upload_url%%\{*}
 [[ "$upload_url" == https://* ]] || fail 'draft release has no upload URL'
@@ -381,8 +434,9 @@ while read -r name sum _; do
   printf 'effect=draft_asset_uploaded name=%s sha256=%s\n' "$name" "$sum"
 done <"$temporary/expected"
 
-# Read back the complete draft before it becomes public.
+# Read back the complete draft, identity included, before it becomes public.
 release=$(gh api "repos/$repository/releases/$release_id") || fail 'cannot read draft release'
+check_identity "$release" true 'draft read-back before publication'
 jq -r '.assets[].name' <<<"$release" | LC_ALL=C sort >"$temporary/draft-names"
 cmp -s "$temporary/expected-names" "$temporary/draft-names" || fail 'draft assets are not exactly the verified set (draft left for a rerun)'
 while read -r name sum size; do
@@ -397,16 +451,26 @@ tag_commit=$(remote_tag_commit)
 [[ -z "$tag_commit" || "$tag_commit" == "$revision" ]] || fail "tag $tag appeared at another revision; draft left unpublished"
 
 # --- Publish once ---------------------------------------------------------------
-jq -n --argjson prerelease "$prerelease" --arg latest "$make_latest" \
-  '{draft: false, prerelease: $prerelease, make_latest: $latest}' >"$temporary/publish.json"
+identity_json false | jq --arg latest "$make_latest" '. + {make_latest: $latest}' >"$temporary/publish.json"
 release=$(gh api --method PATCH "repos/$repository/releases/$release_id" --input "$temporary/publish.json") \
-  || fail 'publication request failed; rerun to reconcile the draft or published state'
+  || fail 'publication request failed; rerun status to classify the draft or published state'
 printf 'effect=release_published release_id=%s\n' "$release_id"
 
 # --- Read back ----------------------------------------------------------------
+# A public release not bound to the tag is an orphan: stop at once, never
+# retry into a second release.
+orphan_after_publish() {
+  fail "orphan_conflict: release $release_id is public with tag_name '$(jq -r '.tag_name' <<<"$1")', not $tag; do not rerun publication, record a human decision"
+}
+if [[ $(jq -r '.draft' <<<"$release") == false && $(jq -r '.tag_name' <<<"$release") != "$tag" ]]; then
+  orphan_after_publish "$release"
+fi
 attempt=0
 while :; do
   release=$(gh api "repos/$repository/releases/$release_id") || fail 'cannot read published release'
+  if [[ $(jq -r '.draft' <<<"$release") == false && $(jq -r '.tag_name' <<<"$release") != "$tag" ]]; then
+    orphan_after_publish "$release"
+  fi
   tag_commit=$(remote_tag_commit)
   if [[ $(jq -r '.draft' <<<"$release") == false && "$tag_commit" == "$revision" ]]; then
     break
@@ -414,7 +478,7 @@ while :; do
   ((attempt++ < 5)) || fail 'published release or tag did not read back; rerun to verify'
   sleep "$retry_delay"
 done
-[[ $(jq -r '.tag_name' <<<"$release") == "$tag" ]] || fail 'published release has the wrong tag'
+check_identity "$release" false 'published release'
 check_published "$release"
 latest=$(check_latest)
 printf 'latest=%s\n' "$latest"

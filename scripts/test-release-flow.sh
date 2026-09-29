@@ -182,9 +182,23 @@ case "$method $path" in
     [[ -f "$f" ]] || not_found
     log "PATCH release $id $(jq -c 'del(.body)' "$input")"
     jq -s '.[0] * (.[1] | del(.make_latest))' "$f" "$input" >"$f.new" && mv "$f.new" "$f"
+    # Model of GitHub detaching a release whose tag does not exist yet into
+    # untagged-*: a PATCH that omits tag_name and leaves the release a draft
+    # (the v0.1.2-rc.2 incident hypothesis; v0.1.2-rc.1 shows a publishing
+    # PATCH without tag_name on a fresh draft kept it), or an injected detach
+    # on a draft or publishing PATCH.
+    detach=false
+    [[ -z $(tag_sha "$(jq -r .tag_name "$f")") && $(jq -r .draft "$f") == true ]] \
+      && ! jq -e 'has("tag_name")' "$input" >/dev/null && detach=true
+    [[ "${FAKE_GH_UNTAG_ON_PATCH:-}" == draft && $(jq -r .draft "$f") == true ]] && detach=true
+    [[ "${FAKE_GH_UNTAG_ON_PATCH:-}" == publish && $(jq -r .draft "$f") == false ]] && detach=true
+    if [[ "$detach" == true ]]; then
+      jq '.tag_name = "untagged-898fac51a51187009dea" | .html_url = "https://github.com/rgomids/axiom/releases/tag/untagged-898fac51a51187009dea"' \
+        "$f" >"$f.new" && mv "$f.new" "$f"
+    fi
     if [[ $(jq -r .draft "$f") == false ]]; then
       t=$(jq -r .tag_name "$f")
-      [[ -n $(tag_sha "$t") ]] || printf '%s %s\n' "$t" "$(jq -r .target_commitish "$f")" >>"$s/tags"
+      [[ "$t" == untagged-* || -n $(tag_sha "$t") ]] || printf '%s %s\n' "$t" "$(jq -r .target_commitish "$f")" >>"$s/tags"
       [[ $(jq -r '.make_latest // empty' "$input") == true ]] && printf '%s' "$t" >"$s/latest"
       [[ "${FAKE_GH_IMMUTABLE:-}" == 1 ]] && { jq '.immutable = true' "$f" >"$f.new" && mv "$f.new" "$f"; }
     fi
@@ -201,6 +215,9 @@ case "$method $path" in
     log "UPLOAD $name"
     jq --argjson aid "$aid" --arg name "$name" --argjson size "$(wc -c <"$input" | tr -d ' ')" --arg d "sha256:$(digest "$input")" \
       '.assets += [{id: $aid, name: $name, size: $size, state: "uploaded", digest: $d}]' "$f" >"$f.new" && mv "$f.new" "$f"
+    if [[ "${FAKE_GH_UNTAG_ON_UPLOAD:-}" == 1 ]]; then
+      jq '.tag_name = "untagged-898fac51a51187009dea"' "$f" >"$f.new" && mv "$f.new" "$f"
+    fi
     printf '{"id":%s}\n' "$aid" ;;
   "GET git/matching-refs/tags/"*)
     prefix=${path#git/matching-refs/tags/}
@@ -503,7 +520,7 @@ printf 'v0.1.0-rc.2 %s\n' "$c1" >"$state/tags"
 expect_failure 'tag at another revision' 'exists at another revision' publish "$temporary/rc2" --tag v0.1.0-rc.2 --revision "$c2" --make-latest false
 : >"$state/tags"
 for id in 1 2; do
-  printf '{"id":%s,"tag_name":"v0.1.0-rc.2","target_commitish":"%s","draft":true,"prerelease":true,"assets":[]}\n' "$id" "$c2" >"$state/releases/$id.json"
+  printf '{"id":%s,"tag_name":"v0.1.0-rc.2","name":"v0.1.0-rc.2","target_commitish":"%s","draft":true,"prerelease":true,"assets":[]}\n' "$id" "$c2" >"$state/releases/$id.json"
 done
 expect_failure 'duplicate releases' 'more than one release uses v0.1.0-rc.2' publish "$temporary/rc2" --tag v0.1.0-rc.2 --revision "$c2" --make-latest false
 rm "$state/releases/2.json"
@@ -573,6 +590,131 @@ publish "$temporary/stable-rebuild" --tag v0.1.0 --revision "$c3" --make-latest 
 check 'stable rerun converges without effects' bash -c "grep -Fxq publication=already_published '$temporary/pub' && [[ $(mutations) == $before ]]"
 rm "$state/latest"
 expect_failure 'published stable that is not latest is reported' 'expected v0.1.0' publish "$temporary/stable-rebuild" --tag v0.1.0 --revision "$c3" --make-latest true
+
+# --- 3b. Draft identity and orphan releases (v0.1.2-rc.2 incident) ------------------------------
+# Run 36599923652 published release 399339376 as untagged-898fac51a51187009dea
+# instead of v0.1.2-rc.2. The fake detaches a release whose tag does not exist
+# when a PATCH omits tag_name, and can inject a detach on any draft PATCH,
+# publishing PATCH or upload. Every case must fail closed before a second
+# release, and an orphan must never read as absent.
+publishing_patches() { grep -c '^PATCH release .*"draft":false' "$state/ledger" || true; }
+release_count() { jq -s 'length' "$state"/releases/*.json 2>/dev/null || printf 0; }
+# orphan_release ID TAG REVISION DIR [DRAFT] writes a release named TAG with an
+# untagged-* tag_name holding the set in DIR, like release 399339376.
+orphan_release() {
+  local id=$1 tag=$2 rev=$3 dir=$4 draft=${5:-false} name aid=900
+  jq -n --argjson id "$id" --arg tag "$tag" --arg rev "$rev" --argjson draft "$draft" \
+    '{id: $id, tag_name: "untagged-898fac51a51187009dea", name: $tag, target_commitish: $rev, draft: $draft,
+      prerelease: true, immutable: true, assets: [],
+      html_url: "https://github.com/rgomids/axiom/releases/tag/untagged-898fac51a51187009dea"}' >"$state/releases/$id.json"
+  for name in $(cd "$dir/artifacts" && ls); do
+    aid=$((aid + 1))
+    cp "$dir/artifacts/$name" "$state/assets/$aid"
+    jq --argjson aid "$aid" --arg name "$name" --argjson size "$(wc -c <"$dir/artifacts/$name" | tr -d ' ')" \
+      --arg d "sha256:$(digest "$dir/artifacts/$name")" \
+      '.assets += [{id: $aid, name: $name, size: $size, state: "uploaded", digest: $d}]' \
+      "$state/releases/$id.json" >"$state/r" && mv "$state/r" "$state/releases/$id.json"
+  done
+}
+rc2=(--tag v0.1.0-rc.2 --revision "$c2" --make-latest false)
+
+# 1 + 6. A normal publication creates the draft with the full identity and
+# tags the revision only when it publishes.
+reset_github
+make_set "$temporary/id" 0.1.0-rc.2 "$c2" identity
+publish "$temporary/id" "${rc2[@]}" >"$temporary/pub"
+check 'incident: new draft is created with tag, name, revision and channel' bash -c "grep -q '^POST release v0.1.0-rc.2 draft=true prerelease=true' '$state/ledger' && [[ \$(jq -s '.[0] | .name' $state/releases/*.json) == '\"v0.1.0-rc.2\"' ]]"
+check 'incident: publishing PATCH carries the identity explicitly' bash -c "grep '^PATCH release .*\"draft\":false' '$state/ledger' | grep -Fq '\"tag_name\":\"v0.1.0-rc.2\"' && grep '^PATCH release .*\"draft\":false' '$state/ledger' | grep -Fq '\"target_commitish\":\"$c2\"'"
+check 'incident: valid publication is bound to the tag at the revision' bash -c "grep -Fxq publication=published '$temporary/pub' && grep -Fxq 'v0.1.0-rc.2 $c2' '$state/tags' && [[ \$(jq -s '.[0].tag_name' $state/releases/*.json) == '\"v0.1.0-rc.2\"' ]]"
+
+# 2 + 3. Reconciling an interrupted draft keeps tag_name and target_commitish
+# (a PATCH without tag_name is what detaches the draft in the fake).
+reset_github
+FAKE_GH_FAIL_ON='assets?name=axiom-0.1.0-rc.2-linux-arm64' expect_failure 'incident: interrupted upload leaves a draft' 'draft left for a rerun' \
+  publish "$temporary/id" "${rc2[@]}"
+publish "$temporary/id" "${rc2[@]}" >"$temporary/pub"
+check 'incident: reconcile PATCH sends tag_name, name and target_commitish' bash -c "grep '^PATCH release .*\"draft\":true' '$state/ledger' | grep -Fq '\"tag_name\":\"v0.1.0-rc.2\"' && grep '^PATCH release .*\"draft\":true' '$state/ledger' | grep -Fq '\"name\":\"v0.1.0-rc.2\"' && grep '^PATCH release .*\"draft\":true' '$state/ledger' | grep -Fq '\"target_commitish\":\"$c2\"'"
+check 'incident: reconciled draft publishes with its tag, never untagged-*' bash -c "grep -Fxq publication=published '$temporary/pub' && [[ \$(jq -sc '[.[] | .tag_name]' $state/releases/*.json) == '[\"v0.1.0-rc.2\"]' ]] && grep -Fxq 'v0.1.0-rc.2 $c2' '$state/tags'"
+
+# 4. A draft PATCH response that comes back untagged-* stops before publish.
+reset_github
+FAKE_GH_FAIL_ON='assets?name=axiom-0.1.0-rc.2-linux-arm64' expect_failure 'incident: interrupted upload leaves a draft again' 'draft left for a rerun' \
+  publish "$temporary/id" "${rc2[@]}"
+FAKE_GH_UNTAG_ON_PATCH=draft expect_failure 'incident: untagged-* PATCH response fails before publish' \
+  "refreshed draft: release tag_name is 'untagged-898fac51a51187009dea'" publish "$temporary/id" "${rc2[@]}"
+check 'incident: nothing was published or tagged after the detached draft' bash -c "[[ \$(grep -c '^PATCH release .*\"draft\":false' '$state/ledger' || true) == 0 ]] && ! grep -q '^v0.1.0-rc.2 ' '$state/tags' && [[ \$(jq -s '.[0].draft' $state/releases/*.json) == true ]]"
+
+# 5. A draft whose identity changes before publication fails closed.
+reset_github
+FAKE_GH_UNTAG_ON_UPLOAD=1 expect_failure 'incident: identity change before publish fails closed' \
+  'draft read-back before publication: release tag_name' publish "$temporary/id" "${rc2[@]}"
+check 'incident: changed identity is never published' bash -c "[[ \$(grep -c '^PATCH release .*\"draft\":false' '$state/ledger' || true) == 0 ]] && ! grep -q '^v0.1.0-rc.2 ' '$state/tags'"
+
+# The exact incident: the publishing PATCH itself returns a public untagged-*
+# release. Stop at once: no read-back retries, no tag, no second release.
+reset_github
+FAKE_GH_UNTAG_ON_PATCH=publish expect_failure 'incident: public untagged-* release is reported as orphan at once' \
+  'orphan_conflict: release 101 is public' publish "$temporary/id" "${rc2[@]}"
+check 'incident: one publishing PATCH, no tag, one release' bash -c "[[ \$(grep -c '^PATCH release .*\"draft\":false' '$state/ledger') == 1 ]] && ! grep -q '^v0.1.0-rc.2 ' '$state/tags' && [[ \$(jq -s length $state/releases/*.json) == 1 ]]"
+before=$(mutations)
+expect_failure 'incident: rerun after the orphan publish refuses' 'orphan_conflict' publish "$temporary/id" "${rc2[@]}"
+check 'incident: rerun after the orphan publish made no effect' test "$(mutations)" == "$before"
+
+# 7 + 8 + 9. The observed remote state of release 399339376 is an orphan
+# conflict, never absent; nothing is created, and reruns are idempotent.
+reset_github
+orphan_release 399339376 v0.1.0-rc.2 "$c2" "$temporary/id"
+for attempt in 1 2; do
+  if "$fixture/scripts/publish-release.sh" --check --repo rgomids/axiom "${rc2[@]}" >"$temporary/check-$attempt" 2>"$temporary/check-err"; then
+    check "incident: check $attempt refuses the orphan" false
+  fi
+done
+check 'incident: check classifies the orphan, never absent' bash -c "grep -Fxq publication_state=orphan_conflict '$temporary/check-1' && ! grep -Fxq publication_state=absent '$temporary/check-1' && grep -Fxq release_id=399339376 '$temporary/check-1' && grep -Fxq orphan_tag_name=untagged-898fac51a51187009dea '$temporary/check-1' && grep -Fxq result=conflict '$temporary/check-1'"
+check 'incident: orphan Evidence names its revision, flags and four asset digests' bash -c "grep -Fxq orphan_target=$c2 '$temporary/check-1' && grep -Fxq orphan_draft=false '$temporary/check-1' && grep -Fxq orphan_immutable=true '$temporary/check-1' && [[ \$(grep -c '^orphan_asset\\.' '$temporary/check-1') == 4 ]] && grep -Fxq 'orphan_asset.SHA256SUMS=$(digest "$temporary/id/artifacts/SHA256SUMS")' '$temporary/check-1'"
+check 'incident: orphan classification is deterministic' cmp -s "$temporary/check-1" "$temporary/check-2"
+expect_failure 'incident: no envelope while the orphan exists' 'orphan_conflict: release 399339376' envelope "$temporary/id" "${rc2[@]}"
+expect_failure 'incident: no publication while the orphan exists' 'orphan_conflict: release 399339376' \
+  publish_raw "$temporary/id" "${rc2[@]}" --authorized-digest "$(printf 'a%.0s' {1..64})"
+expect_failure 'incident: publication rerun still refuses' 'orphan_conflict' \
+  publish_raw "$temporary/id" "${rc2[@]}" --authorized-digest "$(printf 'a%.0s' {1..64})"
+check 'incident: no second draft or release, no tag, no effect' bash -c "[[ \$(grep -Ec '^(POST|PATCH|DELETE|UPLOAD|LABEL|workflow)' '$state/ledger' || true) == 0 && \$(jq -s length $state/releases/*.json) == 1 ]] && ! grep -q '^v0.1.0-rc.2 ' '$state/tags'"
+orphan_release 399339376 v0.1.0-rc.2 "$c2" "$temporary/id" true
+expect_failure 'incident: an untagged draft named for the candidate is an orphan too' 'orphan_conflict' envelope "$temporary/id" "${rc2[@]}"
+
+# 10. Detection is bounded, and the existing fail-closed checks still hold.
+reset_github
+make_set "$temporary/other" 0.0.9 "$c1" other
+orphan_release 50 v0.0.9 "$c1" "$temporary/other"
+envelope "$temporary/id" "${rc2[@]}" >"$temporary/env"
+check 'incident: an unrelated untagged-* release is not this candidate' grep -Fxq publication_state=absent "$temporary/env"
+reset_github
+orphan_release 51 v0.1.0-rc.2 "$c1" "$temporary/other"
+expect_failure 'incident: a release named for the tag at another revision is a conflict' 'orphan_conflict: release 51' \
+  envelope "$temporary/id" "${rc2[@]}"
+reset_github
+printf '{"id":60,"tag_name":"v0.1.0-rc.2","name":"other","target_commitish":"%s","draft":true,"prerelease":true,"assets":[]}\n' "$c2" >"$state/releases/60.json"
+expect_failure 'incident: a draft with a foreign name fails closed' "existing draft: release name is 'other'" envelope "$temporary/id" "${rc2[@]}"
+check 'incident: refusals made no effect' test "$(mutations)" == 0
+
+# A published release found by its tag converges only with its full identity:
+# right tag, tag at the revision and right assets are not enough.
+reset_github
+publish "$temporary/id" "${rc2[@]}" >/dev/null
+published=$(grep -l '"v0.1.0-rc.2"' "$state"/releases/*.json)
+cp "$published" "$temporary/published.json"
+before=$(mutations)
+jq '.name = "other"' "$temporary/published.json" >"$published"
+expect_failure 'published release with a foreign name fails closed' "existing published release: release name is 'other'" \
+  publish "$temporary/id" "${rc2[@]}"
+expect_failure 'check refuses a published release with a foreign name' "existing published release: release name is 'other'" \
+  "$fixture/scripts/publish-release.sh" --check --repo rgomids/axiom "${rc2[@]}"
+jq --arg c "$c1" '.target_commitish = $c' "$temporary/published.json" >"$published"
+expect_failure 'published release targeting another revision fails closed' "existing published release: release targets '$c1'" \
+  publish "$temporary/id" "${rc2[@]}"
+check 'published identity refusals made no effect' bash -c "[[ \$(grep -Ec '^(POST|PATCH|DELETE|UPLOAD|LABEL|workflow)' '$state/ledger' || true) == $before ]] && grep -Fxq 'v0.1.0-rc.2 $c2' '$state/tags'"
+cp "$temporary/published.json" "$published"
+publish "$temporary/id" "${rc2[@]}" >"$temporary/pub"
+check 'a fully consistent published release still converges' bash -c "grep -Fxq publication=already_published '$temporary/pub' && grep -Fxq result=pass '$temporary/pub' && [[ \$(grep -Ec '^(POST|PATCH|DELETE|UPLOAD|LABEL|workflow)' '$state/ledger' || true) == $before ]]"
 
 # --- 4. release.sh: prepare, envelope and authority boundary ---------------------------------------
 release() { (cd "$fixture" && "$fixture/scripts/release.sh" "$@"); }
@@ -678,6 +820,18 @@ check 'published release routes to verification' grep -Fxq next_action=verify_pu
 release verify --tag v0.1.0-rc.1 >"$temporary/verify"
 check 'verify confirms the published prerelease' bash -c "grep -Fxq publication_state=published '$temporary/verify' && grep -Fxq latest=none '$temporary/verify' && grep -Fxq result=pass '$temporary/verify'"
 remote_untag v0.1.0-rc.1
+make_set "$temporary/orphan" 0.1.0-rc.2 "$c4" orphan
+orphan_release 399339376 v0.1.0-rc.2 "$c4" "$temporary/orphan"
+: >"$state/ledger"
+release status --tag v0.1.0-rc.2 >"$temporary/status"
+check 'status reports the orphan release as a blocking conflict, never absent' bash -c "grep -Fxq next_action=blocked '$temporary/status' && grep -Fxq publication_state=orphan_conflict '$temporary/status' && grep -Fxq release_id=399339376 '$temporary/status' && grep -Fq 'reason=orphan_conflict: release 399339376' '$temporary/status' && ! grep -Fxq publication_state=absent '$temporary/status'"
+stage_prepared_run 9191 v0.1.0-rc.2 "$c4" orphan
+release status --tag v0.1.0-rc.2 --prepared-run 9191 >"$temporary/status"
+check 'status offers no envelope while the orphan exists' bash -c "grep -Fxq next_action=blocked '$temporary/status' && ! grep -q '^preview_digest=' '$temporary/status'"
+expect_failure 'publish is refused while the orphan exists' 'publication is not the next step' \
+  release publish --tag v0.1.0-rc.2 --revision "$c4" --prepared-run 9191 --preview-digest "$(printf 'a%.0s' {1..64})" --authorize-publication
+check 'orphan status and refusal made no remote effect' test "$(mutations)" == 0
+rm "$state/releases/399339376.json"
 printf 'dirty\n' >"$fixture/dirty.txt"
 release status >"$temporary/status"
 check 'dirty worktree is reported' grep -Fxq worktree=dirty "$temporary/status"
