@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.2](https://github.com/rgomids/axiom/compare/v0.1.1...v0.1.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* **release:** keep draft identity and fail closed on orphan releases ([#123](https://github.com/rgomids/axiom/issues/123)) ([859969a](https://github.com/rgomids/axiom/commit/859969a07f3807822580431a05b6c78b07691fb1))
+* **workflow:** record selected Runtime and bootstrap first projection (S9 dogfood) ([#120](https://github.com/rgomids/axiom/issues/120)) ([7045388](https://github.com/rgomids/axiom/commit/7045388d8d95e40b593185c528383f26564cca9e))
+
 ## [0.1.1](https://github.com/rgomids/axiom/compare/v0.1.0...v0.1.1) (2026-09-29)
 
 
