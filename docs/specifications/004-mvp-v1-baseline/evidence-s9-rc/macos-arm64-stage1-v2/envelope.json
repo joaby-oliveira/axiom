@@ -1,0 +1,121 @@
+{
+  "action": "isolated local remote-install/no-Runtime/reinstall stage",
+  "target": "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/isolated-home",
+  "rcTag": "v0.1.2-rc.1",
+  "sourceRevision": "f73d6d0c951dd40c5cc97c3794ad7ee5607092b5",
+  "installerURL": "https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh",
+  "installerSHA256": "3bf39863f4c542f04181ec9e76e86b587ec64cfb26e905a80be875ad87558dc7",
+  "collectorSHA256": "c225abdce2be337f0c498c39c3c221be3e47533c5addca7501f7aca7544d0123",
+  "assetSHA256": {
+    "SHA256SUMS": "d8442bc6f4ff53a26ca29640c5613b951d9c47f06c217b23649000b388213f55",
+    "axiom-0.1.2-rc.1-linux-amd64.tar.gz": "aa26c3808541cb2f8ee82baa21212fe86f8055eef27ff9d92e00550c514ac949",
+    "axiom-0.1.2-rc.1-linux-arm64.tar.gz": "58ed74526e82703d72a60a02905df180aeadc5e742fd5e93f179a306500883fc",
+    "axiom-0.1.2-rc.1-macos-27-arm64.tar.gz": "a474ae70e09d85065831c601afe0e500957cdbeaabc1febbc8a73bf63d53339d"
+  },
+  "environment": {
+    "HOME": "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/isolated-home",
+    "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "TMPDIR": "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/tmp",
+    "LINGO_STATE_ROOT": "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/isolated-home/state",
+    "LINGO_PROJECTS_ROOT": "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/isolated-home/projects",
+    "AXIOM_CODEX_SKILLS_ROOT": "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/isolated-home/codex-skills",
+    "CLAUDE_CONFIG_DIR": "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/isolated-home/claude"
+  },
+  "commands": [
+    [
+      "/usr/bin/curl",
+      "--disable",
+      "--proto",
+      "=https",
+      "--proto-redir",
+      "=https",
+      "--tlsv1.2",
+      "-fsSL",
+      "--connect-timeout",
+      "20",
+      "--max-time",
+      "60",
+      "--max-filesize",
+      "65536",
+      "https://api.github.com/repos/rgomids/axiom/releases/tags/v0.1.2-rc.1"
+    ],
+    [
+      "/usr/bin/curl",
+      "--disable",
+      "--proto",
+      "=https",
+      "--proto-redir",
+      "=https",
+      "--tlsv1.2",
+      "-fsSL",
+      "--connect-timeout",
+      "20",
+      "--max-time",
+      "60",
+      "--max-filesize",
+      "65536",
+      "https://api.github.com/repos/rgomids/axiom/git/ref/tags/v0.1.2-rc.1"
+    ],
+    [
+      "/usr/bin/curl",
+      "--disable",
+      "--proto",
+      "=https",
+      "--proto-redir",
+      "=https",
+      "--tlsv1.2",
+      "-fsSL",
+      "--connect-timeout",
+      "20",
+      "--max-time",
+      "60",
+      "--max-filesize",
+      "65536",
+      "https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh",
+      "-o",
+      "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/artifacts/remote-install.sh"
+    ],
+    [
+      "/bin/sh",
+      "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/artifacts/remote-install.sh",
+      "--version",
+      "v0.1.2-rc.1"
+    ],
+    [
+      "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/isolated-home/.local/bin/axiom",
+      "--json",
+      "version"
+    ],
+    [
+      "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/isolated-home/.local/bin/axiom",
+      "--json",
+      "first-run"
+    ],
+    [
+      "/bin/sh",
+      "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/artifacts/remote-install.sh",
+      "--version",
+      "v0.1.2-rc.1"
+    ]
+  ],
+  "timeoutSecondsPerCommand": 600,
+  "maximumStageAttempts": 1,
+  "networkRetries": "installer-owned bounded retries; no harness retry",
+  "allowedEffects": [
+    "HTTPS public release reads",
+    "writes inside Evidence target",
+    "installer-owned temporary download directories"
+  ],
+  "forbiddenEffects": [
+    "Runtime invocation",
+    "GitHub mutation",
+    "credential access",
+    "host installation roots",
+    "release publication/promotion"
+  ],
+  "cleanupOwnership": "operator; retained isolated files only",
+  "runtimeProfile": "none; both Runtime executables excluded from PATH",
+  "retain": "commands/exits, bounded CLI output, hashes, receipt, limitations"
+}

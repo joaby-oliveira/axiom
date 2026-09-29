@@ -1,0 +1,65 @@
+{
+  "review": "independent engineering and security rereview",
+  "repository": "/Users/rgomids/Projects/axiom",
+  "date": "2026-09-29",
+  "scope": [
+    "scripts/test-s9-rc-acceptance.sh",
+    "scripts/s9-rc-evidence.py",
+    "scripts/test_s9_rc_evidence.py",
+    "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-approved-stage-plan/{envelope.json,manifest.json,acceptance.md}",
+    "docs/specifications/004-mvp-v1-baseline/evidence-s9-t24.md"
+  ],
+  "verdict": "No remaining blockers in the reviewed narrow Stage 1 collector, offline tests, or approval envelope. Full T24/T25 contract blockers remain; the Stage 1 plan is not authorized or executed.",
+  "findings": [],
+  "resolved_prior_findings": [
+    "P1 short-revision comparison now uses REVISION[:12], matching the official release build contract; an offline test covers accepted and rejected provenance.",
+    "P1 ambient GitHub CLI/authentication and checkout-ref mutation removed from the execution stage; preflight uses anonymous curl with an isolated environment and pinned immutable release/tag/asset facts.",
+    "P2 retained output is capped during streaming; total bytes and full-stream digest remain recorded.",
+    "P2 capture errors terminate and reap the command process group, and the regression test prevents progression to a next command.",
+    "Direct preflight curl commands now restrict both initial and redirected protocols to HTTPS.",
+    "P2 interruption handling now stops/reaps the process group, records the signal and capture-failed exit, persists interrupted/unknown-effects state, requires reconciliation, and has an offline regression test for exit 130."
+  ],
+  "plan_verification": {
+    "directory": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-approved-stage-plan",
+    "envelope_sha256": "5807ece1ca20c7aca9e41da879230c511b4380da522168aa196671dbf955dcb2",
+    "envelope_matches_manifest_and_expected_digest": true,
+    "collector_sha256_matches_envelope": true,
+    "mode": "plan-only",
+    "stage_result": "pending-human-authority",
+    "observations": 0,
+    "human_decision": "PENDING",
+    "authorization_or_execution_inferred": false
+  },
+  "outstanding_contract_blockers": [
+    "T24 full exact-RC clean-environment journeys remain unstarted on macOS/arm64, Linux/amd64 and Linux/arm64.",
+    "Real bounded Codex, Claude and GitHub observations; graph coordination, integration, dogfood Evidence; upgrade, failure and recovery paths remain outstanding.",
+    "Native Linux filesystem/install/upgrade Evidence on ext4 remains outstanding; the existing S7 native harness still hardcodes Ubuntu 26.04 while current support wording is generic Linux.",
+    "T25 coverage audit and human-only AC-24 decision remain pending.",
+    "T24 Evidence records primary-checkout repository validation failure due to the pre-existing .claude artifact; clean-clone validation is recorded separately."
+  ],
+  "commands_run": [
+    {
+      "command": "python3 -B scripts/test_s9_rc_evidence.py",
+      "result": "11 tests passed; offline fixtures only."
+    },
+    {
+      "command": "Python JSON/hash consistency check for approved-stage-plan envelope, manifest and collector",
+      "result": "expected digest, manifest digest and recomputed envelope digest match; collector SHA matches envelope; pending plan-only state verified."
+    },
+    {
+      "command": "rg -n plan digest and test count in evidence-s9-t24.md",
+      "result": "T24 Evidence refers to the same plan/digest and reports eleven offline tests; clearly states the plan is unapproved and unexecuted."
+    },
+    {
+      "command": "git status --short",
+      "result": "read-only workspace inventory; repository files left unchanged by this review."
+    }
+  ],
+  "scope_limits": [
+    "Reviewed only the narrow Stage 1 collector, its offline tests, approved-stage-plan envelope/manifest/acceptance note, and the corresponding T24 Evidence claims.",
+    "No repository edits.",
+    "No installer, remote bootstrap, Runtime, Provider, or release command executed.",
+    "No credentials read. Offline tests spawn controlled local fixture processes only.",
+    "Review does not authorize the approved-stage-plan, close T24/T25, or satisfy AC-24 human acceptance."
+  ]
+}

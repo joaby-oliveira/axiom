@@ -1,0 +1,61 @@
+{
+  "tested_head": "f73d6d0c951dd40c5cc97c3794ad7ee5607092b5",
+  "dirty_source_facts": [
+    {
+      "status": " M",
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-t23.md",
+      "sha256": "b1295c6b9865add55c7de91c44a054dc4a70c03e1cad78bfed4ceebf8261233e",
+      "bytes": 36239
+    },
+    {
+      "status": "??",
+      "path": "scripts/s9-rc-evidence.py",
+      "sha256": "f8d5f1bfa16ac280f76e4c3e5261183db5814a9f7893424aa66b2b6cec9ad117",
+      "bytes": 9090
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s9-rc-acceptance.sh",
+      "sha256": "d3bf62825c2272d1771e7e90de14d0e83d2bd3d6d0306180871bc1de5d1a7c7d",
+      "bytes": 206
+    }
+  ],
+  "commands": [
+    {
+      "command": "go test ./... -count=1",
+      "exit_code": 0,
+      "duration_seconds": 30.651,
+      "output_sha256": "827b033b3785f60f112a9b017026f0cb3387d5e7afed1de2d1e22119ffbdb582",
+      "safe_output_tail": "ok  \tgithub.com/rgomids/axiom/cmd/lingo\t25.001s\nok  \tgithub.com/rgomids/axiom/internal/cli\t0.688s\nok  \tgithub.com/rgomids/axiom/internal/codexruntime\t2.707s\nok  \tgithub.com/rgomids/axiom/internal/compatibility\t2.505s\nok  \tgithub.com/rgomids/axiom/internal/completion\t0.668s\nok  \tgithub.com/rgomids/axiom/internal/coordination\t0.670s\n?   \tgithub.com/rgomids/axiom/internal/darwinacl\t[no test files]\nok  \tgithub.com/rgomids/axiom/internal/detailartifact\t0.693s\nok  \tgithub.com/rgomids/axiom/internal/executiongraph\t0.480s\nok  \tgithub.com/rgomids/axiom/internal/githubissues\t2.018s\nok  \tgithub.com/rgomids/axiom/internal/gitworkspace\t26.427s\nok  \tgithub.com/rgomids/axiom/internal/graphapplication\t6.155s\nok  \tgithub.com/rgomids/axiom/internal/install\t4.298s\nok  \tgithub.com/rgomids/axiom/internal/local\t23.763s\nok  \tgithub.com/rgomids/axiom/internal/manifest\t0.528s\nok  \tgithub.com/rgomids/axiom/internal/project\t0.243s\nok  \tgithub.com/rgomids/axiom/internal/projectapp\t0.225s\nok  \tgithub.com/rgomids/axiom/internal/provenance\t0.200s\nok  \tgithub.com/rgomids/axiom/internal/runtimeadapter\t0.204s\nok  \tgithub.com/rgomids/axiom/internal/runtimebootstrap\t1.196s\nok  \tgithub.com/rgomids/axiom/internal/runtimeprofile\t0.237s\nok  \tgithub.com/rgomids/axiom/internal/workflow\t0.291s\nok  \tgithub.com/rgomids/axiom/internal/workitem\t0.206s"
+    },
+    {
+      "command": "go test -race ./...",
+      "exit_code": 0,
+      "duration_seconds": 39.571,
+      "output_sha256": "d2bc1b3456f054d4905ceb38e7777715f937928d947ef0189d12c0c40b19c92c",
+      "safe_output_tail": "ok  \tgithub.com/rgomids/axiom/cmd/lingo\t26.257s\nok  \tgithub.com/rgomids/axiom/internal/cli\t1.387s\nok  \tgithub.com/rgomids/axiom/internal/codexruntime\t4.443s\nok  \tgithub.com/rgomids/axiom/internal/compatibility\t3.448s\nok  \tgithub.com/rgomids/axiom/internal/completion\t(cached)\nok  \tgithub.com/rgomids/axiom/internal/coordination\t1.273s\n?   \tgithub.com/rgomids/axiom/internal/darwinacl\t[no test files]\nok  \tgithub.com/rgomids/axiom/internal/detailartifact\t(cached)\nok  \tgithub.com/rgomids/axiom/internal/executiongraph\t1.534s\nok  \tgithub.com/rgomids/axiom/internal/githubissues\t(cached)\nok  \tgithub.com/rgomids/axiom/internal/gitworkspace\t28.937s\nok  \tgithub.com/rgomids/axiom/internal/graphapplication\t9.760s\nok  \tgithub.com/rgomids/axiom/internal/install\t7.055s\nok  \tgithub.com/rgomids/axiom/internal/local\t32.040s\nok  \tgithub.com/rgomids/axiom/internal/manifest\t(cached)\nok  \tgithub.com/rgomids/axiom/internal/project\t(cached)\nok  \tgithub.com/rgomids/axiom/internal/projectapp\t(cached)\nok  \tgithub.com/rgomids/axiom/internal/provenance\t(cached)\nok  \tgithub.com/rgomids/axiom/internal/runtimeadapter\t1.233s\nok  \tgithub.com/rgomids/axiom/internal/runtimebootstrap\t2.277s\nok  \tgithub.com/rgomids/axiom/internal/runtimeprofile\t1.270s\nok  \tgithub.com/rgomids/axiom/internal/workflow\t(cached)\nok  \tgithub.com/rgomids/axiom/internal/workitem\t1.311s"
+    },
+    {
+      "command": "go vet ./...",
+      "exit_code": 0,
+      "duration_seconds": 0.574,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "safe_output_tail": ""
+    },
+    {
+      "command": "go build ./...",
+      "exit_code": 0,
+      "duration_seconds": 0.962,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "safe_output_tail": ""
+    },
+    {
+      "command": "go mod verify",
+      "exit_code": 0,
+      "duration_seconds": 0.125,
+      "output_sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd",
+      "safe_output_tail": "all modules verified"
+    }
+  ],
+  "completed_sequence": true
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "rcTag": "v0.1.2-rc.1",
+  "sourceRevision": "f73d6d0c951dd40c5cc97c3794ad7ee5607092b5",
+  "requiredPlatform": {
+    "os": "Linux",
+    "architecture": "amd64",
+    "filesystem": "ext4"
+  },
+  "observedNativeEnvironment": null,
+  "status": "blocked",
+  "reason": "No native endpoint supplied; no Linux command or native acceptance run performed",
+  "supportingArtifactVerification": "../release-verification.txt (archive structure/digests only)",
+  "observations": [],
+  "executionIDs": [],
+  "runtimeInvocation": "not performed",
+  "providerMutation": "not performed",
+  "cleanupDisposition": "not applicable; no native environment effects",
+  "missing": [
+    "clean-environment pinned remote install and full public-CLI journey",
+    "real Runtime and GitHub effects under exact authority",
+    "deferred native filesystem/install/upgrade suite; generic Linux tooling reconciliation"
+  ],
+  "humanDecision": "PENDING"
+}

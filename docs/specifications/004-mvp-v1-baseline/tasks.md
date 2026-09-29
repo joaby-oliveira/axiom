@@ -44,7 +44,15 @@ authority.**
 authority; S8/T36 remains the gate for entering RC/acceptance (T23–T25). The
 delivered behavior and its validation kinds (confirmed, synthetic, not run) are
 recorded in [S9 Evidence](evidence-s9.md); implementation choices recorded there
-are not Specification requirements. T23–T25 are not started.**
+are not Specification requirements. T23–T25 are not started.** (Historical
+pre-T23 snapshot; superseded by the current S9 RC state below.)
+
+**Current S9 RC state — 2026-09-29: T23 COMPLETE — `v0.1.2-rc.1` PUBLISHED AND
+VERIFIED from `f73d6d0c951dd40c5cc97c3794ad7ee5607092b5` (release ID
+`398805148`, `prerelease=true`, `immutable=true`); see
+[T23 Evidence](evidence-s9-t23.md). T24 is blocked and incomplete
+([T24 checkpoint](evidence-s9-t24.md)); T25 is blocked. Human acceptance:
+PENDING. Stable promotion was not performed.**
 
 Approved artifact: `main` at `c7f756209c608ff1f1a88947dcc425d07daaa831`, merge
 of [PR #72](https://github.com/rgomids/axiom/pull/72). Human approval in PR #72
@@ -92,9 +100,12 @@ Specification 004 — Approved
    -> Human acceptance — Not inferred
 -> S8 Specification/ADR/Plan/Tasks amendment + ADR-0009 — Approved; implementation authorized 2026-09-27 (Issue #97 comment #5852650410)
    -> T30–T36 — Technical candidate ready for human review; real T36 Evidence recorded
--> S9 Release candidate acceptance (T23–T25, with T24/T25 reconciled for S8) — Not authorized
+-> S9 Release candidate acceptance (T23–T25, with T24/T25 reconciled for S8)
    -> T37–T40 — implemented and locally validated in PR #106 (unmerged); native macOS 27 local-fixture validation recorded; native Linux and real Runtime acceptance remain T24
-   -> T23–T25 — Not started
+   -> T23 — Complete: v0.1.2-rc.1 PUBLISHED AND VERIFIED (f73d6d0, release ID 398805148, immutable)
+   -> T24 — Blocked / incomplete
+   -> T25 — Blocked
+   -> Human acceptance — PENDING
 ```
 
 The accepted POC and current Go packages are implementation inputs and historical
@@ -1099,11 +1110,14 @@ complete at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not 
 
 ### T23 — Identified RC archives and authorized prerelease publication
 
-Current T23 gate: main revalidated; the five remote controls were applied under
-explicit human authority and verified by read-back. PREPARE is withheld pending
-human merge of this platform reconciliation and a fresh exact-main preflight. See
-[T23 gate Evidence](evidence-s9-t23.md). Earlier not-started statements are
-historical implementation checkpoints, not the current T23 execution state.
+Current T23 state (2026-09-29): **COMPLETE — PUBLISHED AND VERIFIED.** Under
+explicit human authority, PREPARE and PUBLISH completed for `v0.1.2-rc.1` at
+source revision `f73d6d0c951dd40c5cc97c3794ad7ee5607092b5`; release ID
+`398805148`, `prerelease=true`, `draft=false`, `immutable=true`, with
+downloaded-byte verification. See [T23 Evidence](evidence-s9-t23.md). The RC is
+not human-accepted or final; T24 remains blocked, T25 blocked, and human
+acceptance PENDING. Earlier withheld-PREPARE and not-started statements are
+superseded historical checkpoints, not the current T23 execution state.
 
 - **Objective:** One clean revision produces immutable checksummed RC archives for all supported targets and, with exact authority, publishes them plus `SHA256SUMS` and instructions as an identified GitHub prerelease candidate.
 - **Slice:** S9 — Productization, distribution, Runtime bootstrap and release acceptance.
@@ -1119,7 +1133,7 @@ historical implementation checkpoints, not the current T23 execution state.
 - **Expected Evidence:** Revision/source state, build commands/exits, per-target archive and entry hashes, `SHA256SUMS`, release URL/asset IDs/read-back, effect ledger, limitations, and explicit candidate status.
 - **Completion criteria:** The exact RC consumed by T24 is immutable, traceable, published through the approved adapter, and not represented as human-accepted/final.
 - **Risks / gates:** Distribution authenticity remains unclaimed. Any signing or alternate trust topology requires **Human decision required**.
-- **Release flow reconciliation (2026-09-28, proposed for human review):** the "preview exact release/tag/assets/body/effects" step is the publication envelope of a prepared set: `release-artifacts.yml` builds and verifies it, `scripts/release.sh` / `$axiom-release` re-verifies it and prints the envelope and its digest, the human gate authorizes that digest, and `.github/workflows/publish-release.yml` publishes the same bytes only if its recomputed envelope matches (Plan §13 reconciliation, [CONTRIBUTING.md](../../../CONTRIBUTING.md#release-flow)). It stages a draft, reads back assets and publishes once; its fake-adapter failure/ambiguity/duplicate/rerun and stale-authority matrix is `scripts/test-release-flow.sh`. The infrastructure performed no publication; T23 remains not started and keeps its human gate, and no real publication is authorized by it.
+- **Release flow reconciliation (2026-09-28, proposed for human review):** the "preview exact release/tag/assets/body/effects" step is the publication envelope of a prepared set: `release-artifacts.yml` builds and verifies it, `scripts/release.sh` / `$axiom-release` re-verifies it and prints the envelope and its digest, the human gate authorizes that digest, and `.github/workflows/publish-release.yml` publishes the same bytes only if its recomputed envelope matches (Plan §13 reconciliation, [CONTRIBUTING.md](../../../CONTRIBUTING.md#release-flow)). It stages a draft, reads back assets and publishes once; its fake-adapter failure/ambiguity/duplicate/rerun and stale-authority matrix is `scripts/test-release-flow.sh`. The infrastructure performed no publication; T23 remains not started and keeps its human gate, and no real publication is authorized by it. (Historical 2026-09-28 statement; T23 was later completed under separate authority as recorded above.)
 
 ### T24 — Clean-environment CLI/Codex/Claude/GitHub acceptance matrix
 
@@ -1459,3 +1473,6 @@ distribution, Runtime bootstrap and release acceptance. Product scope recorded
 2026-09-27; Task amendment pending human approval. T37–T40 are implemented in
 PR #106 (unmerged) and recorded in [S9 Evidence](evidence-s9.md).
 T23–T25, publication and acceptance are not authorized or started.**
+(Historical snapshot. Current: T23 complete — `v0.1.2-rc.1` PUBLISHED AND
+VERIFIED at `f73d6d0c951dd40c5cc97c3794ad7ee5607092b5`; T24 and T25 blocked;
+human acceptance PENDING.)

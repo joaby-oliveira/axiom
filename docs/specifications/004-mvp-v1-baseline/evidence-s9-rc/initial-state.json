@@ -1,0 +1,22 @@
+{
+  "candidate": {
+    "tag": "v0.1.2-rc.1",
+    "revision": "f73d6d0c951dd40c5cc97c3794ad7ee5607092b5",
+    "binding": "all future Evidence must identify this exact candidate; no prior Evidence is attributed to it"
+  },
+  "head": "f73d6d0c951dd40c5cc97c3794ad7ee5607092b5",
+  "preexistingModifiedFile": "docs/specifications/004-mvp-v1-baseline/evidence-s9-t23.md",
+  "preexistingFileSHA256": "b1295c6b9865add55c7de91c44a054dc4a70c03e1cad78bfed4ceebf8261233e",
+  "host": {
+    "os": "macOS",
+    "version": "27.0",
+    "architecture": "arm64"
+  },
+  "linuxEnvironment": "No configured native Linux endpoint supplied; docker/podman/limactl/multipass not found by local inventory. No Linux run performed.",
+  "runtimeExecutablesLocated": {
+    "codex": "/Users/rgomids/.local/bin/codex",
+    "claude": "/Users/rgomids/.local/bin/claude"
+  },
+  "runtimeInvocations": "none",
+  "humanAcceptance": "PENDING"
+}

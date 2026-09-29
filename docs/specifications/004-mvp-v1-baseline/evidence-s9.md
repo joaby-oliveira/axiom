@@ -1,5 +1,15 @@
 # Evidence — MVP Slice S9: productization T37–T40
 
+## Current RC checkpoint — 2026-09-29
+
+[T23](evidence-s9-t23.md) records `v0.1.2-rc.1` at
+`f73d6d0c951dd40c5cc97c3794ad7ee5607092b5` as PUBLISHED AND VERIFIED.
+[T24 preparation and coverage](evidence-s9-t24.md) records fresh read-only
+release verification and deterministic checks, an unexecuted local-install
+envelope, and missing native/Runtime/Provider/dogfood Evidence. T24 and T25
+remain blocked; human acceptance PENDING. Earlier no-release/not-started
+statements below describe their original productization/pre-T23 snapshots.
+
 ## Claim and authority boundary
 
 This record describes the implementation of Specification 004 Slice S9 Tasks

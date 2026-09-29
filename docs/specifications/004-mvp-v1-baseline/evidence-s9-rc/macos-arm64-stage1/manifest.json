@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "rcTag": "v0.1.2-rc.1",
+  "sourceRevision": "f73d6d0c951dd40c5cc97c3794ad7ee5607092b5",
+  "observedAtUnix": 1790656223,
+  "scope": "local-install-stage-only",
+  "host": {
+    "os": "Darwin",
+    "architecture": "arm64",
+    "kernel": "27.0.0",
+    "macOSVersion": "27.0"
+  },
+  "mode": "plan-only",
+  "observations": [],
+  "t24": "blocked",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "runtimeInvocation": "not performed",
+  "providerMutation": "not performed",
+  "executionIDs": [],
+  "cleanupDisposition": "Evidence and isolated HOME retained; no deletion",
+  "limitations": [
+    "No complete native acceptance row",
+    "No real Codex/Claude/GitHub journey or dogfood graph",
+    "No upgrade, failure, recovery or native S7 suite in this stage"
+  ],
+  "envelopeSHA256": "3ec29734e522cd5cd37bb5dab15b41b8491cac52997fee8a17218f225d4932b7",
+  "stageResult": "pending-human-authority"
+}

@@ -1,0 +1,260 @@
+{
+  "commands": [
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/test_s9_rc_evidence.py"
+      ],
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "exitCode": 0,
+      "durationSeconds": 0.166,
+      "outputSHA256": "79df89c1275396d97b472c355017fe5c3369eacc7d16c42ed8963bcd5a4391c3",
+      "outputBytes": 109,
+      "boundedOutput": "..........\n----------------------------------------------------------------------\nRan 10 tests in 0.054s\n\nOK\n",
+      "scope": "10 offline tooling tests only"
+    },
+    {
+      "command": [
+        "bash",
+        "-n",
+        "scripts/test-s9-rc-acceptance.sh"
+      ],
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "exitCode": 0,
+      "durationSeconds": 0.004,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "boundedOutput": ""
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/audit.py"
+      ],
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "exitCode": 0,
+      "durationSeconds": 0.033,
+      "outputSHA256": "0b6a9e74f8a7abe1cbee80d566d7de990809d13f5877ae04f4774b5aceef196b",
+      "outputBytes": 266,
+      "boundedOutput": "{\"result\": \"pass\", \"scope\": \"identifier coverage, Task DAG, checkpoint local link paths\", \"coverageRows\": 190, \"taskCount\": 40, \"edgeCount\": 72, \"localLinksChecked\": 30, \"limitations\": [\"anchors/external links not checked\", \"semantic audits remain blocked by T24\"]}\n",
+      "scope": "structural matrix/DAG/local-link paths; semantic closure blocked"
+    },
+    {
+      "command": [
+        "./scripts/validate-repository.sh",
+        "."
+      ],
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "exitCode": 1,
+      "durationSeconds": 0.081,
+      "outputSHA256": "c6bc97252e73a45f8f32ca762f154af2a5fd4c095fc8916c1924c54c2faa3cea",
+      "outputBytes": 42,
+      "boundedOutput": "FAIL: unapproved Claude artifact: .claude\n",
+      "scope": "primary checkout; preexisting .claude preserved"
+    },
+    {
+      "command": [
+        "git",
+        "clone",
+        "--quiet",
+        "--no-hardlinks",
+        "/Users/rgomids/Projects/axiom",
+        "/private/var/folders/hy/8lxckrv52bn1mm080j11qn5r0000gn/T/axiom-s9-clean-validation-ml1hl9ow/source"
+      ],
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "exitCode": 0,
+      "durationSeconds": 1.196,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "boundedOutput": "",
+      "scope": "local exact-HEAD validation clone; retained"
+    },
+    {
+      "command": [
+        "/private/var/folders/hy/8lxckrv52bn1mm080j11qn5r0000gn/T/axiom-s9-clean-validation-ml1hl9ow/source/scripts/validate-repository.sh",
+        "/private/var/folders/hy/8lxckrv52bn1mm080j11qn5r0000gn/T/axiom-s9-clean-validation-ml1hl9ow/source"
+      ],
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "exitCode": 0,
+      "durationSeconds": 6.768,
+      "outputSHA256": "04d4a10c2787183c4f48d835caca7684b9bf57682d28fff72355cb9dd2d59f7a",
+      "outputBytes": 339,
+      "boundedOutput": "PASS: sensitive-file checks passed (directory)\nPASS: Codex agent package structure looks valid\nPASS: agent-package validator behavior is valid\nPASS: Claude bootstrap check behavior is valid (20 cases)\nPASS: sensitive-file checker behavior is valid\nPASS: sensitive-file checks passed (worktree)\nPASS: repository bootstrap validation passed\n",
+      "scope": "exact source plus task files and preserved T23 edit; excludes host .claude"
+    },
+    {
+      "command": [
+        "./scripts/check-sensitive-files.sh",
+        "."
+      ],
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "exitCode": 0,
+      "durationSeconds": 2.002,
+      "outputSHA256": "22a7b3658bc40132308671af3ddcdc6f021c651a57901eb0f89f17b185d5d7a7",
+      "outputBytes": 46,
+      "boundedOutput": "PASS: sensitive-file checks passed (worktree)\n"
+    },
+    {
+      "command": [
+        "gitleaks",
+        "detect",
+        "--source",
+        ".",
+        "--no-git",
+        "--redact",
+        "--no-banner"
+      ],
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "exitCode": 0,
+      "durationSeconds": 0.737,
+      "outputSHA256": "a692584b0b8b092c72e24e12f1bd33fe20f2852a4409823261910dad54bc45f4",
+      "outputBytes": 79,
+      "boundedOutput": "1:37AM INF scanned ~3891800 bytes (3.89 MB) in 637ms\n1:37AM INF no leaks found\n"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "exitCode": 0,
+      "durationSeconds": 0.01,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "boundedOutput": ""
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/test_s9_rc_evidence.py"
+      ],
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "scope": "final collector: 11 offline tests",
+      "exitCode": 0,
+      "durationSeconds": 0.191,
+      "outputSHA256": "670a4387be68ba963b7d848f82e3734e2def58c9cf9a59a2b6ab52829ba213d0",
+      "outputBytes": 110,
+      "boundedOutput": "...........\n----------------------------------------------------------------------\nRan 11 tests in 0.057s\n\nOK\n"
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/audit.py"
+      ],
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "scope": "final checkpoint structural audit",
+      "exitCode": 0,
+      "durationSeconds": 0.035,
+      "outputSHA256": "5a773959e0c3c2b9d1b6d449b1af99444f16807d869a07bc31ffde424676681b",
+      "outputBytes": 266,
+      "boundedOutput": "{\"result\": \"pass\", \"scope\": \"identifier coverage, Task DAG, checkpoint local link paths\", \"coverageRows\": 190, \"taskCount\": 40, \"edgeCount\": 72, \"localLinksChecked\": 31, \"limitations\": [\"anchors/external links not checked\", \"semantic audits remain blocked by T24\"]}\n"
+    },
+    {
+      "command": [
+        "bash",
+        "-n",
+        "scripts/test-s9-rc-acceptance.sh"
+      ],
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "scope": "final shell syntax",
+      "exitCode": 0,
+      "durationSeconds": 0.004,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "boundedOutput": ""
+    },
+    {
+      "command": [
+        "/private/var/folders/hy/8lxckrv52bn1mm080j11qn5r0000gn/T/axiom-s9-clean-validation-ml1hl9ow/source/scripts/validate-repository.sh",
+        "/private/var/folders/hy/8lxckrv52bn1mm080j11qn5r0000gn/T/axiom-s9-clean-validation-ml1hl9ow/source"
+      ],
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "scope": "final source plus Evidence snapshot; primary failure remains separate",
+      "exitCode": 0,
+      "durationSeconds": 5.377,
+      "outputSHA256": "04d4a10c2787183c4f48d835caca7684b9bf57682d28fff72355cb9dd2d59f7a",
+      "outputBytes": 339,
+      "boundedOutput": "PASS: sensitive-file checks passed (directory)\nPASS: Codex agent package structure looks valid\nPASS: agent-package validator behavior is valid\nPASS: Claude bootstrap check behavior is valid (20 cases)\nPASS: sensitive-file checker behavior is valid\nPASS: sensitive-file checks passed (worktree)\nPASS: repository bootstrap validation passed\n"
+    },
+    {
+      "command": [
+        "/private/var/folders/hy/8lxckrv52bn1mm080j11qn5r0000gn/T/axiom-s9-clean-validation-ml1hl9ow/source/scripts/validate-repository.sh",
+        "/private/var/folders/hy/8lxckrv52bn1mm080j11qn5r0000gn/T/axiom-s9-clean-validation-ml1hl9ow/source"
+      ],
+      "scope": "final versioned-file snapshot including final review and explicit Linux unavailable manifests",
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "exitCode": 0,
+      "durationSeconds": 5.092,
+      "outputSHA256": "04d4a10c2787183c4f48d835caca7684b9bf57682d28fff72355cb9dd2d59f7a",
+      "outputBytes": 339,
+      "boundedOutput": "PASS: sensitive-file checks passed (directory)\nPASS: Codex agent package structure looks valid\nPASS: agent-package validator behavior is valid\nPASS: Claude bootstrap check behavior is valid (20 cases)\nPASS: sensitive-file checker behavior is valid\nPASS: sensitive-file checks passed (worktree)\nPASS: repository bootstrap validation passed\n"
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "/Users/rgomids/Projects/axiom/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/audit.py"
+      ],
+      "scope": "final structural audit",
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "exitCode": 0,
+      "durationSeconds": 0.033,
+      "outputSHA256": "5a773959e0c3c2b9d1b6d449b1af99444f16807d869a07bc31ffde424676681b",
+      "outputBytes": 266,
+      "boundedOutput": "{\"result\": \"pass\", \"scope\": \"identifier coverage, Task DAG, checkpoint local link paths\", \"coverageRows\": 190, \"taskCount\": 40, \"edgeCount\": 72, \"localLinksChecked\": 31, \"limitations\": [\"anchors/external links not checked\", \"semantic audits remain blocked by T24\"]}\n"
+    },
+    {
+      "command": [
+        "./scripts/check-sensitive-files.sh",
+        "."
+      ],
+      "scope": "final public-data file check",
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "exitCode": 0,
+      "durationSeconds": 2.025,
+      "outputSHA256": "22a7b3658bc40132308671af3ddcdc6f021c651a57901eb0f89f17b185d5d7a7",
+      "outputBytes": 46,
+      "boundedOutput": "PASS: sensitive-file checks passed (worktree)\n"
+    },
+    {
+      "command": [
+        "gitleaks",
+        "detect",
+        "--source",
+        ".",
+        "--no-git",
+        "--redact",
+        "--no-banner"
+      ],
+      "scope": "final checkpoint leak scan",
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "exitCode": 0,
+      "durationSeconds": 0.722,
+      "outputSHA256": "a45e772d0622fd49c285d25c6fd93cb7c547d72028856163f84b0d0496b35061",
+      "outputBytes": 79,
+      "boundedOutput": "1:42AM INF scanned ~3915379 bytes (3.92 MB) in 624ms\n1:42AM INF no leaks found\n"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "scope": "final tracked diff whitespace",
+      "cwd": "/Users/rgomids/Projects/axiom",
+      "exitCode": 0,
+      "durationSeconds": 0.01,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "boundedOutput": ""
+    }
+  ],
+  "cleanCloneRetained": "/private/var/folders/hy/8lxckrv52bn1mm080j11qn5r0000gn/T/axiom-s9-clean-validation-ml1hl9ow/source",
+  "primaryValidator": "failed; preexisting .claude; not corrected",
+  "t25": "blocked; not final closure"
+}

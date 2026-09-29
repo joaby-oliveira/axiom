@@ -1,0 +1,16 @@
+{
+  "command": [
+    "diskutil",
+    "info",
+    "-plist",
+    "/"
+  ],
+  "exitCode": 0,
+  "outputSHA256": "86d08c889df9dfdefeeaffd6749116efafc0fbb1b916b9f045ca7f8c2a8052a5",
+  "scope": "host root filesystem only; not a completed acceptance row",
+  "observed": {
+    "FilesystemType": "apfs",
+    "MountPoint": "/",
+    "GlobalPermissionsEnabled": true
+  }
+}

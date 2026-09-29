@@ -1,0 +1,183 @@
+{
+  "scope": "local checkpoint/harness files; not real Axiom Execution artifacts",
+  "fileCount": 34,
+  "totalBytes": 384148,
+  "exclusions": [
+    "inventory.json self-digest",
+    "published binary archives stored by GitHub",
+    "preexisting evidence-s9-t23.md, whose unchanged digest is in initial-state.json"
+  ],
+  "artifactSizingRecommendation": "pending real T24 journey measurements; checkpoint sizes cannot establish product limits or retention",
+  "files": [
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/audit.py",
+      "bytes": 3096,
+      "sha256": "5be06ab1442d6b14f206d4e28487c27bd583d9bfe86a90e662afcd0dc1aca823"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/checks.json",
+      "bytes": 10840,
+      "sha256": "4b04e1c12240617fa2f604f27c29a59940f3f212cef23a299f08d97a8fbb3c3f"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/coverage.json",
+      "bytes": 221315,
+      "sha256": "f73ea3c268d5320986a84f1920ea160ca717d28d8423201e781f03bba4025f58"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/deterministic-validation.json",
+      "bytes": 4681,
+      "sha256": "458910c1d9144f349fa524a60cbbe19bca0c847c38392b24315eceb0ec1c3e17"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/host-filesystem.json",
+      "bytes": 359,
+      "sha256": "cb696de083a53234530e114aae2126158e8118418a8edf62a6402a16764cdac8"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/initial-state.json",
+      "bytes": 905,
+      "sha256": "f7998e0ed2976f7cab646e01704ed5476db6ef0a3a0950a0788199503f875fbf"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/linux-amd64/acceptance.md",
+      "bytes": 195,
+      "sha256": "e5f974a85a322991db3b8bd4eaccaf6936670555adc70ed720e704a9107163b5"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/linux-amd64/manifest.json",
+      "bytes": 948,
+      "sha256": "f529a381045c61933d62f2da56f8b98467da9c77be5eca50b52c043f3fe90d0a"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/linux-arm64/acceptance.md",
+      "bytes": 195,
+      "sha256": "4419936f47a9191fef07100e0e666266dc611e974019d2a3dfa820ad9082e8f3"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/linux-arm64/manifest.json",
+      "bytes": 948,
+      "sha256": "ce4d3af1554a3ec92a6882f4b430f759d7c2a54d423e363b932f7e210b187c47"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-approved-stage-plan/acceptance.md",
+      "bytes": 263,
+      "sha256": "ece2f770f2628051618c32cc31642c8124c7a87dd314c57f468fe6fb3740bb58"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-approved-stage-plan/envelope.json",
+      "bytes": 4852,
+      "sha256": "5807ece1ca20c7aca9e41da879230c511b4380da522168aa196671dbf955dcb2"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-approved-stage-plan/manifest.json",
+      "bytes": 921,
+      "sha256": "707b391c013af0e0f67483191a19688f18df1d42f34d029faac6156ecec8a98a"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-plan/acceptance.md",
+      "bytes": 263,
+      "sha256": "ece2f770f2628051618c32cc31642c8124c7a87dd314c57f468fe6fb3740bb58"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-plan/envelope.json",
+      "bytes": 2852,
+      "sha256": "822c760a2348e5c1829ca3f1f27ad275243f27bc08763b48969273c03bf8e6e9"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-plan/manifest.json",
+      "bytes": 921,
+      "sha256": "30ae44feec845fd2f2c5318e85fbe7be3bef3915758de40283db4448c1ea0aa7"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1/acceptance.md",
+      "bytes": 263,
+      "sha256": "ece2f770f2628051618c32cc31642c8124c7a87dd314c57f468fe6fb3740bb58"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1/envelope.json",
+      "bytes": 4579,
+      "sha256": "3ec29734e522cd5cd37bb5dab15b41b8491cac52997fee8a17218f225d4932b7"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1/manifest.json",
+      "bytes": 921,
+      "sha256": "86b312113b0b4c427982175f78b2c425d30ec22d5548dbc0ed04ceab5099a3cc"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-final/acceptance.md",
+      "bytes": 263,
+      "sha256": "ece2f770f2628051618c32cc31642c8124c7a87dd314c57f468fe6fb3740bb58"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-final/envelope.json",
+      "bytes": 4768,
+      "sha256": "4f8fa28ada29c6682e07844186c3ffc6a566313b86bc99d2b0387bb96e02eba2"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-final/manifest.json",
+      "bytes": 921,
+      "sha256": "42dcab9c89e10141bfeb293c2893e720c6f322f9929ea7975fc02b493ce57bcb"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/acceptance.md",
+      "bytes": 263,
+      "sha256": "ece2f770f2628051618c32cc31642c8124c7a87dd314c57f468fe6fb3740bb58"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/envelope.json",
+      "bytes": 4732,
+      "sha256": "210d8bd5e07510a45dcb6d2bdca354058af92c3139d84bf8fdffa2b696c6cb1e"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/macos-arm64-stage1-v2/manifest.json",
+      "bytes": 921,
+      "sha256": "ccef60a30583f5da486618dba4f0091ca9283a64b4358573545ba4ea21dcd7c2"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/release-metadata.json",
+      "bytes": 1301,
+      "sha256": "085b5573ebf573c3e5e1715c47dd148f5c4f8083bcb21ed487324392f79ce9f8"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/release-verification.txt",
+      "bytes": 1336,
+      "sha256": "44b50a2c6b600310be40f893536684e129c00406eaf3c1397f86f2398e964230"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/remote-refs.txt",
+      "bytes": 120,
+      "sha256": "df794f82cb5f40d45faaa31bc36d09b7c27aad7014ca3aeb118e67e38d01312d"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc/review.json",
+      "bytes": 4256,
+      "sha256": "abd3cb993fe7746842dccdcdb748a587920354d7ee80a8292dbc53bbeebfb5f6"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9-t24.md",
+      "bytes": 11160,
+      "sha256": "518ee65ead59adf57c162441f961bab1b6f14c9ae96a9c337648d2912b78e17a"
+    },
+    {
+      "path": "docs/specifications/004-mvp-v1-baseline/evidence-s9.md",
+      "bytes": 65433,
+      "sha256": "e40c1d025dac2e78f772048273f24b21603e01856850d895e68278dde133741f"
+    },
+    {
+      "path": "scripts/s9-rc-evidence.py",
+      "bytes": 18213,
+      "sha256": "0e7ea90a64c87592d3542fd12ab170aac80fa6c22869772a5e94fc85de473672"
+    },
+    {
+      "path": "scripts/test-s9-rc-acceptance.sh",
+      "bytes": 206,
+      "sha256": "d3bf62825c2272d1771e7e90de14d0e83d2bd3d6d0306180871bc1de5d1a7c7d"
+    },
+    {
+      "path": "scripts/test_s9_rc_evidence.py",
+      "bytes": 10938,
+      "sha256": "f64a3926928a141a0b96a7260b16bee0273fe8432d428107bb7f27f8d10551aa"
+    }
+  ]
+}
