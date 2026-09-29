@@ -40,7 +40,7 @@ func TestEveryT03StorePreservesOutsideRootHash(t *testing.T) {
 		t.Fatal(result)
 	}
 
-	link := workitem.Link{ProjectID: "123e4567-e89b-42d3-a456-426614174000", RepositoryKey: "main", ProviderRepository: "owner/repo", Number: 7, URL: "https://github.com/owner/repo/issues/7", State: "OPEN"}
+	link := workitem.Link{ProjectID: "123e4567-e89b-42d3-a456-426614174000", RepositoryKey: "main", Provider: "github", Resource: "owner/repo", ExternalID: "7", URL: "https://github.com/owner/repo/issues/7", State: "OPEN"}
 	items, err := NewWorkItemStore(filepath.Join(base, "work-items"))
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +53,7 @@ func TestEveryT03StorePreservesOutsideRootHash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := workflows.Create(context.Background(), validWorkflow(t.TempDir())); err != nil {
+	if err := workflows.Create(context.Background(), validExecution()); err != nil {
 		t.Fatal(err)
 	}
 

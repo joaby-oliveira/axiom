@@ -20,7 +20,7 @@ import (
 
 const testArtifactID = "123e4567-e89b-42d3-a456-426614174001"
 
-func artifactDraft(t *testing.T) detailartifact.Draft {
+func artifactDraft(t testing.TB) detailartifact.Draft {
 	t.Helper()
 	source, err := provenance.FromBuild(provenance.Build{Version: provenance.Development, Revision: "123456789abc", SourceState: provenance.Clean}, nil)
 	if err != nil {

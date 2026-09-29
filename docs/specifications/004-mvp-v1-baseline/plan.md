@@ -1,14 +1,64 @@
 # Plan — Specification 004: Usable MVP v1 Baseline
 
+## Platform reconciliation — 2026-09-28
+
+[Specification platform reconciliation](spec.md#platform-reconciliation--2026-09-28)
+supersedes Ubuntu-specific support wording with Linux. Architecture,
+filesystem/security invariants and native Evidence obligations remain unchanged;
+macOS retains the current executable 27.0/arm64 constraint. Dated historical
+observations remain historical. T24 and human acceptance stay separately gated.
+
 ## 1. Status, authority and source baseline
 
 **Plan: Approved — human approval recorded on 2026-09-20.**
 
+### Issue #94 amendment approval — 2026-09-24
+
+The original Plan approval remains historical. Human review on 2026-09-24
+explicitly approved the S6 placement, T26–T29 decomposition,
+gate-to-lifecycle projection/flag contract, recovery inspection, and metadata-policy
+boundary. This satisfies the amendment review gate. That approval alone did not
+authorize implementation; a later explicit human instruction on 2026-09-24
+authorized T26–T29 only. Merge, Issue state, or tracker edits do not authorize
+any successor Slice.
+
+**Issue #94 amendment: Approved, and S6 implementation explicitly authorized on 2026-09-24. Technical implementation is recorded at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not inferred.**
+
+**S7 (T16–T22): explicitly authorized on 2026-09-25. Technical implementation is recorded at `11f2b7decbe4ddef428d4cb3b7e962680100e1db` and `408a2b51f20e797744f9f6ba6eaa00e0061582f9` with [S7 Evidence](evidence-s7.md); T22 Linux native rows remain unexecuted; human acceptance is not inferred.**
+
+### Issue #97 S8 amendment approval — 2026-09-26
+
+The original Plan and delivered S1–S7 remain historical. Human review on
+2026-09-26 approved this amendment for S8 multi-runtime Agent Planning/Execution
+Graph delivery, accepted ADR-0009, and renumbered the former RC slice to S9. T23–
+T25 keep their IDs and historical release-candidate objective; T24/T25 are expanded
+to validate and reconcile the new S8 product state. S8/T30–T36 implementation was
+later authorized on 2026-09-27 (Issue #97 comment #5852650410). The real T36
+Runtime run subsequently received exact authority, was executed, and produced
+the recorded Evidence. The corrected candidate is S8 ready for human review;
+human acceptance and S9 remain separately gated.
+
+### Issue #81 S9 product-scope direction — 2026-09-27
+
+The human expanded S9 from RC validation alone into the final MVP productization
+slice. Before RC publication, the Plan must deliver a canonical public `axiom`
+executable, automated supported-platform artifacts, a stable verified remote
+installer with idempotent reinstall/safe owned upgrade, and a multi-runtime
+`axiom first-run` that configures detected Codex and Claude integrations. S9
+acceptance also dogfoods real Axiom engineering through Axiom's own S8 graph.
+
+The product direction is recorded. The concrete S9 Task amendment is proposed for
+review; neither this documentation change nor tracker state authorizes S9
+implementation, prerelease publication, Runtime/Provider effects, or final MVP
+acceptance.
+
 This Plan describes how to realize the behavior approved in
 [Specification 004](spec.md). It was explicitly approved by the human reviewer in
-PR #71 on 2026-09-20 together with ADR-0007 and ADR-0008. The next authorized SDD
-phase is Tasks only. Implementation, migration, Provider mutation, release, and
-final MVP acceptance remain unauthorized. No `tasks.md` is created by this change.
+PR #71 on 2026-09-20 together with ADR-0007 and ADR-0008. That original decision
+authorized only the Tasks phase at that time and created no `tasks.md`. The later
+Issue #94 and #97 amendments preserve the same gate: approved Plan/Tasks do not
+authorize implementation, migration, Provider mutation, release, or final MVP
+acceptance.
 
 Planning baseline: `main` at `9537cdca08686c45a8dc32f292e571e08be78031`,
 including merged PR #70 and explicit human acceptance of
@@ -31,8 +81,8 @@ Canonical inputs:
 - the conceptual model, Provider boundaries, Constitution, roadmap, and current
   repository implementation/Evidence.
 
-Plan review identified two durable cross-cutting choices that are not already
-accepted:
+The original Plan review identified two durable cross-cutting choices that were not
+already accepted at that time:
 
 - [ADR-0007](../../decisions/0007-local-publication-and-recovery-protocol.md)
   proposes the shared local publication/recovery protocol;
@@ -45,7 +95,7 @@ Their acceptance clears the architecture gate for the authorized Tasks phase.
 
 The accepted POC is historical Evidence and an implementation baseline. Its
 commands, status values, schemas, storage layouts, and adapters are not v1
-contracts unless this Plan selects them. Future traceability is:
+contracts unless this Plan selects them. The original traceability flow was:
 
 ```text
 Specification 004 + accepted Decisions
@@ -56,27 +106,58 @@ Specification 004 + accepted Decisions
 -> explicit human RC acceptance or rejection
 ```
 
+The approved amendment starts from `main` at
+`f086c2fbbb43b730d42c42574dd5fc37215da365`, after delivered S4 and S5. It
+reconciles only the remaining DAG and affected contracts. S4/S5 implementation,
+Evidence, task identities, and historical stage observations remain unchanged.
+
 ## 2. Technical goals and non-goals
 
 ### Goals
 
-- deliver one installable local MVP for Codex, Lingo, and GitHub Issues;
+- deliver one installable local MVP whose canonical public executable is `axiom`,
+  with Lingo remaining an internal/control-plane concept where useful, plus Codex,
+  Claude, and GitHub Issues;
 - preserve one deterministic application contract across CLI and Runtime skills;
 - make Project setup, Work Item intent, workflow state, Provider projection,
   completion, artifacts, provenance, recovery, and upgrade observable end to end;
+- make the Work Item a durable lifecycle anchor with deterministic gate-derived stages,
+  orthogonal flags, bounded history, recovery signals, and Project-resolved
+  Work Item/Pull Request metadata;
 - make local publication safe under ADR-0005's bounded threat model;
 - make detail artifacts durable, bounded, reference-aware, and machine-local
   under ADR-0006;
 - retain exact authority, revision, Provider-effect, and human-acceptance gates;
 - produce clean-environment Evidence sufficient for a human release decision.
+- plan one bounded parent/child Execution DAG from approved work, resolve children
+  only through operator-allowed Runtime/Model Profiles, coordinate independent
+  work safely, and reconcile isolated results into one truthful parent result;
+- prove Codex and Claude as real Runtime paths, structured cross-Runtime
+  coordination, enforced timeout/maximum-attempt controls and per-child/parent
+  Evidence before RC acceptance;
+- produce all supported native release artifacts through repeatable automation
+  from one clean revision while keeping publication separately authorized;
+- let a supported clean macOS/Linux machine install Axiom through one stable
+  remote bootstrap without source checkout/build, verify integrity, rerun
+  idempotently, and safely upgrade only an owned installation;
+- make `axiom first-run` detect and configure every supported Runtime already
+  present on the machine, covering Codex-only, Claude-only, both and neither
+  without installing Runtimes or mutating credentials;
+- exercise real Axiom engineering through Axiom itself as part of final S9
+  product acceptance.
 
 ### Non-goals
 
 Specification 004 non-goals remain unchanged. In particular, this Plan does not
-add Windows, package managers, automatic update, signing/notarization, multiple
-Runtimes, multiple Work Item Providers, multi-agent orchestration, cloud state,
-remote locks, generic Provider CRUD, raw chat Evidence, automatic POC migration,
-or physical durability guarantees.
+add Windows, package managers, automatic update, signing/notarization, arbitrary
+Runtime plugins, multiple Work Item Providers, unlimited/dynamic child spawning,
+multi-machine distribution, cloud state, remote locks, generic Provider CRUD, raw
+chat Evidence, automatic POC migration, or physical durability guarantees.
+
+The amendment also excludes arbitrary user-defined workflows, a generic custom-
+field/metadata engine, sophisticated GitHub Projects automation, Provider-owned
+acceptance, automatic local-Execution reconstruction, and broad multi-Provider
+metadata implementation.
 
 The following are explicitly unsupported, not solved risks:
 
@@ -89,11 +170,11 @@ The following are explicitly unsupported, not solved risks:
 The executable direction remains:
 
 ```text
-CLI / Codex Runtime skill
+CLI / Codex or Claude Runtime adapter
 -> application use cases
 -> domain values and contracts
 -> consumer-owned ports
--> local, GitHub, Codex, filesystem, and release adapters
+-> local, GitHub, Runtime, filesystem, and release adapters
 ```
 
 This C4 component view is sufficient because it exposes the relevant ownership
@@ -101,15 +182,17 @@ and dependency boundaries without fixing code-level trivia:
 
 ```mermaid
 flowchart LR
-    H["Developer / reviewer"] --> CLI["Lingo CLI\npresentation"]
-    C["Codex"] --> SK["Thin Axiom skills\nruntime adapter"]
-    SK --> CLI
+    H["Developer / reviewer"] --> CLI["Axiom public CLI\nLingo control-plane presentation"]
+    C["Codex"] --> CRA["Codex runtime adapter"]
+    CL["Claude"] --> CLR["Claude runtime adapter"]
+    CRA --> CLI
+    CLR --> CLI
     CLI --> APP["Application use cases"]
     APP --> DOM["Axiom domain/contracts"]
     APP --> PORTS["Consumer-owned ports"]
     PORTS --> LOCAL["Local state, artifacts,\npublication and recovery adapters"]
     PORTS --> GH["GitHub Issues capability adapter"]
-    PORTS --> CODEX["Codex install/compatibility adapter"]
+    PORTS --> RUNTIME["Runtime install/compatibility adapters"]
     GH --> GITHUB["GitHub Issues"]
     LOCAL --> FS["Authorized local filesystem"]
 ```
@@ -127,17 +210,21 @@ Planned cohesive package evolution:
 | `internal/completion` | Canonical statuses, result, references, next action, detail reference | No rendering, filesystem, or Provider calls |
 | `internal/provenance` | One product/version/revision/source-state model | Build observation only; no surface-specific policy |
 | `internal/project`, `internal/projectapp`, `internal/manifest` | Existing Project rules, complete proposals, authority, portable codec | Preserve Specification 002 contracts |
-| `internal/workitem` | Intent/draft/use cases and Work Item capability ports | No GitHub formatting or transport |
-| `internal/githubissues` | GitHub issue lookup/mutation, labels/comments, response validation | No workflow authority or local truth |
-| `internal/workflow` | Sequential gates, minimal local Execution record, transitions, reconciliation intent | No Runtime or Provider transport |
+| `internal/workitem` | Intent/draft/use cases, provider-neutral lifecycle and metadata-policy intentions, and Work Item capability ports | No GitHub fields, formatting, or transport |
+| `internal/githubissues` | GitHub issue/PR lookup and mutation, lifecycle/flag labels, metadata effects, bounded comments, response validation | No workflow authority or local truth |
+| `internal/workflow` | Detailed sequential gates, minimal local Execution record, deterministic Work Item lifecycle projection, prerequisites, projection/recovery intent | No Runtime or Provider transport |
+| graph/planning application boundary (exact package deferred) | Planner proposal, DAG validation, parent/child lineage, dependency readiness, outcome roll-up | No Runtime session identity or model ranking |
+| Runtime resolution boundary (exact package deferred) | Operator configuration, capability request, allowlist and Runtime/Model Profile resolution observations | No implicit fallback, credential values or domain-owned vendor catalog |
+| execution coordination boundary (exact package deferred) | Child envelopes, dispatch/cancellation/retry, structured coordination and Integration/Reconciliation ownership | No raw chat authority or silent repository integration |
 | `internal/detailartifact` | Metadata, retention/reference rules, lookup and cleanup use cases | No portable publication |
 | `internal/local` | Versioned stores, anchored filesystem protocol, locks, recovery and OS roots | No domain policy invention |
-| `internal/codexruntime` | Thin skill content, installation ownership and compatibility | No duplicated application behavior |
+| `internal/codexruntime` plus the smallest Claude Runtime adapter boundary | Runtime-specific entry content, installation/availability observation and compatibility | No duplicated application behavior or domain-owned model names |
 | `internal/install` | Release receipt, binary/skill upgrade plan and compatibility inspection | No automatic network/update authority |
 | `internal/cli`, `cmd/lingo` | Strict selectors, guided input, human/JSON rendering, composition | No parallel business contract |
 
-Existing packages should be evolved, not wrapped by a universal framework. A
-second Provider or Runtime is required before generalizing adapter registration.
+Existing packages should be evolved, not wrapped by a universal framework. S8
+must add the smallest ports needed for the Codex and Claude Runtime paths; it does not create
+a universal plugin registry or hardcoded vendor/model ranking.
 
 Under accepted
 [ADR-0008](../../decisions/0008-minimal-machine-local-execution-record.md), the
@@ -147,9 +234,10 @@ Work Item reference, Runtime ID, workflow version, current stage, state revision
 bounded transition records, timestamps, provenance, artifact/Evidence references,
 and terminal state. The ADR owns identity, authority, lifecycle, and cross-boundary
 meaning. Exact field names, encoding, path, indexes, and package types remain
-implementation details. This does not settle the broad Execution model or create
-an `operation-attempt` entity. Pre-Execution commands use only ADR-0006's opaque
-local correlation ID.
+implementation details. This remains the compatibility contract for existing
+sequential records and does not create an `operation-attempt` domain entity.
+Accepted ADR-0009 owns new graph, parent/child, attempt and coordination semantics.
+Pre-Execution commands continue using ADR-0006's opaque local correlation ID.
 
 ## 4. Delivery slices and dependency ordering
 
@@ -164,13 +252,39 @@ behavior; Tasks must not be split merely by layer.
 | S3 — Intent to GitHub Work Item | Intent becomes reviewed structured draft; authorized create/select persists exact GitHub reference; denial/cancel has zero Provider effects | S2 | Fake-adapter side-effect ledger and bounded real GitHub observation |
 | S4 — Workflow truth and Provider projection | One local Execution advances sequential gates and reconciles one GitHub stage marker plus idempotent transition comments | S3 | Transition/replay/concurrency matrix and real projection observation |
 | S5 — Codex selector path and completion convergence | Fully specified skill runs without avoidable questions; CLI/skill meanings and all terminal statuses match | S4 | Host-contract tests and CLI/Runtime semantic-equivalence matrix |
-| S6 — Recovery, cleanup and upgrade | Operator can inspect/recover recognized interrupted state, safely clean eligible artifacts, detect POC state, and perform supported owned upgrade | S1–S5 | Fault matrix, cleanup/reference tests, compatibility and upgrade black-box |
-| S7 — Release candidate acceptance | Isolated clean environments complete install through Evidence/completion and representative failure/upgrade paths | all prior | Versioned RC report; human decision remains pending |
+| S6 — Durable Work Item lifecycle and metadata governance | One Work Item exposes a provider-neutral lifecycle projection derived from canonical gates/facts, orthogonal flags, bounded history, safe recovery signals, and resolved Work Item/PR metadata | S5 | Gate/fact derivation and flag matrix, exactly-one-stage projection, history replay, recovery inspection, metadata-resolution matrix |
+| S7 — Recovery, cleanup and upgrade | Operator can inspect/recover recognized interrupted state, safely clean eligible artifacts, detect POC state, and perform supported owned upgrade | S1–S6 | Fault matrix, cleanup/reference tests, compatibility and upgrade black-box |
+| S8 — Multi-runtime agent planning and multi-agent execution | One approved Plan becomes a validated parent/child DAG; dependency-ready isolated children use only operator-allowed Runtime/Model Profiles, coordinate structurally, and integrate into one truthful parent result | S7; accepted ADR-0009 | Graph/authority/execution-control matrix; real Codex + Claude journey; concurrency, coordination, integration and parent Evidence |
+| S9 — Productization, distribution, Runtime bootstrap and release acceptance | Public `axiom` CLI, automated native artifacts, stable verified remote install/owned upgrade and Codex+Claude first-run precede exact-RC clean-environment acceptance and human review | S8 | Productization matrices, exact RC report; human decision remains pending |
 
 S1 selects shared semantics early because every later surface consumes them. S2–S5
-then deliver user-visible journeys rather than disconnected infrastructure. S6
-closes destructive/recovery paths only after their reference owners exist. S7
-does not compensate for missing slice Evidence.
+then deliver user-visible journeys rather than disconnected infrastructure. New S6
+uses S4 workflow/projection truth and S5 selector convergence before recovery
+hardening depends on its durable signals. S7 closes destructive/recovery paths
+only after their reference owners exist. S8 adds bounded graph delivery only after
+S7. S9 productizes that result before RC validation; it does not compensate for
+missing slice Evidence.
+
+With human approval recorded on 2026-09-24, tracker reconciliation is required:
+
+- Issue #94 becomes the S6 Slice tracker for T26–T29;
+- Issue #80 is retitled/relabelled from S6 to S7 without changing T16–T22 scope;
+- Issue #81 is retitled/relabelled from S7 to S8 while preserving the historical
+  RC objective and recording the T24/T25 expansion for S8 validation/Evidence;
+- tracker #15 changes its roadmap and sequence to S1–S8 while preserving delivered
+  S4/S5 history and keeping final acceptance human-only.
+
+Approval records the S6/S7/S8 placement only. Tracker reconciliation after merge
+did not authorize T26–T29 implementation; the later explicit S6 authorization
+did. S7 was separately authorized on 2026-09-25. S8 implementation and the T36
+run later received their separate authorities; the resulting candidate is ready
+for human review, while human acceptance and S9 remain separately gated.
+
+The approved Issue #97 amendment requires the next reconciliation: #97 becomes S8,
+#81 becomes S9, and tracker #15 moves to S1–S9. T23–T25 keep their IDs and
+historical RC objective; T24/T25 add validation/Evidence obligations for S8. This
+repository documentation change does not perform or authorize those Provider
+mutations.
 
 ## 5. Project setup strategy
 
@@ -234,7 +348,8 @@ or reconciles by stored/draft correlation instead of blindly creating again.
 
 ## 7. Workflow state and Provider projection
 
-Local versioned workflow/Execution state is authoritative. Its v1 gate list is:
+Local versioned workflow/Execution state remains authoritative. The S4 detailed
+gate list remains historical and executable:
 
 ```text
 intake -> specification -> clarification -> plan -> tasks
@@ -247,22 +362,159 @@ artifact/Evidence references, authority requirements, provenance, and next actio
 Only one process can commit a transition from a revision. Resume rereads state and
 does not infer success from an interrupted command.
 
-GitHub projection uses these v1 adapter conventions:
+The Issue #94 amendment adds one provider-neutral, read-only Work Item lifecycle
+projection over the same revisioned local workflow authority:
 
-- exactly one current label named `axiom:stage:<stage>`;
+```text
+intake -> specifying -> specified -> planning -> planned
+-> implementing -> implemented -> reviewing -> reviewed -> accepted
+```
+
+It is a human-visible summary, not a second Execution state machine or persisted
+stage field. Derivation uses this total mapping:
+
+| Current canonical gate/status | Revisioned additional fact | Derived stage |
+|---|---|---|
+| `intake` | none | `intake` |
+| `specification` or `clarification` | valid preceding history | `specifying` |
+| `plan` | no planning authority yet | `specified` |
+| `plan` with planning authority, or `tasks` | explicit planning authority; `tasks` also has Plan transition/reference | `planning` |
+| `implementation` | no implementation authority yet | `planned` |
+| `implementation` | exact implementation scope and authority | `implementing` |
+| `review` | review-start fact absent | `implemented` |
+| `review` with review-start fact, or `evidence` or `reconciliation` | explicit review-start fact; later gates retain preceding review/Evidence facts | `reviewing` |
+| `completion`, active or terminal, without human acceptance | completed review, Evidence, reconciliation, and blocking-finding disposition | `reviewed` |
+| terminally completed `completion` | explicit human acceptance of the bounded outcome | `accepted` |
+
+Planning authority, exact implementation authority, review start, and human
+acceptance are bounded, revisioned local facts with scope/reference/digest and
+provenance. They are not Provider observations. Absence at the deliberate
+`specified`, `planned`, and `implemented` boundaries selects that earlier stage;
+absence or contradiction after the corresponding boundary is an inconsistent
+Execution and returns `recovery_required`. No best-effort stage is projected.
+
+`review`, `evidence`, and `reconciliation` all derive `reviewing` until
+reconciliation passes into `completion`; only then is `reviewed` derived.
+Technical completion does not create `accepted`. The acceptance fact may be
+recorded only against a terminally completed Execution and does not alter its gate.
+
+This preserves ADR-0008 without amendment: Execution identity, one sequential gate
+set, transition lineage, revision authority, terminal semantics, and Provider
+non-authority are unchanged. The new function reads facts ADR-0008 already permits
+in revisioned transitions/terminal truth. Persisting an independent lifecycle
+field or transition history would instead change lifecycle semantics and requires
+a new architecture decision before implementation.
+
+GitHub projection uses these amended adapter conventions:
+
+- exactly one current lifecycle label from the closed set defined by
+  Specification 004 (`axiom:stage:intake` through `axiom:stage:accepted`);
+- zero or more independent flags: `axiom:blocked`, `axiom:needs-decision`,
+  `axiom:needs-approval`, and `axiom:recovery-required`;
 - transition comments contain stage, outcome, bounded references, provenance, and
   next action where applicable;
 - each Axiom comment includes a non-rendered namespaced projection key derived from
-  Execution ID plus committed transition revision;
+  Execution ID plus the canonical Execution revision used for derivation;
 - local state records intended and confirmed projection keys/effects;
-- reconciliation reads current labels/comments, removes only obsolete Axiom stage
-  labels, preserves non-Axiom labels/content, and posts no semantic duplicate.
+- reconciliation reads current labels/flags/comments, removes only positively
+  identified obsolete Axiom markers, preserves non-Axiom labels/content, and
+  posts no semantic duplicate.
+
+A valid blocked snapshot retains its derived lifecycle stage and independently
+projects `axiom:blocked`; the blocker is not a lifecycle inconsistency. If the
+blocker applies to the next canonical gate transition, the operation is denied
+before mutation: the gate does not advance, no authority is inferred, and the
+current snapshot continues to determine both stage and flags. Only stale,
+incompatible, contradictory, unknown, insufficient, out-of-order, or
+scope-mismatched local truth returns `recovery_required`.
 
 Projection is a separately authorized post-commit effect. A local transition never
 waits for GitHub to become authoritative. Provider failure returns `partial` or
 `retryable_failure` according to confirmed effects; it never advances or rewinds
 local truth. Provider state cannot close a local gate. Reconciliation from stale
 local revision or ambiguous Provider response fails closed.
+
+Zero, multiple, unknown, or contradictory `axiom:stage:*` observations are drift,
+not transition authority. Drift blocks only Provider reconciliation; a valid local
+gate transition remains governed exclusively by local facts and authority.
+Reconciliation may replace a positively identified
+legacy S4 label only under a reviewed exact effect plan; unknown namespaced labels
+are preserved and produce `recovery_required`. This permits future delivery
+without rewriting S4 Evidence or mutating historical Provider observations during
+this amendment.
+
+Comments reuse the existing 16 KiB hard bound and at most 16 transition references.
+They summarize the material transition and link stable Specification, Plan/Tasks,
+PR, Evidence, artifact, next-action, or blocker references. They never embed dense
+documents, raw logs, chat, or unrestricted model output.
+
+### Missing-local-state reconciliation
+
+Read-only inspection gathers Provider lifecycle/flag/comment facts, Repository
+artifact identities/digests, and any available canonical/prior/staged local
+records. It returns one of three plans:
+
+1. current local truth plus an idempotent Provider reconciliation preview;
+2. an ADR-0007 recovery plan selecting one completely validated local generation,
+   requiring fresh exact recovery authority; or
+3. `recovery_required`, preserved observations, and the smallest human decision
+   needed when evidence is missing, contradictory, or insufficient.
+
+Provider plus Repository state never synthesizes an Execution, lifecycle stage,
+transition, or acceptance. Recovery does not relax ADR-0007 readers or ADR-0008
+identity/authority.
+
+### Project metadata policy
+
+Project portable intent may declare bounded required/default metadata intentions
+for Work Item create/update and Pull Request preparation/review by referencing a
+contained policy document through Specification 002's existing `policies` field.
+No new `axiom.yaml` field is added: `schemaVersion: 1` remains closed, and no
+migration or implicit compatibility is introduced. The application
+asks a policy resolver for provider-neutral outcomes such as resolved, optional,
+required-but-missing, or unsupported capability. The GitHub adapter alone maps
+those intentions to concrete labels, assignee, milestone, supported Project/status,
+and Pull Request labels/assignee/review metadata.
+
+The MVP intention vocabulary is closed:
+
+| Provider-neutral intention | Surface | GitHub adapter mapping |
+|---|---|---|
+| `classification` | Work Item and Pull Request | configured labels |
+| `owner` | Work Item and Pull Request | assignee resolved through Project Provider identity binding |
+| `delivery_target` | Work Item | milestone |
+| `tracking_state` | Work Item | configured GitHub Project/status when capability exists |
+| `reviewers` | Pull Request | requested reviewers resolved through Project Provider identity bindings |
+
+Lifecycle stage and auxiliary flags are workflow projection, not metadata-policy
+inputs. The referenced document is a distinct strict portable contract with:
+
+- integer `policyVersion: 1` and exact `kind: work-item-metadata`;
+- optional closed `workItem` mapping limited to `classification`, `owner`,
+  `delivery_target`, and `tracking_state`;
+- optional closed `pullRequest` mapping limited to `classification`, `owner`, and
+  `reviewers`;
+- each intention encoded as a closed mapping with required `requirement`
+  (`required` or `optional`) and optional bounded provider-neutral `default` or
+  logical reference; `reviewers` alone may be a bounded list;
+- exactly one referenced document of this `kind`; duplicates, unknown fields,
+  malformed types, or missing/malformed/unsupported versions fail metadata-policy
+  resolution before prompts or Provider effects.
+
+The document is not another Project manifest and cannot redefine identity,
+workflow, security, authority, Provider bindings, or local observations. Arbitrary
+policy documents remain untrusted data. Specification 002 base manifest validation
+still validates the contained reference; T28 additionally validates this recognized
+policy kind before use. No automatic migration or down-conversion exists.
+Observations, provider IDs, credentials, concrete GitHub field names, identity
+bindings, and effect ledgers remain machine-local or adapter-owned.
+
+Resolution order is deterministic: explicit operation input, applicable Project
+policy, already validated Work Item/PR context, then one prompt only for each
+still-missing mandatory value. Preview lists exact target, observation, resolved
+source, ordered effects, unsupported optional intentions, and digest. Mutation
+retains the existing separate exact Provider authority and reinspection rules.
+No arbitrary custom-field schema or universal Provider metadata API is introduced.
 
 ## 8. Runtime invocation strategy
 
@@ -286,6 +538,67 @@ The direct CLI and Runtime path call the same operation-shaped application use
 case. Skill output is a rendering of the canonical completion result, not a second
 status model. Skill-set compatibility is a versioned manifest/digest checked by
 Lingo and the installer; user-modified/unowned skill content is never overwritten.
+
+## 8A. Agent Planning, Runtime resolution and graph execution
+
+The S8 application flow is:
+
+```text
+approved Plan + operator Runtime/Model configuration
+-> normalized capability/work proposal
+-> validated parent/child DAG preview
+-> explicit material decisions and bounded authority/execution controls
+-> dependency-ready isolated child dispatch
+-> bounded structured coordination and result publication
+-> Integration/Reconciliation child
+-> deterministic parent roll-up and Evidence
+```
+
+The Agent Planner is a proposal producer, not an authority source or scheduler. It
+derives the smallest useful topology from work, capability, dependency and risk.
+Deterministic validation rejects cycles, unresolved dependencies, incompatible
+scope, overlapping unsafe effects, missing integration ownership, invalid execution controls
+and unresolvable capability requests before graph publication or dispatch.
+
+Operator configuration is machine-local and versioned. It identifies installed and
+enabled Runtime adapters, allowed Model Profiles, capability observations and
+optional role/complexity preferences. Codex and Claude are the concrete S8
+acceptance Runtime paths; concrete model names remain local Model Profile data and
+never enter the domain. Resolution returns one exact allowed choice or a blocker.
+It never selects an unconfigured Runtime, uses a vendor/model ranking as domain
+truth, or falls back implicitly. Credential references remain adapter-owned and
+never enter portable configuration or graph content.
+
+The scheduler consumes only committed graph/envelope revisions. A child becomes
+ready after declared dependencies satisfy their contracts and scope, authority,
+workspace, Runtime availability, timeout and maximum-attempt policy remain current. It may dispatch ready
+non-conflicting children concurrently. Repository-mutating children receive
+isolated workspaces/worktrees; shared targets, stale bases or overlapping effects
+serialize or block. Child commands use explicit argv, bounded environment/output,
+timeout and cancellation. Runtime output is untrusted until structurally validated.
+
+Coordination is an Axiom-owned bounded record stream: question/request, answer,
+contract proposal/acceptance, blocker, dependency resolution, artifact publication,
+progress and result. Agents may see conversational projections, but raw chat and
+hidden reasoning are neither retained workflow state nor Evidence. A child cannot
+use coordination content to expand scope, authority, allowlist or execution controls.
+
+Cancellation stops new dispatch and requests cancellation without erasing
+confirmed effects. Retry creates a correlated attempt and requires remaining
+authority plus an available attempt; ambiguous effects reconcile first. Parent roll-up preserves every
+required/optional child outcome and succeeds only after the declared
+Integration/Reconciliation child validates inputs, integrates authorized isolated
+changes, runs combined validation and publishes its result.
+
+Testing uses deterministic fake Runtime/process/worktree ports for graph,
+resolution, scheduling, failure, cancellation, retry, injection and roll-up cases.
+Acceptance adds one bounded real Axiom engineering activity in which at least two
+independent children run through Codex and Claude. Evidence captures graph revision,
+lineage, envelopes, resolution, authority, timeout/attempt controls, coordination
+references, attempts, artifacts, validation, and any Runtime-provided usage/cost
+source/unit/status plus final parent result; it excludes credentials and raw chat.
+Missing usage/cost is `unavailable`; S8 neither estimates nor normalizes it and
+defines no token/cost budget enforcement.
 
 ## 9. Canonical completion result and detail artifacts
 
@@ -370,6 +683,23 @@ Retention classes and policy:
 | `diagnostic` | Initial 30-day default after creation or supersession | Default policy for bounded troubleshooting context with no live dependency | Eligible only with no live references; short window may reduce late diagnosis and must be validated through dogfooding |
 | `preserved_review` | While ownership, validity, or reference state is uncertain | Hard fail-closed invariant; age cannot establish deletion authority | Never age-eligible; operator must resolve/reclassify, accepting possible capacity pressure |
 
+Evidence retirement (HD-S7-T18, human decision of 2026-09-26): the 365-day window
+starts only at an explicit, separately authorized retirement recorded as
+`artifacts/v1/retirements/<artifact-id>.json` (retirement format 1, outside the
+closed `metadata.json` v1 schema). The record binds the artifact ID, exact
+artifact revision and content digest, the retirement moment, the reviewed
+preview digest (whose observation had zero authoritative references), and its
+format version; its byte digest is the revision cleanup revalidates. Retirement
+follows preview -> exact authority -> revalidation under lock -> create-only
+ADR-0007 publication and is denied while any authoritative reference is live or
+a retirement already exists. Age, `createdAt`, momentary absence of references,
+and cleanup pressure never grant retirement. A later artifact reference
+supersedes (removes) the retirement before that artifact is published, so a
+re-reference that later disappears requires a new explicit retirement;
+Execution references are append-only in v1 and keep the artifact referenced.
+Missing, corrupt, stale, incompatible, or other-revision retirements preserve
+Evidence.
+
 Cleanup is always an explicit, previewed, separately authorized command. It locks
 and revalidates exact identity, ownership, type, links, digest, references, and
 eligibility before removal. Any uncertain owner/reference/lock state moves or keeps
@@ -386,7 +716,8 @@ observation, and verification context.
 
 ### Supported release matrix and assumptions
 
-Versioned support research was refreshed on 2026-09-20 from official sources:
+Historical support research (2026-09-20; preserved as a dated snapshot,
+not the current distribution/version support contract):
 
 - Apple lists [macOS 27 Golden Gate 27.0 as the latest macOS](https://support.apple.com/en-ie/109033)
   and its [compatibility list](https://support.apple.com/en-us/127455) supports
@@ -403,25 +734,27 @@ Versioned support research was refreshed on 2026-09-20 from official sources:
   requires source/target on the same mounted filesystem and records
   filesystem-specific no-replace support.
 
-The v1 supported release target and reproducible initial acceptance baseline are
-exactly:
+The supported product OS names are macOS and Linux. The release build and
+initial native acceptance rows are:
 
-| Supported release / acceptance baseline | Product architecture | Supported local filesystem for acceptance | Rationale |
+| Supported OS | Product architecture | Supported local filesystem for acceptance | Executable release constraint |
 |---|---|---|---|
-| macOS 27 / macOS 27.0 | `arm64` | local APFS, default case-insensitive format | Latest stable macOS major and current 27.0 release; Apple supports only Apple silicon, so no `amd64` binary is claimed |
-| Ubuntu 26.04 LTS / Ubuntu 26.04 LTS | `amd64` | local ext4 | Latest Ubuntu LTS; primary x86-64 Linux binary target selected by HD-1 |
-| Ubuntu 26.04 LTS / Ubuntu 26.04 LTS | `arm64` | local ext4 | Latest Ubuntu LTS; ARM64 Linux target selected by HD-1 and required to avoid architecture-by-cross-compile claims |
+| macOS | `arm64` | local APFS, default case-insensitive format | Current installer requires macOS 27.0; archive metadata `macos-27` |
+| Linux | `amd64` | local ext4 | Static Linux build; distribution/version is not an installer filter |
+| Linux | `arm64` | local ext4 | Static Linux build; distribution/version is not an installer filter |
 
-Every Evidence record includes the exact OS point version, build/kernel, image,
-architecture, and filesystem observation. A later macOS 27 maintenance release or
-Ubuntu 26.04 point release requires the applicable native compatibility rerun before
-the release claim expands; `27` or `26.04 LTS` is not a floating unrecorded runner.
+Every Evidence record includes exact OS/distribution/version, build/kernel,
+image, architecture and filesystem observations. Every native acceptance row
+requires execution Evidence; cross-compilation alone is insufficient. A native
+run on one Linux distribution does not establish universal filesystem behavior.
 
-Every row requires native execution Evidence; cross-compilation alone is
-insufficient. Other distributions, OS versions, architectures, case-sensitive APFS,
-network mounts, FUSE, overlay/union filesystems, removable media, and
-cross-filesystem publication are unsupported for v1 unless later added with
-equivalent Evidence.
+Evidence phasing (HD-S7-T22, human decision of 2026-09-26) is preserved:
+S7/T22 has the operated macOS 27.0/arm64/APFS native row. Linux/amd64/ext4 and
+Linux/arm64/ext4 native filesystem/install/upgrade Evidence remains mandatory
+under T24 before RC acceptance or release claims for those targets. No Linux
+native pass is inferred from S7 or CI. Case-sensitive APFS, network mounts,
+FUSE, overlay/union filesystems, removable media and cross-filesystem publication
+remain unsupported for v1 without equivalent Evidence.
 
 Relevant filesystem restrictions become acceptance preconditions, not broader
 guarantees: staging and canonical targets share one mounted local filesystem;
@@ -432,7 +765,8 @@ support is probed or established for the target; and Ubuntu 26.04's documented
 means implementation cannot rely on inherited ACLs and must explicitly set and
 revalidate final ownership/mode/ACL state.
 
-Supported product targets remain separate from currently automated CI:
+Historical runner availability snapshot (2026-09-20; not revalidated by
+T23, and not a required Linux distribution):
 
 | Target | Current GitHub-hosted availability on 2026-09-20 | Evidence consequence |
 |---|---|---|
@@ -442,8 +776,8 @@ Supported product targets remain separate from currently automated CI:
 
 GitHub documents that `-latest` can lag the vendor's latest OS and lists current
 [runner labels and architectures](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/choose-the-runner-for-a-job).
-The repository's current `macos-15`/`ubuntu-24.04` workflow remains historical POC
-verification only and cannot claim MVP matrix Evidence. No workflow is changed by
+The `macos-15`/`ubuntu-24.04` runner labels identify CI environments;
+CI does not replace native clean-environment RC acceptance Evidence. No workflow is changed by
 this Plan. Future exact-target runs may use the preview labels above, explicit
 self-hosted/native environments, or later GA labels; missing exact target Evidence
 remains an explicit release blocker rather than a reason to weaken product support.
@@ -608,27 +942,104 @@ Recognized POC state is preserved. Supported action is:
 There is no in-place POC migration, automatic deletion, or promise that POC
 workflow/Execution history becomes v1 state. Unknown/newer data fails closed.
 
-## 13. Release and clean-environment acceptance
+## 13. S9 productization, release and clean-environment acceptance
+
+Before an RC is identified, S9 closes the repository-local productization gap in
+four bounded units:
+
+1. **Public CLI identity:** build/install the canonical executable as `axiom`.
+   Internal Lingo package/domain naming may remain; user shell aliases are not the
+   primary product contract.
+2. **Release artifact automation:** from one clean exact revision, build the
+   declared macOS/arm64, Linux/amd64 and Linux/arm64 artifacts
+   plus closed manifests/checksums and truthful version/revision provenance.
+   Preparation is deterministic; publication remains authority-bearing.
+3. **Stable remote bootstrap:** keep the canonical bootstrap implementation at
+   repository path `scripts/install.sh`. The public bootstrap may be invoked from
+   the raw `main` URL while the script itself resolves one published release
+   under the FR-064 selection policy (Issue #81): no selector or
+   `--channel stable` resolves the latest published stable `vX.Y.Z` release and
+   never falls back to an RC (no stable release is an explicit zero-effect
+   failure pointing to `--version`); `--version <tag>` resolves exactly one
+   published stable or `vX.Y.Z-rc.N` tag; `--channel` and `--version` are
+   mutually exclusive; drafts are never installable. Release candidates are
+   selected only by exact version; a floating RC selector is not an S9
+   requirement and any unsupported selector is a zero-effect input error.
+   Resolution binds the install and its Evidence to the exact tag, asset and
+   asset SHA-256 rather than the selector. It detects the supported row, obtains
+   the resolved published artifact, verifies it before mutation and installs
+   into an owned safe destination. For a recognized owned install, the same
+   resolved version is a no-op, a newer one converges through the existing
+   protected upgrade/recovery semantics, and an older one is refused as an
+   automatic downgrade; foreign/modified/unsafe/ambiguous targets refuse.
+4. **Multi-runtime first run:** `axiom first-run` discovers supported local
+   Runtime executables/configuration and installs/configures the corresponding
+   Axiom integration for every detected Runtime in that Runtime's user-global
+   scope. For MVP, Codex uses its user-global skill root and Claude uses its
+   user-global `skills/<name>/SKILL.md` root under `~/.claude` (or the
+   effective Claude config directory, including `CLAUDE_CONFIG_DIR`). Project-local Runtime skills are not the
+   product default. Codex-only, Claude-only, both and neither are explicit states.
+   It never silently installs a Runtime, changes credentials, buys capacity or
+   invents availability.
+
+S9 should reuse existing deterministic install/upgrade ownership and recovery
+logic rather than implement a second unsafe installer model. The remote bootstrap
+is a distribution/orchestration surface over those contracts.
+
+Dogfooding is part of acceptance: after S8, at least one real Axiom engineering
+activity in S9 must be coordinated through Axiom's own parent/child graph with
+Codex and Claude, structured coordination, Integration/Reconciliation and
+inspectable Evidence.
+
+**Release flow reconciliation (2026-09-28, proposed for human review; no
+publication authority).** Development follows GitHub Flow into a protected
+`main` with required CI and squash merge. Release Please maintains a Release PR
+(SemVer from Conventional Commits, `CHANGELOG.md`,
+`.release-please-manifest.json`) with `skip-github-release`, so merging it only
+records the versioned state. Publication has two phases. PREPARE: the T38
+`release-artifacts.yml` checks tag/revision/Release PR binding
+(`release-preflight.sh`), builds and verifies with the T38 scripts, renders the
+notes and retains that exact set; `release.sh` re-verifies it at the revision
+and prints a deterministic publication envelope (tag, revision, channel,
+`latest` decision, notes and `SHA256SUMS` digests, each artifact SHA-256,
+prepared run, remote state, effects) whose digest is what a human authorizes.
+PUBLISH: `publish-release.yml`, gated by the protected `release` environment,
+consumes the same prepared artifact without rebuilding, recomputes the envelope
+and refuses before any effect unless it equals the authorized digest, then
+stages one draft bound to the revision, uploads and reads back every asset
+digest, and publishes once (RC as prerelease, never `latest`; stable from its
+release commit, `latest` only when highest). Reruns converge; duplicates,
+foreign draft assets, moved tags and inconsistent published releases fail
+closed. The staged draft is never installable, so the
+T23 objective "publish once as a non-draft prerelease" is unchanged. Process
+and authority: [CONTRIBUTING.md](../../../CONTRIBUTING.md#release-flow).
 
 RC is an identified candidate version/revision with immutable checksums and a
-declared support matrix. For each OS/architecture row, an isolated account or VM
-with no Axiom roots executes published instructions only:
+declared support matrix, tagged `vX.Y.Z-rc.N` and published as a GitHub
+prerelease only under T23 authority. For each OS/architecture row, an isolated
+account or VM with no Axiom roots executes published instructions only, pinning
+the same candidate through the remote bootstrap with `--version vX.Y.Z-rc.N`
+(never a floating selector):
 
 ```text
-install -> version/provenance -> Codex compatibility -> first run
+remote install -> axiom version/provenance -> Codex + Claude discovery/bootstrap -> axiom first-run
 -> Project setup -> Intent draft -> authorized GitHub Work Item
 -> workflow + projection -> Evidence/details -> completion
+-> approved parent/child graph -> authorized Codex + Claude Runtime paths
+-> isolated parallel children -> structured coordination -> integration
+-> parent Evidence/completion
 -> reinstall/upgrade -> recovery/cleanup checks
 ```
 
-The run exercises direct CLI and Codex entrypoints, all terminal statuses,
+The run exercises direct CLI, Codex and Claude entrypoints, all terminal statuses,
 authority denial, invalid selectors, interruption/resume, retryable Provider
 failure, confirmed Provider effect plus local failure, filesystem
 `recovery_required`, POC detection/export-reconfigure guidance, and upgrade.
 
 Controlled fakes prove deterministic failure and non-effects. At least one bounded
-real Codex discovery/invocation and one explicitly authorized real GitHub journey
-are required before final acceptance. Evidence records candidate identity,
+real journey using Codex and Claude and one explicitly
+authorized real GitHub journey are required before final acceptance. Evidence
+records candidate identity,
 environment, commands, exit codes, hashes/references, side effects, exclusions,
 unexecuted cases, and limitations. Automation prepares the report; only a human
 accepts or rejects the RC.
@@ -668,9 +1079,11 @@ All Evidence below is planned, not executed by this Plan.
 | Filesystem Linux/macOS | APFS/ext4 confinement, permissions/ACLs, traversal, symlink/hard-link/replacement, collisions, old/new readers, supported rename/publication/recovery |
 | Deterministic fault injection | F0–F8 with short writes, ENOSPC/EDQUOT, permission, interruption, rename/sync/cleanup errors and post-commit failures |
 | Concurrency | two independent processes, stale authority, create/update/rename/recovery/cleanup races, one winning revision, no mixed reader |
-| Functional black-box | CLI and installed Codex skills from unrelated CWD; guided and complete inputs; human/JSON semantic equivalence; side-effect ledger |
+| Functional black-box | Public `axiom` CLI, remote bootstrap and installed Codex/Claude integrations from unrelated CWD; guided and complete inputs; human/JSON semantic equivalence; side-effect ledger |
 | Security | sentinel non-leak checks, denied process/network/secret reads, unsafe ownership/link/ACL cases, bounded input/output, public-sensitive-file scan |
-| Clean dogfood | native release archive on every support row plus bounded real Codex/GitHub observation |
+| Distribution/productization | automated native artifact/checksum matrix; public `axiom` identity; stable installer platform selection/integrity; reinstall/no-op; owned upgrade; foreign/unsafe refusal; Codex-only/Claude-only/both/neither first-run |
+| Clean dogfood | exact RC on every support row plus bounded real Codex/Claude/GitHub observation and one Axiom engineering activity coordinated through Axiom itself |
+| Work Item lifecycle | ten-stage gate/fact derivation matrix, orthogonal-flag matrix, exactly-one-stage drift cases, bounded-comment replay, missing-local-state reconciliation, and Work Item/PR metadata policy resolution |
 
 Retained Evidence maps claim -> source version -> command/test -> exit/result ->
 artifact/reference/digest -> environment -> limitation. It excludes raw chat and
@@ -725,12 +1138,42 @@ inherited Specification 002 SEC-001–SEC-005 boundary used by Project persisten
 | FR-035 | §5/§12 explicit first-run setup |
 | FR-036 | §8/§12 detectable binary/skill compatibility |
 | FR-037 | §12 preflight, staged upgrade and partial truth |
+| FR-038 | §7 durable Work Item references and bounded operational anchor |
+| FR-039 | §7 deterministic canonical-gate/fact derivation and exact GitHub mapping |
+| FR-040 | §7 unchanged canonical transition checks plus read-only fail-closed derivation |
+| FR-041 | §7 orthogonal local conditions and GitHub auxiliary flags |
+| FR-042 | §7 bounded idempotent reference-first lifecycle comments |
+| FR-043 | §7 missing-local-state inspection and ADR-0007 recovery boundary |
+| FR-044 | §7 deterministic Project metadata policy and adapter-owned fields |
+| FR-045 | §8A Plan-derived Agent Planner proposal without authority |
+| FR-046 | §8A finite validated DAG and fail-before-dispatch cases |
+| FR-047 | §3/§8A stable parent/child identity, lineage and graph revision |
+| FR-048 | §8A operator-allowlisted Runtime/Model Profile resolution; no fallback |
+| FR-049 | §8A independent capability contract and readiness observations |
+| FR-050 | §8A immutable child envelope and non-escalation |
+| FR-051 | §8A dependency-ready isolated concurrency and conflict serialization |
+| FR-052 | §8A bounded Axiom-owned structured coordination |
+| FR-053 | §8A Integration/Reconciliation ownership and combined validation |
+| FR-054 | §8A parent/child timeout and maximum-attempt controls |
+| FR-055 | §8A observational source/unit/status-preserving usage and cost telemetry |
+| FR-056 | §8A cancellation truth and confirmed-effect preservation |
+| FR-057 | §8A correlated retry attempts and ambiguous-effect reconciliation |
+| FR-058 | §8A deterministic child/parent partial outcome roll-up |
+| FR-059 | §8A per-child and parent Evidence/provenance contract |
+| FR-060 | §3/§8A ADR-0008 sequential compatibility |
+| FR-061 | §1/§8A explicit material decision and implementation gates |
+| FR-062 | §3/§13 canonical public `axiom` executable while preserving internal Lingo boundaries |
+| FR-063 | §13 clean-revision automated supported-platform artifacts/checksums/provenance; publication separately gated |
+| FR-064 | §13 canonical `scripts/install.sh` remote bootstrap with deterministic platform selection and integrity verification |
+| FR-065 | §11/§13 idempotent reinstall plus protected owned upgrade; foreign/unsafe/ambiguous refusal |
+| FR-066 | §8/§13 Codex/Claude discovery and all-detected user-global Runtime skill integration from `axiom first-run` without credential/Runtime provisioning |
+| FR-067 | §13/§15 Axiom engineering dogfood through the S8 graph and retained integrated Evidence |
 
 ### Security requirements
 
 | Requirement | Plan coverage |
 |---|---|
-| Specification 004 security/NFR clauses | §9 limits/sanitization, §10 ownership/confinement, §14 security controls, §15 Evidence |
+| Specification 004 security/NFR clauses | §8A graph/runtime/command/credential controls, §9 limits/sanitization, §10 ownership/confinement, §14 security controls, §15 Evidence |
 | SEC-001 | §6/§9/§14 secret exclusion and non-leak tests |
 | SEC-002 | §5–§8 explicit authority; denied external/Git/process effects |
 | SEC-003 | §10 anchored roots, links, identity, locks, supported race boundary; ADR-0005 plus ADR-0007 |
@@ -765,6 +1208,31 @@ inherited Specification 002 SEC-001–SEC-005 boundary used by Project persisten
 | AC-22 | §13 denial, interruption, retry, recovery, upgrade cases |
 | AC-23 | §13/§15 versioned sanitized Evidence report |
 | AC-24 | §1/§13 separate human Specification/RC decisions |
+| AC-25 | S6/§7 lifecycle enum and exact GitHub label mapping |
+| AC-26 | S6/§7 valid lifecycle derivation plus blocked/unauthorized transition denial versus stale/skipped/contradictory snapshot matrix |
+| AC-27 | S6/§7 exactly-one-stage plus orthogonal flags and foreign-content preservation |
+| AC-28 | S6/§7 bounded history and replay convergence |
+| AC-29 | S6/§7 explicit human-only `accepted` gate |
+| AC-30 | S6/§7 missing-local-state recovery plan or `recovery_required` |
+| AC-31 | S6/§7 metadata resolution, missing-only prompts, and GitHub adapter isolation |
+| AC-32 | S8/§8A Plan-derived finite reviewable DAG without fixed role template |
+| AC-33 | S8/§8A graph/scope/effect/stale-authority denial with zero unauthorized dispatch |
+| AC-34 | S8/§8A exact allowlisted Runtime/Model resolution and no-match blocker |
+| AC-35 | S8/§8A isolated parallel readiness plus dependency/conflict serialization |
+| AC-36 | S8/§8A real Codex + Claude paths with per-child provenance |
+| AC-37 | S8/§8A structured coordination and bounded artifact/result publication |
+| AC-38 | S8/§8A exclusive Integration/Reconciliation boundary and combined validation |
+| AC-39 | S8/§8A enforced timeout/attempt controls and truthful observational usage/cost availability |
+| AC-40 | S8/§8A cancellation and correlated non-duplicating retry |
+| AC-41 | S8/§8A deterministic partial/non-success parent roll-up |
+| AC-42 | S8/§8A parent/child Evidence without secrets or raw chat |
+| AC-43 | S8/§3/§8A sequential ADR-0008 compatibility |
+| AC-44 | §13 clean remote install plus canonical public `axiom` executable |
+| AC-45 | §13 automated complete native artifact/checksum/provenance set |
+| AC-46 | §11/§13 equivalent no-op, owned upgrade and fail-closed foreign/unsafe install matrix |
+| AC-47 | §8/§13 Codex-only/Claude-only/both/neither first-run bootstrap matrix using Runtime-native user-global skill roots with zero provisioning side effects |
+| AC-48 | §13/§15 exact-RC clean journey starts through remote installer and public `axiom` on every support row |
+| AC-49 | §13/§15 one real Axiom engineering activity coordinated through Axiom with Codex+Claude and integrated Evidence |
 
 No Specification 004 requirement is deferred beyond its own declared non-goals.
 In-place POC migration remains conditionally deferred by HD-4 and would require a
@@ -783,11 +1251,22 @@ and reconfiguration instead.
 | Closed v1 schemas increase evolution cost | explicit versions, fail-closed readers, no silent migration |
 | Three binary targets increase release cost | each row blocks release if native Evidence is unavailable; no untested target claim |
 | POC and v1 roots may be ambiguous | positive signature required; uncertainty preserved for review |
+| Provider has zero/multiple/manual lifecycle labels | treat as drift; preserve unknown content; require exact reconciliation or human decision |
+| Detailed Execution gates and derived lifecycle stages diverge | total deterministic mapping; inconsistent local facts return `recovery_required`; never infer from Provider |
+| Metadata policy grows into a universal schema | MVP operation-specific intentions/capabilities only; GitHub fields remain adapter-owned |
+| Planner topology becomes a fixed team template | derive nodes from capability/dependency/risk; graph preview and review precede authority |
+| Runtime resolution hides fallback or vendor ranking | closed operator allowlist, exact no-match blocker, provenance for the selected profile |
+| Concurrent children corrupt shared Repository state | dependency/effect validation, isolated workspaces/worktrees, conflict serialization and one integration owner |
+| Child output or coordination injects authority | treat all content as untrusted data; only validated structured records and explicit operator decisions change control state |
+| Cancellation/retry duplicates confirmed or ambiguous effects | stop new dispatch, preserve effect truth, reconcile ambiguity before a correlated retry |
+| Cross-Runtime usage appears comparable when it is not | treat it as observational telemetry; retain source/unit/status; report unavailable/partial rather than inferred totals |
 
-Deferred without blocking this Plan: second Runtime/Provider, portable artifact
-publication, generic Execution graph, broader Evidence schema, package managers,
-automatic update, signing/notarization, remote collaboration, Git synchronization,
-and in-place POC migration.
+Deferred without blocking this Plan: token/cost/aggregate-parent budget governance,
+arbitrary additional Runtimes/Providers,
+portable graph/artifact publication, dynamic graph expansion, multi-machine
+execution, provider-neutral monetary accounting, package managers, automatic
+update, signing/notarization, remote collaboration, Git synchronization, and
+in-place POC migration.
 
 Architecture assessment found two new durable choices:
 
@@ -800,6 +1279,9 @@ Architecture assessment found two new durable choices:
 | Artifact layout/metadata and installation receipt schema | Versioned local adapter formats implementing already approved ownership/compatibility requirements. Exact paths, field names and encoding remain replaceable behind closed readers/migration gates; no separate ADR unless identity or lifecycle changes. |
 | Package/component map | Planning decomposition with inward dependencies and consumer-owned ports, not a published API or permanent module topology; no ADR. |
 | GitHub label/comment spelling and GitHub Releases adapter | First-adapter conventions within the approved MVP, replaceable behind Provider/distribution boundaries and carrying no broad compatibility/authenticity promise; no ADR at this stage. |
+| S9 release-selection/version policy | Human product decision recorded in Issue #81 and FR-064/FR-065 (stable default, exact `--version` pins, exact-version-only RCs, no automatic downgrade). It lives at the replaceable bootstrap/distribution boundary and does not change ownership, recovery or Execution contracts; a future floating RC channel or explicit downgrade mechanism is additive and needs its own decision. No ADR. |
+| Work Item lifecycle projection, flags, bounded history and metadata policy | Extends the already approved local-authority/Provider-projection contract. Lifecycle is derived from the existing gates/facts, so Execution identity, gate semantics, source-of-truth ownership, data ownership and recovery semantics do not change; ADR-0008 remains valid without alteration and no new ADR is needed. Reassess if implementation requires another workflow authority, an independently persisted lifecycle, portable Execution, Provider-owned gates, or a generic custom-field schema. |
+| Parent/child Execution Graph | Changes durable identity/lineage, dependency, authority, retry/cancellation, integration and Evidence semantics. Accepted in ADR-0009 by explicit human decision on 2026-09-26; S8/T30–T36 implementation was authorized on 2026-09-27 (Issue #97 comment #5852650410). The real T36 Runtime run later received its own exact authority, was executed, and produced the recorded Evidence. ADR-0008 remains historical and sequentially compatible; human acceptance and S9 remain separate. |
 
 If implementation or Plan review requires a different release trust topology,
 storage engine, broad Execution schema, automatic cleanup, portable artifact
@@ -826,6 +1308,8 @@ Do not accept an ADR automatically.
   and cleanup without an operation-attempt entity.
 - ADR-0007 and ADR-0008 are Accepted by explicit human decision in PR #71 and
   form part of this approved Plan's architectural baseline.
+- ADR-0009 is Accepted by explicit human decision on 2026-09-26. Its acceptance
+  does not authorize S8 implementation.
 - Role != Model, Execution != Agent, Provider != Transport, Integration != MCP,
   Skill != workflow truth, Evidence != chat, and Provider projection != workflow
   truth remain intact.
@@ -856,3 +1340,17 @@ of the Tasks artifact and its own authority.
 The explicit auditable human decision is recorded in PR #71 on 2026-09-20.
 
 **Plan: Approved — human approval recorded on 2026-09-20.**
+
+### Issue #97 amendment approval and implementation gate
+
+**Approved by explicit human decision on 2026-09-26.** Review approved the S8
+Specification changes, ADR-0009, S8/S9 Plan topology, T30–T36 Tasks, Codex plus
+Claude acceptance paths, observational-only usage/cost telemetry, and local T36
+authority boundary. T30–T36 implementation, Runtime dispatch, external mutation,
+prerelease publication and final acceptance remain separately unauthorized.
+
+The later explicit S8 implementation authority recorded on 2026-09-27 supersedes
+only that implementation gate. T30–T35 are technically complete. The exact real
+T36 Codex + Claude run subsequently received separate authority, was executed,
+and produced the recorded Evidence. Technical outcome: S8 ready for human review.
+S9, external effects and human acceptance remain separately gated.

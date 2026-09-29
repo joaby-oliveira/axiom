@@ -77,6 +77,11 @@ CLAUDE.md
 
 unless the user explicitly asks for a multi-target package.
 
+The renderer never emits `CLAUDE.md` for a Codex-only package.
+`scripts/validate-agent-package.sh` tolerates only the exact root bootstrap
+`CLAUDE.md` containing `@AGENTS.md` (the repository's own maintainer bootstrap,
+see `AGENTS.md`); any other Claude artifact fails validation.
+
 ## Conservative defaults
 
 Do not silently:

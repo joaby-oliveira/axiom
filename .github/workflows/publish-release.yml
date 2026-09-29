@@ -1,0 +1,136 @@
+name: Publish release
+# PUBLISH phase. The only workflow that creates tags and GitHub Releases. It
+# runs only when a maintainer dispatches it from main with the exact tag,
+# revision, prepared run (release-artifacts.yml) and the preview_digest a
+# human authorized. It never rebuilds: it downloads the prepared artifact of
+# that run, re-verifies it at the revision, recomputes the publication
+# envelope and stops unless its digest equals the authorized one. The publish
+# job also waits for approval of the protected `release` environment.
+# Order: verify prepared set -> envelope == authorized digest -> draft ->
+# assets -> read-back -> publish -> read-back. Reruns converge; conflicts and
+# changed previews fail closed before any effect.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-rc.N)
+        required: true
+        type: string
+      revision:
+        description: Full 40-character commit SHA on main to publish
+        required: true
+        type: string
+      prepared_run:
+        description: Run id of the release-artifacts.yml run whose artifact is published
+        required: true
+        type: string
+      preview_digest:
+        description: preview_digest of the publication envelope a human authorized
+        required: true
+        type: string
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Require dispatch from main and well-formed inputs
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_REVISION: ${{ inputs.revision }}
+          PREPARED_RUN: ${{ inputs.prepared_run }}
+          PREVIEW_DIGEST: ${{ inputs.preview_digest }}
+        run: |
+          [[ "$DISPATCH_REF" == refs/heads/main ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]]
+          [[ "$RELEASE_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$PREPARED_RUN" =~ ^[0-9]+$ ]]
+          [[ "$PREVIEW_DIGEST" =~ ^[0-9a-f]{64}$ ]]
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: axiom-release-${{ inputs.tag }}
+          path: ${{ runner.temp }}/prepared
+          run-id: ${{ inputs.prepared_run }}
+          github-token: ${{ github.token }}
+      - name: Verify the prepared set at the revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_REVISION: ${{ inputs.revision }}
+          PREPARED_RUN: ${{ inputs.prepared_run }}
+        run: |
+          [[ $(git rev-parse --verify HEAD) == "$RELEASE_REVISION" ]]
+          ./scripts/verify-prepared-release.sh --tag "$RELEASE_TAG" --revision "$RELEASE_REVISION" \
+            --prepared "$RUNNER_TEMP/prepared" --repo "$GITHUB_REPOSITORY" --run "$PREPARED_RUN" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: axiom-release-${{ inputs.tag }}
+          path: ${{ runner.temp }}/prepared
+          run-id: ${{ inputs.prepared_run }}
+          github-token: ${{ github.token }}
+      - name: Re-verify, match the authorized envelope, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_REVISION: ${{ inputs.revision }}
+          PREPARED_RUN: ${{ inputs.prepared_run }}
+          PREVIEW_DIGEST: ${{ inputs.preview_digest }}
+        run: |
+          [[ $(git rev-parse --verify HEAD) == "$RELEASE_REVISION" ]]
+          prepared="$RUNNER_TEMP/prepared"
+          # Main, tags and the prepared set may have changed since preflight.
+          ./scripts/verify-prepared-release.sh --tag "$RELEASE_TAG" --revision "$RELEASE_REVISION" \
+            --prepared "$prepared" --repo "$GITHUB_REPOSITORY" --run "$PREPARED_RUN" >"$RUNNER_TEMP/prepared.txt"
+          make_latest=$(awk -F= '$1 == "make_latest" {print $2}' "$RUNNER_TEMP/prepared.txt")
+          # publish-release.sh recomputes the envelope from these exact files and
+          # the current remote state and refuses before any effect unless it
+          # equals the authorized preview_digest.
+          ./scripts/publish-release.sh --repo "$GITHUB_REPOSITORY" --tag "$RELEASE_TAG" --revision "$RELEASE_REVISION" \
+            --make-latest "$make_latest" --prepared-run "$PREPARED_RUN" --dir "$prepared/artifacts" \
+            --evidence "$prepared/release-evidence.txt" --notes "$prepared/release-notes.md" \
+            --authorized-digest "$PREVIEW_DIGEST" | tee "$RUNNER_TEMP/publication.txt"
+          cat "$RUNNER_TEMP/publication.txt" >>"$GITHUB_STEP_SUMMARY"

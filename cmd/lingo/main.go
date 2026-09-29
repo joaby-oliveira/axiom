@@ -3,17 +3,18 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"strconv"
+	"strings"
 
 	"github.com/rgomids/axiom/internal/cli"
 	"github.com/rgomids/axiom/internal/codexruntime"
 	"github.com/rgomids/axiom/internal/completion"
+	"github.com/rgomids/axiom/internal/githubissues"
 	"github.com/rgomids/axiom/internal/local"
 	"github.com/rgomids/axiom/internal/manifest"
 	"github.com/rgomids/axiom/internal/project"
@@ -119,14 +120,25 @@ func composeWithProvenance(source provenance.Value) cli.Service {
 	if err != nil {
 		return cli.NewUnavailableService(source)
 	}
-	github, _ := workitem.NewGitHubAdapter(os.Getenv("AXIOM_GIT_BIN"), os.Getenv("AXIOM_GH_BIN"))
-	workItemService := workitem.New(workItemResolver{installation: installation, portable: store}, github, github, workItems)
+	github, githubErr := githubissues.New(os.Getenv("AXIOM_GH_BIN"))
+	var capability workitem.Capability
+	var legacy workitem.LegacyProjection
+	if githubErr == nil {
+		capability = github
+		legacy = github
+	}
+	workItemService := workitem.New(workItemResolver{installation: installation, portable: store}, capability, legacy, workItems, source)
 	workflows, err := local.NewWorkflowStore(state)
 	if err != nil {
 		return cli.NewUnavailableService(source)
 	}
-	workflowService := workflow.New(workflowResolver{installation}, workflowWorkItems{workItemService}, workflows)
-	return lifecycleService{lifecycle: projectapp.NewLifecycle(store, manifest.Codec{}, local.IdentityAllocator{}), portable: store, installation: installation, codex: codex, workItems: workItemService, workflows: workflowService, projectsRoot: root, stateRoot: state, provenance: source}
+	artifacts, err := local.NewArtifactStore(state)
+	if err != nil {
+		return cli.NewUnavailableService(source)
+	}
+	references := local.NewWorkflowReferenceValidator(artifacts)
+	workflowService := workflow.New(workflowResolver{installation}, workflowWorkItems{workItemService}, workflows, github, references, source, nil, nil)
+	return lifecycleService{lifecycle: projectapp.NewLifecycle(store, manifest.Codec{}, local.IdentityAllocator{}), portable: store, installation: installation, codex: codex, workItems: workItemService, workflows: workflowService, projectsRoot: root, stateRoot: state, skillsRoot: codexSkillsRoot(), runtimes: discoverRuntimeRoots(), provenance: source}
 }
 
 func codexSkillsRoot() string {
@@ -176,6 +188,8 @@ type lifecycleService struct {
 	workflows              workflow.Service
 	projectsRoot           string
 	stateRoot              string
+	skillsRoot             string
+	runtimes               runtimeRoots
 	provenance             provenance.Value
 	beforeLocalPublication func()
 }
@@ -203,7 +217,7 @@ func (r workItemResolver) Resolve(ctx context.Context, selector string) (workite
 	if !providersConfigured || !integrationsConfigured || !githubWorkItemCapability(providers, integrations) {
 		return workitem.Project{}, "work_item_capability_unavailable"
 	}
-	project := workitem.Project{ID: resolved.Project.ID, Repositories: make([]workitem.Repository, 0, len(resolved.Project.Repositories))}
+	project := workitem.Project{ID: resolved.Project.ID, Provider: "github", Repositories: make([]workitem.Repository, 0, len(resolved.Project.Repositories))}
 	for _, repository := range resolved.Project.Repositories {
 		project.Repositories = append(project.Repositories, workitem.Repository{Key: repository.Key, Path: repository.Path})
 	}
@@ -247,42 +261,36 @@ func (r workflowResolver) Resolve(ctx context.Context, selector string) (workflo
 	return project, ""
 }
 
-func (w workflowWorkItems) Available(ctx context.Context, project, repository string, number int) bool {
-	result := w.service.Show(ctx, workitem.Target{ProjectSelector: project, RepositoryKey: repository}, number)
-	return result.Status == workitem.Succeeded && result.Link.State == "OPEN"
-}
-
-func (w workflowWorkItems) Complete(ctx context.Context, project, repository string, number int, authorized bool) workflow.WorkItemCompletion {
-	result := w.service.Complete(ctx, workitem.Target{ProjectSelector: project, RepositoryKey: repository}, number, authorized)
-	return workflow.WorkItemCompletion{
-		Category: result.Category,
-		WorkItem: workflow.WorkItem{
-			ProjectID:          result.Link.ProjectID,
-			RepositoryKey:      result.Link.RepositoryKey,
-			ProviderRepository: result.Link.ProviderRepository,
-			Number:             result.Link.Number,
-			URL:                result.Link.URL,
-			State:              result.Link.State,
-		},
+func (w workflowWorkItems) Load(ctx context.Context, project, repository, provider, resource, selector string) (workflow.WorkItem, error) {
+	if provider != "" && provider != "github" {
+		return workflow.WorkItem{}, workitem.ErrNotFound
 	}
+	result := w.service.Show(ctx, workitem.Target{ProjectSelector: project, RepositoryKey: repository, ProviderResource: resource}, selector)
+	if result.Status != workitem.Succeeded {
+		return workflow.WorkItem{}, workitem.ErrNotFound
+	}
+	return workflow.WorkItem{Provider: result.Link.Provider, Resource: result.Link.Resource, ExternalID: result.Link.ExternalID, URL: result.Link.URL, State: result.Link.State}, nil
 }
 
 func (s lifecycleService) RuntimeCodexInstall(ctx context.Context) cli.Result {
 	return runtimeResult(s.codex.Install(ctx))
 }
 func (s lifecycleService) RuntimeCodexStatus(ctx context.Context) cli.Result {
-	result := s.codex.Inspect(ctx)
+	return runtimeStatus(s.codex.Inspect(ctx), "Codex", "codex", s.provenance)
+}
+
+func runtimeStatus(result codexruntime.Result, label, id string, source provenance.Value) cli.Result {
 	if result.Status == codexruntime.Ready {
-		response := canonicalCompletion(completion.Facts{Completed: true}, "Lingo and Codex skills are compatible", []string{"skill-set:" + result.SkillSetVersion}, "Run project configure with explicit Project inputs", s.provenance)
+		response := canonicalCompletion(completion.Facts{Completed: true}, "Lingo and "+label+" skills are compatible", []string{"skill-set:" + result.SkillSetVersion}, "Run project configure with explicit Project inputs", source)
 		response.Runtime = runtimeView(result)
 		return response
 	}
 	if result.Status == codexruntime.Incompatible || result.Status == codexruntime.Missing || result.Status == codexruntime.Partial {
-		response := canonicalCompletion(completion.Facts{ValidationFailed: true}, "Codex skill compatibility is not ready", nil, "Run runtime codex install, then project configure", s.provenance)
+		response := canonicalCompletion(completion.Facts{ValidationFailed: true}, label+" skill compatibility is not ready", nil, "Run runtime "+id+" install, then project configure", source)
 		response.Runtime = runtimeView(result)
 		return response
 	}
-	response := canonicalCompletion(completion.Facts{Failed: true}, "Codex compatibility inspection failed", nil, "Inspect the configured Codex skill root", s.provenance)
+	response := canonicalCompletion(completion.Facts{Failed: true}, label+" compatibility inspection failed", nil, "Inspect the configured "+label+" skill root", source)
 	response.Runtime = runtimeView(result)
 	return response
 }
@@ -363,7 +371,9 @@ func (s lifecycleService) Show(ctx context.Context, input cli.ResolveInput) cli.
 	for _, repository := range result.Project.Repositories {
 		references = append(references, "repository:"+repository.Key)
 	}
-	return canonicalCompletion(completion.Facts{Completed: true}, "Project resolved", references, "", s.provenance)
+	response := canonicalCompletion(completion.Facts{Completed: true}, "Project resolved", references, "", s.provenance)
+	response.Project = projectView(result.Project)
+	return response
 }
 
 func projectShowFailure(category string, source provenance.Value) cli.Result {
@@ -519,81 +529,261 @@ func (s lifecycleService) Configure(ctx context.Context, input cli.ConfigureInpu
 }
 
 func (s lifecycleService) WorkItemCreate(ctx context.Context, input cli.WorkItemInput) cli.Result {
-	return workItemResult(s.workItems.Create(ctx, workitem.Target{ProjectSelector: input.Project, RepositoryKey: input.Repository}, input.Title, input.Body, input.AuthorizeExternal))
+	draft := workitem.DraftInput{
+		Target: workitem.Target{ProjectSelector: input.Project, RepositoryKey: input.Repository, ProviderResource: input.ProviderRepository},
+		Intent: input.Intent, Problem: workitem.SectionInput{Supplied: input.Problem}, DesiredOutcome: workitem.SectionInput{Supplied: input.DesiredOutcome},
+		Context: workitem.SectionInput{Supplied: input.Context}, Scope: workitem.SectionInput{Supplied: input.Scope}, Constraints: workitem.SectionInput{Supplied: input.Constraints},
+		NonGoals: workitem.SectionInput{Supplied: input.NonGoals}, Acceptance: workitem.SectionInput{Supplied: input.Acceptance}, Cancelled: input.Cancelled,
+	}
+	if !input.AuthorizeExternal && input.PreviewDigest == "" {
+		return workItemResult(s.workItems.Prepare(ctx, draft), s.provenance)
+	}
+	return workItemResult(s.workItems.Create(ctx, draft, input.PreviewDigest, input.AuthorizeExternal), s.provenance)
 }
 func (s lifecycleService) WorkItemSelect(ctx context.Context, input cli.WorkItemInput) cli.Result {
-	return workItemResult(s.workItems.Select(ctx, workitem.Target{ProjectSelector: input.Project, RepositoryKey: input.Repository}, input.Number))
+	if input.Provider != "" && input.Provider != "github" {
+		return workItemResult(workitem.Result{Status: completion.ValidationFailure, Category: "invalid_work_item_input"}, s.provenance)
+	}
+	target := workitem.Target{ProjectSelector: input.Project, RepositoryKey: input.Repository, ProviderResource: input.ProviderRepository}
+	if !input.AuthorizeLocal && input.PreviewDigest == "" {
+		return workItemResult(s.workItems.PreviewSelect(ctx, target, workItemExternalID(input)), s.provenance)
+	}
+	return workItemResult(s.workItems.Select(ctx, target, workItemExternalID(input), input.PreviewDigest, input.AuthorizeLocal), s.provenance)
 }
 func (s lifecycleService) WorkItemShow(ctx context.Context, input cli.WorkItemInput) cli.Result {
-	return workItemResult(s.workItems.Show(ctx, workitem.Target{ProjectSelector: input.Project, RepositoryKey: input.Repository}, input.Number))
+	if input.Provider != "" && input.Provider != "github" {
+		return workItemResult(workitem.Result{Status: completion.ValidationFailure, Category: "invalid_work_item_input"}, s.provenance)
+	}
+	return workItemResult(s.workItems.Show(ctx, workitem.Target{ProjectSelector: input.Project, RepositoryKey: input.Repository, ProviderResource: input.ProviderRepository}, workItemExternalID(input)), s.provenance)
 }
 func (s lifecycleService) WorkItemComment(ctx context.Context, input cli.WorkItemInput) cli.Result {
-	return workItemResult(s.workItems.Comment(ctx, workitem.Target{ProjectSelector: input.Project, RepositoryKey: input.Repository}, input.Number, input.Message, input.AuthorizeExternal))
+	if input.Provider != "" && input.Provider != "github" {
+		return workItemResult(workitem.Result{Status: completion.ValidationFailure, Category: "invalid_work_item_input"}, s.provenance)
+	}
+	return workItemResult(s.workItems.Comment(ctx, workitem.Target{ProjectSelector: input.Project, RepositoryKey: input.Repository, ProviderResource: input.ProviderRepository}, workItemExternalID(input), input.Message, input.AuthorizeExternal), s.provenance)
 }
 func (s lifecycleService) WorkItemComplete(ctx context.Context, input cli.WorkItemInput) cli.Result {
-	return workItemResult(s.workItems.Complete(ctx, workitem.Target{ProjectSelector: input.Project, RepositoryKey: input.Repository}, input.Number, input.AuthorizeExternal))
+	if input.Provider != "" && input.Provider != "github" {
+		return workItemResult(workitem.Result{Status: completion.ValidationFailure, Category: "invalid_work_item_input"}, s.provenance)
+	}
+	return workItemResult(s.workItems.Complete(ctx, workitem.Target{ProjectSelector: input.Project, RepositoryKey: input.Repository, ProviderResource: input.ProviderRepository}, workItemExternalID(input), input.AuthorizeExternal), s.provenance)
+}
+
+func workItemExternalID(input cli.WorkItemInput) string {
+	if input.ExternalID != "" {
+		return input.ExternalID
+	}
+	return strconv.Itoa(input.Number)
 }
 
 func workflowTarget(input cli.WorkflowInput) workflow.Target {
-	return workflow.Target{ProjectSelector: input.Project, RepositoryKey: input.Repository, WorkItem: input.Number}
+	externalID := input.ExternalID
+	if externalID == "" {
+		externalID = strconv.Itoa(input.Number)
+	}
+	return workflow.Target{ProjectSelector: input.Project, RepositoryKey: input.Repository, WorkItemProvider: input.Provider, WorkItemResource: input.ProviderRepository, WorkItem: externalID, ExecutionID: input.Execution, RuntimeID: "codex"}
 }
 
 func (s lifecycleService) WorkflowStart(ctx context.Context, input cli.WorkflowInput) cli.Result {
-	return workflowResult(s.workflows.Start(ctx, workflowTarget(input)))
+	return workflowResult(s.workflows.Start(ctx, workflowTarget(input)), s.provenance)
 }
 func (s lifecycleService) WorkflowAdvance(ctx context.Context, input cli.WorkflowInput) cli.Result {
-	return workflowResult(s.workflows.Advance(ctx, workflowTarget(input), input.Gate, input.Outcome, input.Reference, input.AuthorizeExternal))
+	references, ok := workflowReferences(input.Reference)
+	if !ok {
+		return workflowResult(workflow.Result{Status: workflow.ValidationFailed, Category: "invalid_workflow_reference"}, s.provenance)
+	}
+	return workflowResult(s.workflows.Transition(ctx, workflowTarget(input), workflow.TransitionInput{ExpectedRevision: input.ExpectedRevision, Stage: workflow.Stage(input.Gate), Outcome: workflow.Outcome(input.Outcome), References: references, Next: input.Next}), s.provenance)
+}
+func (s lifecycleService) WorkflowFact(ctx context.Context, input cli.WorkflowInput) cli.Result {
+	references, ok := workflowReferences(input.Reference)
+	if !ok || len(references) != 1 {
+		return workflowResult(workflow.Result{Status: workflow.ValidationFailed, Category: "invalid_workflow_reference"}, s.provenance)
+	}
+	kinds := map[string]workflow.LifecycleFactKind{
+		"planning-authority":       workflow.FactPlanningAuthority,
+		"implementation-authority": workflow.FactImplementationAuthority,
+		"review-started":           workflow.FactReviewStarted,
+		"human-acceptance":         workflow.FactHumanAcceptance,
+		"blocked":                  workflow.FactBlocked,
+		"needs-decision":           workflow.FactNeedsDecision,
+		"needs-approval":           workflow.FactNeedsApproval,
+	}
+	kind := kinds[input.Fact]
+	if kind == "" {
+		return workflowResult(workflow.Result{Status: workflow.ValidationFailed, Category: "invalid_lifecycle_fact"}, s.provenance)
+	}
+	return workflowResult(s.workflows.RecordLifecycleFact(ctx, workflowTarget(input), workflow.LifecycleFactInput{ExpectedRevision: input.ExpectedRevision, Kind: kind, Active: input.Active, Reference: references[0]}, input.AuthorizeLocal), s.provenance)
 }
 func (s lifecycleService) WorkflowResume(ctx context.Context, input cli.WorkflowInput) cli.Result {
-	return workflowResult(s.workflows.Resume(ctx, workflowTarget(input)))
+	return workflowResult(s.workflows.Resume(ctx, workflowTarget(input), input.ExpectedRevision), s.provenance)
 }
 func (s lifecycleService) WorkflowStatus(ctx context.Context, input cli.WorkflowInput) cli.Result {
-	return workflowResult(s.workflows.Status(ctx, workflowTarget(input)))
+	return workflowResult(s.workflows.Status(ctx, workflowTarget(input)), s.provenance)
 }
 func (s lifecycleService) WorkflowEvidence(ctx context.Context, input cli.WorkflowInput) cli.Result {
 	result := s.workflows.Status(ctx, workflowTarget(input))
 	if result.Status == workflow.Succeeded {
 		result.Category = "workflow_evidence_ready"
 	}
-	return workflowResult(result)
+	return workflowResult(result, s.provenance)
 }
 
-func workflowResult(result workflow.Result) cli.Result {
-	status := cli.Failed
-	if result.Status == workflow.Succeeded {
-		status = cli.Succeeded
+func (s lifecycleService) WorkflowReconcile(ctx context.Context, input cli.WorkflowInput) cli.Result {
+	if !input.AuthorizeExternal {
+		return workflowResult(s.workflows.PrepareProjection(ctx, workflowTarget(input), input.ExpectedRevision), s.provenance)
 	}
-	response := cli.Result{Status: status, Category: result.Category}
+	return workflowResult(s.workflows.Project(ctx, workflowTarget(input), input.ExpectedRevision, input.PreviewDigest, true), s.provenance)
+}
+
+func workflowReferences(value string) ([]workflow.Reference, bool) {
+	if value == "" {
+		return nil, true
+	}
+	parts := strings.Split(value, ":")
+	if len(parts) != 3 {
+		return nil, false
+	}
+	return []workflow.Reference{{Kind: parts[0], ID: parts[1], Digest: parts[2]}}, true
+}
+
+func workflowResult(result workflow.Result, source provenance.Value) cli.Result {
+	facts := factsForCompletionStatus(result.Status)
+	response := canonicalCompletion(facts, workflowResultText(result), workflowResultReferences(result), workflowResultNext(result), source)
+	response.Category = result.Category
+	response.Projection = result.Preview
 	if result.State.ProjectID != "" {
-		view := &cli.WorkflowView{Status: result.State.Status, RepositoryKey: result.State.RepositoryKey, RepositoryPath: result.State.RepositoryPath, WorkItem: result.State.WorkItem, Steps: make([]cli.WorkflowStepView, 0, len(result.State.Steps))}
-		if result.State.Current < len(result.State.Steps) {
-			view.CurrentGate = result.State.Steps[result.State.Current].Gate
+		view := &cli.WorkflowView{ExecutionID: result.State.ExecutionID, WorkflowVersion: result.State.WorkflowVersion, Status: string(result.State.Status), CurrentGate: string(result.State.Stage), Revision: result.State.Revision, RepositoryKey: result.State.RepositoryKey, RuntimeID: result.State.RuntimeID, WorkItem: cli.WorkItemView{ProjectID: result.State.ProjectID, RepositoryKey: result.State.RepositoryKey, Provider: result.State.WorkItem.Provider, Resource: result.State.WorkItem.Resource, ExternalID: result.State.WorkItem.ExternalID, URL: result.State.WorkItem.URL, State: result.State.WorkItem.State}, Transitions: make([]cli.WorkflowStepView, 0, len(result.State.Transitions))}
+		if lifecycle, err := workflow.DeriveLifecycle(result.State); err == nil {
+			view.LifecycleStage = string(lifecycle.Stage)
+			view.Blocked = lifecycle.Conditions.Blocked
+			view.NeedsDecision = lifecycle.Conditions.NeedsDecision
+			view.NeedsApproval = lifecycle.Conditions.NeedsApproval
 		}
-		for _, step := range result.State.Steps {
-			digest := ""
-			if step.Digest != ([32]byte{}) {
-				digest = hex.EncodeToString(step.Digest[:])
-			}
-			view.Steps = append(view.Steps, cli.WorkflowStepView{Gate: step.Gate, Status: step.Status, Reference: step.Reference, Digest: digest})
+		for _, step := range result.State.Transitions {
+			view.Transitions = append(view.Transitions, cli.WorkflowStepView{Revision: step.Revision, From: string(step.From), To: string(step.To), Outcome: string(step.Outcome), CommittedAt: step.CommittedAt.Format("2006-01-02T15:04:05.999999999Z07:00")})
 		}
 		response.Workflow = view
 	}
-	if result.WorkItem != nil {
-		response.WorkItem = &cli.WorkItemView{ProjectID: result.WorkItem.ProjectID, RepositoryKey: result.WorkItem.RepositoryKey, Repository: result.WorkItem.ProviderRepository, Number: result.WorkItem.Number, URL: result.WorkItem.URL, State: result.WorkItem.State}
+	return response
+}
+
+func workflowResultText(result workflow.Result) string {
+	if result.Category == "workflow_cancelled" {
+		return "Execution workflow operation was cancelled"
+	}
+	if result.Status == workflow.Succeeded {
+		return "Execution workflow operation completed"
+	}
+	if result.Status == workflow.Partial {
+		return "Provider effect confirmed but projection bookkeeping is incomplete"
+	}
+	if result.Status == workflow.Retryable {
+		return "Provider projection requires bounded reconciliation"
+	}
+	if result.Status == workflow.Denied {
+		return "Execution authority is stale or incomplete"
+	}
+	if result.Status == workflow.Interrupted {
+		return "Execution remains at the current workflow stage"
+	}
+	return "Execution workflow operation did not complete"
+}
+func workflowResultReferences(result workflow.Result) []string {
+	refs := []string{}
+	if result.State.ExecutionID != "" {
+		refs = append(refs, "execution:"+result.State.ExecutionID)
+	}
+	if result.State.WorkItem.URL != "" && result.Status == workflow.Partial {
+		refs = append(refs, "provider:"+result.State.WorkItem.URL)
+	}
+	return refs
+}
+func workflowResultNext(result workflow.Result) string {
+	if result.Category == "workflow_cancelled" {
+		return "Read current Execution status before retrying"
+	}
+	if result.Status == workflow.Partial || result.Status == workflow.Retryable {
+		return "Re-read Provider state and reconcile the same projection key before retrying mutation"
+	}
+	if result.Status == workflow.Denied {
+		return "Read current Execution status and prepare fresh exact authority"
+	}
+	if result.Status == workflow.Interrupted {
+		return "Resume from the exact committed Execution revision"
+	}
+	return ""
+}
+
+func workItemResult(result workitem.Result, source provenance.Value) cli.Result {
+	message, next := workItemResultText(result)
+	facts := factsForCompletionStatus(result.Status)
+	references := []string{}
+	if result.Link.ExternalID != "" {
+		references = append(references, "provider:"+result.Link.Provider+":"+result.Link.Resource+"#"+result.Link.ExternalID)
+	}
+	response := canonicalCompletion(facts, message, references, next, source)
+	response.Category = result.Category
+	response.Draft = result.Draft
+	response.Selection = result.Selection
+	response.Questions = result.Questions
+	if result.Link.ExternalID != "" {
+		response.WorkItem = &cli.WorkItemView{ProjectID: result.Link.ProjectID, RepositoryKey: result.Link.RepositoryKey, Provider: result.Link.Provider, Resource: result.Link.Resource, ExternalID: result.Link.ExternalID, URL: result.Link.URL, State: result.Link.State}
 	}
 	return response
 }
 
-func workItemResult(result workitem.Result) cli.Result {
-	status := cli.Failed
-	if result.Status == workitem.Succeeded {
-		status = cli.Succeeded
+func factsForCompletionStatus(status completion.Status) completion.Facts {
+	switch status {
+	case completion.Success:
+		return completion.Facts{Completed: true}
+	case completion.ValidationFailure:
+		return completion.Facts{ValidationFailed: true}
+	case completion.DeniedAuthority:
+		return completion.Facts{AuthorityDenied: true}
+	case completion.Partial:
+		return completion.Facts{RequestedEffectConfirmed: true, SecondaryFailure: true}
+	case completion.Interrupted:
+		return completion.Facts{WasInterrupted: true}
+	case completion.RetryableFailure:
+		return completion.Facts{RetrySafeFailure: true}
+	default:
+		return completion.Facts{Failed: true}
 	}
-	response := cli.Result{Status: status, Category: result.Category}
-	if result.Link.Number > 0 {
-		response.WorkItem = &cli.WorkItemView{ProjectID: result.Link.ProjectID, RepositoryKey: result.Link.RepositoryKey, Repository: result.Link.ProviderRepository, Number: result.Link.Number, URL: result.Link.URL, State: result.Link.State}
+}
+
+func workItemResultText(result workitem.Result) (string, string) {
+	switch result.Category {
+	case "work_item_draft_ready":
+		return "Work Item draft ready for review", "Repeat create with this preview digest and explicit external authority"
+	case "draft_incomplete":
+		return "Work Item intent is incomplete", "Provide answers only for the listed missing fields"
+	case "draft_cancelled", "create_cancelled":
+		return "Work Item operation cancelled", "Resume with the same explicit inputs when ready"
+	case "work_item_selection_ready":
+		return "GitHub Work Item selection ready for review", "Repeat select with this preview digest and explicit local authority"
+	case "external_authority_denied", "local_authority_denied", "external_mutation_denied":
+		return "Work Item authority denied", "Review the exact preview and grant only the required authority"
+	case "work_item_linked", "work_item_already_linked":
+		return "GitHub Work Item linked", "Inspect the local Work Item link before starting later workflow work"
+	case "work_item_loaded":
+		return "Work Item link loaded", "Use only separately authorized later operations"
+	case "work_item_commented":
+		return "Historical Work Item comment completed", "Treat this as POC behavior until the later Slice replaces it"
+	case "work_item_completed":
+		return "Historical Work Item completion completed", "Treat this as POC behavior until the later Slice replaces it"
+	case "provider_create_ambiguous":
+		return "GitHub create result is ambiguous", "Repeat the same reviewed draft to reconcile only; Axiom will not create again while the durable attempt is pending"
+	case "provider_rate_limited", "provider_unavailable":
+		return "GitHub capability is temporarily unavailable", "Retry the same operation after provider recovery"
+	case "local_create_attempt_recovery_required", "local_create_attempt_conflict", "local_create_attempt_failed":
+		return "Create-attempt state is not safely writable", "Inspect protected local state; no GitHub create was issued by this execution"
+	case "work_item_ambiguous":
+		return "Work Item identity is ambiguous", "Specify and reconcile the exact provider resource before continuing"
+	case "provider_confirmed_local_failed", "provider_confirmed_local_conflict", "provider_confirmed_local_recovery_required", "provider_confirmed_local_read_failed", "provider_confirmed_create_attempt_recovery_required", "local_link_committed_recovery_required":
+		return "GitHub effect confirmed but local linkage is incomplete", "Preserve the Issue reference and reconcile local linkage before retrying create"
+	default:
+		return "Work Item operation did not complete", "Review bounded validation details and retry safely"
 	}
-	return response
 }
 
 func cliResult(result projectapp.LifecycleResult) cli.Result {

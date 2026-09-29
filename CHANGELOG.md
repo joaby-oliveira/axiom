@@ -1,7 +1,302 @@
 # Changelog
 
+## [0.1.1](https://github.com/rgomids/axiom/compare/v0.1.0...v0.1.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **install:** accept any Linux distribution on amd64/arm64 ([#112](https://github.com/rgomids/axiom/issues/112)) ([6994a80](https://github.com/rgomids/axiom/commit/6994a807201b045bc93946a21846995a98c0fa70))
+
+## 0.1.0 (2026-09-28)
+
+
+### Bug Fixes
+
+* **release:** handle failed Release Please output safely ([#109](https://github.com/rgomids/axiom/issues/109)) ([ad903b9](https://github.com/rgomids/axiom/commit/ad903b96b0220ce866b4362af32fdcb877f1e704))
+* **release:** skip CI dispatch when no Release PR exists ([#108](https://github.com/rgomids/axiom/issues/108)) ([320abcf](https://github.com/rgomids/axiom/commit/320abcf9e58d07bd91fe2772e7d8b2829da7639c))
+
+## [2026-09-28]
+
+- ci/release: adopt GitHub Flow with a release-gated `main`. `ci.yml`
+  (formerly the POC verification workflow) runs on every PR and push to
+  `main` with stable required checks `verify (linux)`, `verify (macos)` and
+  `release-contract`. Release Please maintains the Release PR
+  (`CHANGELOG.md`, `.release-please-manifest.json`) and never tags or
+  releases. `publish-release.yml` is the only publication path: manual
+  dispatch from `main`, protected `release` environment, re-verification of
+  the prepared set, draft, asset read-back, single publication (RC prerelease, stable `latest` only
+  when highest) and convergent reruns. Publication has two phases: the
+  prepare workflow (`release-artifacts.yml`) builds and verifies the exact
+  set, `release.sh` prints its publication envelope, a human authorizes that
+  envelope digest, and `publish-release.yml` publishes the same prepared bytes
+  only if its recomputed envelope matches; it never rebuilds. New
+  `scripts/release-preflight.sh`, `verify-prepared-release.sh`,
+  `release-notes.sh`, `publish-release.sh`, `release.sh` and
+  `test-release-flow.sh`; maintainer skill `$axiom-release`; `CODEOWNERS`
+  and versioned ruleset desired state. Repository settings changes are
+  documented, not applied, and nothing was published.
+- fix (S9/T40, finding F6): every Runtime installer now recognizes the skill
+  sets Axiom published through the shared Runtime integration as Axiom-owned.
+  After `axiom upgrade` changes the skill text (which it publishes only to the
+  Codex root), the next `axiom first-run` converges Claude from the earlier
+  Axiom revision instead of failing with `claude_skill_conflict`, and refreshes
+  both receipts. Ownership still rests on exact known digests and receipts:
+  modified, foreign or ambiguous skills, older Codex-only revisions in a Claude
+  root, and any skill beside an unrecognized receipt are refused unchanged.
+  The partial `axiom upgrade` next action now names `axiom first-run`.
+- fix (S9/T39, finding F9): the release installer and the owned upgrade accept
+  a pre-existing `--bin-dir` that is a real, user-owned directory without group
+  or other write and without extended ACL, so a usual `0755` `~/.local/bin` no
+  longer refuses the default remote install. Group/other-writable, symlinked,
+  foreign-owned or ACL-bearing directories are still refused; the receipt
+  directory stays `0700`, and the published binary and receipt stay `0700` and
+  `0600`.
+- implementation (S9/T40): `axiom first-run` is now the idempotent Runtime
+  bootstrap. It finds Codex and Claude only by resolving `codex`/`claude` on
+  `PATH` (never running them), installs or upgrades Axiom's user-global skills
+  for each one found, and reports every supported Runtime; no Runtime is
+  success, and any detected Runtime that cannot be configured makes the run fail
+  while keeping the others' results. Claude skills go to
+  `<CLAUDE_CONFIG_DIR or ~/.claude>/skills/<skill>/SKILL.md` with a receipt that
+  records the Runtime, root and skill digests, under the same fail-closed
+  ownership as Codex. New
+  `axiom runtime claude install|status`. The shared skill text is now
+  Runtime-neutral; the previous Codex revision stays recognized as owned.
+  Executable-only discovery, exit codes and partial-success retention are
+  implementation behavior recorded in S9 Evidence, not Specification rules.
+- fix (S9/T40): a Runtime's user-global skill root is accepted when it is a
+  real, user-owned directory that group and other cannot write and that has no
+  extended ACL, so the common Runtime-created `0755` roots
+  (`~/.claude/skills`, `~/.agents/skills`) are configured instead of failing
+  first-run. Group/other-writable roots still fail closed; everything Axiom
+  creates under the root stays `0700`/`0600`.
+- implementation (S9/T37): the canonical public executable is `axiom`. Release
+  archives, `MANIFEST.sha256`, the release installer, the owned upgrade path,
+  and the source installer publish `axiom` (receipts, destinations and staging
+  names follow). Help, recovery/compatibility/upgrade diagnostics, and the five
+  Codex skills invoke `axiom`; the previous skill digests and skill-set receipt
+  stay recognized as owned so existing skill installs upgrade. Internal Lingo
+  packages, `cmd/lingo`, `LINGO_*` variables and state roots are unchanged. A
+  prior `lingo` executable or pre-`axiom` release receipt is preserved, not
+  migrated.
+- implementation (S9/T39): `scripts/install.sh` remote bootstrap installs a
+  published release without checkout or build: latest stable by default (never
+  an RC), `--channel stable`, or an exact `--version vX.Y.Z[-rc.N]`; the two
+  selectors are mutually exclusive. It detects the exact supported row,
+  verifies the archive against the release `SHA256SUMS` before reading it,
+  checks bundle metadata, and runs the bundle's release installer. Release
+  candidates are selected only by exact `--version vX.Y.Z-rc.N` (FR-064);
+  there is no RC channel, and `--channel rc` is an input error with no effect.
+- implementation (S9/T39): `install-release.sh` converges an older owned
+  installation through the verified candidate's protected `axiom upgrade`
+  (preview, exact digest, apply), refuses downgrade and divergent same
+  version, and resumes only an interrupted owned upgrade of the same archive.
+- fix: a refused concurrent `install-release.sh` no longer removes the lock of
+  the running installer, and lock-free refusals (unsafe roots, binary without
+  receipt) happen before any directory is created.
+- implementation (S9/T38): manually dispatched `Release artifacts` workflow
+  prepares the complete macOS 27/arm64, Ubuntu 26.04/amd64 and Ubuntu
+  26.04/arm64 set from one exact clean revision and one tag
+  (`vX.Y.Z` or `vX.Y.Z-rc.N`, recorded as version `X.Y.Z[-rc.N]`), verifies it
+  with `scripts/verify-release-artifacts.sh`, and retains the files plus
+  Evidence as a workflow artifact. Read-only token; no tag, release,
+  prerelease, `latest` or repository effect. Not native acceptance.
+  `scripts/test-release-pipeline.sh` covers the contract.
+- fix: `build-release-archives.sh` builds from its own checkout instead of the
+  caller's working directory.
+- fix: `install-release.sh` read owner, mode and link count with
+  `stat -f ... || stat -c ...`; GNU `stat -f` reports filesystem status, so
+  every Linux install was refused as unsafe. The syntax is now chosen by
+  kernel. Found while exercising the Ubuntu 26.04/amd64 row in an isolated
+  mount namespace; native Ubuntu Evidence remains a T24 obligation.
+- docs: reconcile the Issue #81 S9 release-selection and version policy into
+  Specification 004 FR-064/FR-065, AC-44/AC-46/AC-48, Plan §13 and Tasks
+  T39/T23–T25: stable `vX.Y.Z` and RC `vX.Y.Z-rc.N` tags; latest stable by
+  default and `--channel stable` without RC fallback; exact `--version` pins;
+  release candidates selected only by exact version; mutually exclusive
+  selectors; no automatic downgrade; T24 pins the exact RC. No implementation,
+  release or acceptance authority is implied.
+
+## [2026-09-27]
+
+- implementation: add read-only `lingo runtime profile validate`, with strict
+  argument rejection and sanitized invalid/missing-state failures.
+- evidence: record the native Codex + Claude T36 graph, canonical coordination
+  and concrete integration; S8 is ready for human review on the local candidate.
+  Human acceptance and S9/release authority remain separate.
+
+- fix: structured coordination can publish its first record on a clean local
+  installation. Missing store directories are treated as an empty stream;
+  unsafe directories still fail closed.
+
+- docs: expand MVP S9 from release-candidate validation alone into productization,
+  distribution, Runtime bootstrap and final acceptance. Record the public
+  `axiom` CLI contract, automated supported-platform release artifacts, stable
+  idempotent remote installation with protected owned upgrade, Codex + Claude
+  first-run bootstrap, and Axiom self-dogfooding before historical T23–T25.
+- docs: propose T37–T40 ahead of T23–T25 while preserving historical Task IDs and
+  keeping S9 implementation, Runtime/Provider effects, release publication and
+  final MVP acceptance separately gated.
+
+## [2026-09-26]
+
+- implementation: explicit Evidence retirement (HD-S7-T18). `lingo artifact
+  retire` previews, then with exact authority publishes
+  `artifacts/v1/retirements/<id>.json`, which is separate from metadata v1.
+  Cleanup makes Evidence eligible 365 days after a valid retirement bound to
+  the exact revision. Referenced, stale, corrupt, or missing retirements
+  preserve Evidence, and a re-reference supersedes the retirement.
+- docs: close S7 technically. T22 is complete under the revised S7 scope
+  (HD-S7-T22). The Ubuntu 26.04 native rows were not executed; they are
+  deferred to the T24 clean-environment RC acceptance matrix and remain
+  mandatory there.
+- implementation: `lingo upgrade` publishes the candidate's verified Codex skill
+  files after the binary and receipt. Each file needs an expected digest,
+  owned content, and the skill-set lock, and takes part in preview, authority,
+  the ledger, interruption, and resume. When skill files change, the
+  skill-set receipt is left for the upgraded binary and reported as
+  `refresh_required`.
+- governance: Codex and Claude are both maintainer runtimes. `AGENTS.md`
+  stays the single agent policy; the only allowed runtime bootstrap is a root
+  `CLAUDE.md` containing exactly `@AGENTS.md`, enforced by
+  `scripts/check-claude-bootstrap.sh`. This is not S8 product multi-runtime
+  orchestration.
+- fix: the S7 native suite no longer aborts on a clean checkout under macOS
+  bash 3.2, and asserts the runtime status result correctly.
+
+- implementation: deliver authorized MVP S7 (T16–T22) maintenance paths:
+  read-only `compatibility inspect`; separately authorized POC `compatibility
+  backup` and portable `compatibility export`; reference-aware `artifact
+  cleanup`; guided `recovery inspect|apply`; and owned `upgrade` with ordered,
+  individually confirmed binary/receipt effects and resumable partial state.
+- implementation: classify persisted state with the real v1 decoders and a
+  frozen `v0.1.0-poc.1` workflow signature; fixtures are produced by the
+  historical tag binary via `scripts/generate-poc-fixture.sh`.
+- fix: recognize the `v0.1.0-poc.1` `axiom-work-item-create` skill as a known
+  legacy Axiom skill; its digest was omitted when the skill changed in S3.
+- fix: build release archives with `COPYFILE_DISABLE=1` so macOS `tar` does not
+  embed AppleDouble `._*` entries that are absent from `MANIFEST.sha256`.
+- security: every maintenance mutation requires the exact current preview
+  digest; uncertain, mixed, unsafe, or contradictory state is preserved; the
+  inventory never opens non-regular files; Evidence artifacts are not
+  age-eligible without a recorded retirement time.
+- test: add S7 compatibility, transfer, cleanup, recovery, upgrade, black-box,
+  `scripts/test-s7-security.sh`, and `scripts/test-s7-native.sh` coverage.
+
+## [2026-09-24]
+
+- implementation: deliver authorized MVP S6 (T26–T29) with a ten-stage Work
+  Item lifecycle derived from canonical Execution gates and revisioned local
+  facts, without persisting a second state machine.
+- implementation: extend exact GitHub projection with one lifecycle label,
+  independent bounded flags, reference-first history, strict drift detection,
+  and legacy S4-label recognition while preserving foreign content.
+- implementation: add the strict provider-neutral `work-item-metadata` policy
+  contract, deterministic resolution and adapter-owned GitHub effect previews;
+  add read-only missing-local-state classification and exact ADR-0007 generation
+  recovery plans without synthesizing Execution truth.
+- security: require exact revisions, validated references, explicit local fact
+  authority, digest-bound Provider previews, and fresh exact recovery authority;
+  Provider, Repository, CI, merge, review, and Issue state grant no workflow or
+  human-acceptance authority.
+- test: add lifecycle/fact/flag/drift, metadata schema/precedence/capability,
+  reconciliation, adapter, CLI, black-box, and backward-compatibility coverage.
+
+- fix: enforce long-form flags uniformly across Project, Work Item create, and
+  existing strict selector parsers; preserve repeatable configuration repositories
+  and return canonical selector failures before prompts or application dispatch.
+
+- fix: preserve operation-specific `setup`, `project`, `draft`, `selection`,
+  `workItem`, `workflow`, and `projection` payloads separately from canonical
+  completion in installed Codex skills; restore the resolved Project payload in
+  `project show` without allowing nested data to synthesize canonical fields.
+
+## [2026-09-23]
+
+- fix: require installed Codex skills to copy only canonical top-level completion
+  fields, omit absent fields, and never reinterpret operation payloads as
+  `details`; preserve controlled upgrade from the prior Axiom-owned v2 digests.
+- fix: reject unsupported single-hyphen selector flags before Go `flag.FlagSet`
+  parsing so duplicate or mixed `-project`/`--project` and `-execution` forms
+  cannot silently overwrite prior values or reach application/store/Provider code.
+- test: prove the seven canonical completion statuses preserve result, applicable
+  references/next/details, and provenance from central completion through CLI JSON
+  to the Codex-facing contract; add an ambiguous Project-slug fixture with zero
+  portable, local, Provider, or Runtime effects.
+- implementation: add the authorized MVP S5 strict selector path for exact
+  Project UUID/slug, Project-scoped Repository, canonical GitHub Work Item, and
+  applicable Execution identity without CWD/Git/Provider/Runtime fallback.
+- implementation: evolve the five installed Codex skills to skill set v2 and
+  binary compatibility v2 as thin `lingo --json` adapters over canonical
+  completion, provenance, authorship, detail-reference, and authority semantics.
+- security: reject unknown, duplicate, conflicting, malformed, and shell-like
+  selector input before application dispatch; exact Work Item and Execution
+  references are revalidated against protected local state before any operation.
+- test: add missing-only/zero-question prompt counts, UUID/slug equivalence,
+  Repository/Work Item/Execution scoping, unrelated-CWD black-box, zero-effect
+  failure ledger, detail-reference rendering, skill compatibility, and bounded
+  real Codex Runtime observations using isolated roots and no Provider mutation.
+- evidence: record S5 deterministic and real Runtime Evidence without claiming
+  human acceptance, Provider authority, release readiness, or S6 authority.
+
+- implementation: complete the deterministic implementation scope of authorized
+  MVP S4 (T10–T13) with a closed bounded machine-local Execution record, exact
+  revision transitions, interruption/resume, validated artifact/Evidence
+  references, and local-only completion truth.
+- implementation: add preview-digest-bound GitHub stage/comment projection with
+  stable per-revision keys, Axiom-owned label replacement, non-Axiom preservation,
+  bounded reinspection, intended/confirmed effect bookkeeping, and reconcile-first
+  ambiguity handling; GitHub Issue closure is not part of workflow completion.
+- test: add application, protected-store, F0–F8, two-process barrier/crash,
+  GitHub adapter, CLI black-box, and installed-binary dogfood coverage for one
+  winning revision, stale authority, replay, Provider failures, no duplicate
+  comment, and truthful partial outcomes.
+- evidence: record deterministic S4 Evidence. The required bounded real-provider
+  projection observation remains behind separate exact human authority; no human
+  acceptance or S5+ authority is inferred.
+- fix: bind projection authority to exact Provider/resource and observed Issue
+  identity, URL, state, labels, and comment presence so external Issue-state
+  changes invalidate stale authority before Provider effects.
+- fix: reconcile previously intended Provider effects into the local
+  Intended/Confirmed ledger before planning new mutations, allowing a confirmed
+  effect plus bookkeeping failure to converge without duplicate mutation.
+
+- fix: reserve a protected durable create-attempt fence before GitHub POST;
+  ambiguous or unknown outcomes now remain reconciliation-only across process
+  restarts, preventing automatic duplicate creation.
+- fix: key new local Work Item records by provider, resource, and external ID
+  while retaining exact validated reads and updates for legacy v1 records;
+  unqualified same-number collisions fail closed.
+- docs: reconcile T08/T09 and S3 status with the completed bounded real-provider
+  observation while preserving current human-review, human-acceptance, and
+  T10/S4+ gates.
+
 ## [2026-09-22]
 
+- implementation: complete the deterministic implementation scope of the
+  authorized MVP S3 boundary (T08–T09) with a
+  provider-neutral, authorship-preserving Intent draft; deterministic missing-field
+  interview; reviewed digest; exact GitHub create/select authority; and generic
+  protected local Work Item linkage.
+- security: keep draft preview read-only, reject bounded secret/control/oversized
+  input before effects, pass untrusted Issue content through JSON stdin, bound
+  provider time/output, validate exact GitHub identity/state, and reconcile by
+  correlation before every retry boundary to prevent blind duplicate creation.
+- test: add unit, adapter, integration, CLI, and executable black-box coverage for
+  question minimization, cancellation/denial, provenance, metacharacters, stale
+  local revision, timeout/output/rate-limit/ambiguous responses, duplicate
+  prevention, truthful confirmed-provider/local-failure partial results, and the
+  bounded installed-binary dogfood journey through the reviewed S3 draft.
+- fix: preserve the existing Work Item `formatVersion: 1` wire identity while
+  mapping it to provider-neutral domain fields; reject providers and external IDs
+  that the GitHub-specific v1 adapter cannot represent before writing.
+- fix: classify GitHub adapter failures from bounded `gh api --include` HTTP
+  metadata: authentication and deterministic 4xx failures are non-retryable,
+  rate limits and 5xx failures are explicit retry boundaries, and unknown CLI
+  failures fail closed without retry.
+- evidence: complete the mandatory bounded T09 real-provider observation under
+  exact per-run authority with one GitHub Issue create and one protected local
+  Work Item link; this does not imply human acceptance.
 - docs: make the repository agent an explicit contributor governed by the
   canonical contribution workflow and Pull Request template.
 - docs: establish the English README as the stable canonical landing page, add

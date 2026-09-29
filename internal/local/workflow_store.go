@@ -7,10 +7,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/rgomids/axiom/internal/project"
 	"github.com/rgomids/axiom/internal/workflow"
@@ -21,21 +21,23 @@ type WorkflowStore struct {
 	hooks publicationHooks
 }
 
-type workflowDTO struct {
-	FormatVersion  int               `json:"formatVersion"`
-	ProjectID      string            `json:"projectId"`
-	RepositoryKey  string            `json:"repositoryKey"`
-	RepositoryPath string            `json:"repositoryPath"`
-	WorkItem       int               `json:"workItem"`
-	Status         string            `json:"status"`
-	Current        int               `json:"current"`
-	Steps          []workflowStepDTO `json:"steps"`
-}
-type workflowStepDTO struct {
-	Gate      string `json:"gate"`
-	Status    string `json:"status"`
-	Reference string `json:"reference,omitempty"`
-	Digest    string `json:"digest,omitempty"`
+type executionDTO struct {
+	FormatVersion   int                         `json:"formatVersion"`
+	ExecutionID     string                      `json:"executionId"`
+	WorkflowVersion string                      `json:"workflowVersion"`
+	ProjectID       string                      `json:"projectId"`
+	RepositoryKey   string                      `json:"repositoryKey"`
+	WorkItem        workflow.WorkItem           `json:"workItem"`
+	RuntimeID       string                      `json:"runtimeId"`
+	Stage           workflow.Stage              `json:"stage"`
+	Revision        uint64                      `json:"revision"`
+	Status          workflow.ExecutionStatus    `json:"status"`
+	Transitions     []workflow.Transition       `json:"transitions"`
+	CreatedAt       string                      `json:"createdAt"`
+	UpdatedAt       string                      `json:"updatedAt"`
+	Provenance      workflow.Identity           `json:"provenance"`
+	Terminal        *workflow.Terminal          `json:"terminal,omitempty"`
+	Projections     []workflow.ProjectionRecord `json:"projections"`
 }
 
 func NewWorkflowStore(root string) (WorkflowStore, error) {
@@ -52,6 +54,7 @@ func NewWorkflowStore(root string) (WorkflowStore, error) {
 func (s WorkflowStore) Create(ctx context.Context, state workflow.State) error {
 	return s.write(ctx, state, true)
 }
+
 func (s WorkflowStore) Save(ctx context.Context, state workflow.State) error {
 	return s.write(ctx, state, false)
 }
@@ -60,190 +63,189 @@ func (s WorkflowStore) write(ctx context.Context, state workflow.State, create b
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	wire, err := encodeWorkflow(state)
+	wire, err := encodeExecution(state)
 	if err != nil {
-		return ErrUnsafe
+		return workflowStoreError(err)
 	}
-	root, workflows, projectRoot, err := s.openProject(state.ProjectID, true)
+	root, executions, version, projectRoot, err := s.openProject(state.ProjectID, true)
 	if err != nil {
-		return err
+		return workflowStoreError(err)
 	}
 	defer root.Close()
-	defer workflows.Close()
+	defer executions.Close()
+	defer version.Close()
 	defer projectRoot.Close()
-	locks, err := lockRoots(true, root, workflows, projectRoot)
+	locks, err := lockRoots(true, root, executions, version, projectRoot)
 	if err != nil {
-		return err
+		return workflowStoreError(err)
 	}
 	defer closeFiles(locks)
-	name := workflowName(state.RepositoryKey, state.WorkItem)
+	name := executionName(state.RepositoryKey, state.WorkItem)
 	var expected []byte
 	if !create {
 		expected, err = readPublishedFile(projectRoot, name)
 		if err != nil {
-			return err
+			return workflowStoreError(err)
 		}
-		if state.Revision == ([32]byte{}) || sha256.Sum256(expected) != state.Revision {
-			return ErrConflict
+		if state.StorageRevision == ([sha256.Size]byte{}) || sha256.Sum256(expected) != state.StorageRevision {
+			return workflowStoreError(ErrConflict)
 		}
 	}
-	err = publishFile(ctx, projectRoot, name, expected, wire, create, s.hooks)
-	return workflowStoreError(err)
+	return workflowStoreError(publishFile(ctx, projectRoot, name, expected, wire, create, s.hooks))
 }
 
-func (s WorkflowStore) Load(ctx context.Context, projectID, repositoryKey string, workItem int) (workflow.State, error) {
+func (s WorkflowStore) Load(ctx context.Context, projectID, repositoryKey string, item workflow.WorkItem) (workflow.State, error) {
 	if err := ctx.Err(); err != nil {
 		return workflow.State{}, err
 	}
-	if !validWorkflowAddress(projectID, repositoryKey, workItem) {
-		return workflow.State{}, ErrUnsafe
+	if !validExecutionAddress(projectID, repositoryKey, item) {
+		return workflow.State{}, workflowStoreError(ErrUnsafe)
 	}
-	root, workflows, projectRoot, err := s.openProject(projectID, false)
-	if err != nil {
-		return workflow.State{}, err
-	}
-	defer root.Close()
-	defer workflows.Close()
-	defer projectRoot.Close()
-	locks, err := lockRoots(false, root, workflows, projectRoot)
-	if err != nil {
-		return workflow.State{}, err
-	}
-	defer closeFiles(locks)
-	wire, err := readPublishedFile(projectRoot, workflowName(repositoryKey, workItem))
+	root, executions, version, projectRoot, err := s.openProject(projectID, false)
 	if err != nil {
 		return workflow.State{}, workflowStoreError(err)
 	}
-	state, err := decodeWorkflow(wire)
-	if err == nil {
-		state.Revision = sha256.Sum256(wire)
+	defer root.Close()
+	defer executions.Close()
+	defer version.Close()
+	defer projectRoot.Close()
+	locks, err := lockRoots(false, root, executions, version, projectRoot)
+	if err != nil {
+		return workflow.State{}, workflowStoreError(err)
 	}
-	return state, err
+	defer closeFiles(locks)
+	wire, err := readPublishedFile(projectRoot, executionName(repositoryKey, item))
+	if err != nil {
+		return workflow.State{}, workflowStoreError(err)
+	}
+	state, err := decodeExecution(wire)
+	if err != nil {
+		return workflow.State{}, workflowStoreError(err)
+	}
+	if state.ProjectID != projectID || state.RepositoryKey != repositoryKey || state.WorkItem != item {
+		return workflow.State{}, workflowStoreError(ErrUnsafe)
+	}
+	state.StorageRevision = sha256.Sum256(wire)
+	return state, nil
 }
 
-func workflowStoreError(err error) error {
-	if errors.Is(err, ErrRecoveryRequired) {
-		return errors.Join(err, workflow.ErrRecoveryRequired)
-	}
-	return err
-}
-
-func (s WorkflowStore) openProject(projectID string, create bool) (*os.Root, *os.Root, *os.Root, error) {
+func (s WorkflowStore) openProject(projectID string, create bool) (*os.Root, *os.Root, *os.Root, *os.Root, error) {
 	openRoot := existingPrivateRoot
+	openChild := existingPrivateChild
 	if create {
 		openRoot = privateRoot
+		openChild = privateChild
 	}
 	root, err := openRoot(s.root)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	openChild := existingPrivateChild
-	if create {
-		openChild = privateChild
-	}
-	workflows, err := openChild(root, "workflows")
+	executions, err := openChild(root, "executions")
 	if err != nil {
 		root.Close()
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	projectRoot, err := openChild(workflows, projectID)
+	version, err := openChild(executions, "v1")
 	if err != nil {
-		workflows.Close()
+		executions.Close()
 		root.Close()
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	return root, workflows, projectRoot, nil
+	projectRoot, err := openChild(version, projectID)
+	if err != nil {
+		version.Close()
+		executions.Close()
+		root.Close()
+		return nil, nil, nil, nil, err
+	}
+	return root, executions, version, projectRoot, nil
 }
 
-func encodeWorkflow(state workflow.State) ([]byte, error) {
-	if !validWorkflowState(state) {
+func encodeExecution(state workflow.State) ([]byte, error) {
+	if !workflow.ValidState(state) {
 		return nil, ErrUnsafe
 	}
-	dto := workflowDTO{FormatVersion: 1, ProjectID: state.ProjectID, RepositoryKey: state.RepositoryKey, RepositoryPath: state.RepositoryPath, WorkItem: state.WorkItem, Status: state.Status, Current: state.Current, Steps: make([]workflowStepDTO, len(state.Steps))}
-	for index, step := range state.Steps {
-		digest := ""
-		if step.Digest != ([32]byte{}) {
-			digest = hex.EncodeToString(step.Digest[:])
-		}
-		dto.Steps[index] = workflowStepDTO{step.Gate, step.Status, step.Reference, digest}
+	dto := executionDTO{
+		FormatVersion: state.FormatVersion, ExecutionID: state.ExecutionID, WorkflowVersion: state.WorkflowVersion,
+		ProjectID: state.ProjectID, RepositoryKey: state.RepositoryKey, WorkItem: state.WorkItem,
+		RuntimeID: state.RuntimeID, Stage: state.Stage, Revision: state.Revision, Status: state.Status,
+		Transitions: state.Transitions, CreatedAt: state.CreatedAt.UTC().Format(timeFormat), UpdatedAt: state.UpdatedAt.UTC().Format(timeFormat),
+		Provenance: state.Provenance, Terminal: state.Terminal, Projections: state.Projections,
 	}
 	wire, err := json.Marshal(dto)
-	return append(wire, '\n'), err
+	if err != nil || len(wire)+1 > MaxRecordBytes {
+		return nil, ErrUnsafe
+	}
+	return append(wire, '\n'), nil
 }
 
-func decodeWorkflow(wire []byte) (workflow.State, error) {
-	decoder := json.NewDecoder(io.LimitReader(bytes.NewReader(wire), MaxRecordBytes+1))
-	decoder.DisallowUnknownFields()
-	var dto workflowDTO
-	if err := decoder.Decode(&dto); err != nil {
-		return workflow.State{}, err
-	}
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) || dto.FormatVersion != 1 {
+const timeFormat = "2006-01-02T15:04:05.999999999Z07:00"
+
+func decodeExecution(wire []byte) (workflow.State, error) {
+	if len(wire) == 0 || len(wire) > MaxRecordBytes {
 		return workflow.State{}, ErrUnsafe
 	}
-	state := workflow.State{ProjectID: dto.ProjectID, RepositoryKey: dto.RepositoryKey, RepositoryPath: dto.RepositoryPath, WorkItem: dto.WorkItem, Status: dto.Status, Current: dto.Current, Steps: make([]workflow.Step, len(dto.Steps))}
-	for index, step := range dto.Steps {
-		var digest [32]byte
-		if step.Digest != "" {
-			decoded, err := hex.DecodeString(step.Digest)
-			if err != nil || len(decoded) != len(digest) {
-				return workflow.State{}, ErrUnsafe
-			}
-			copy(digest[:], decoded)
-		}
-		state.Steps[index] = workflow.Step{Gate: step.Gate, Status: step.Status, Reference: step.Reference, Digest: digest}
+	decoder := json.NewDecoder(io.LimitReader(bytes.NewReader(wire), MaxRecordBytes+1))
+	decoder.DisallowUnknownFields()
+	var dto executionDTO
+	if err := decoder.Decode(&dto); err != nil {
+		return workflow.State{}, ErrUnsafe
 	}
-	if !validWorkflowState(state) {
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return workflow.State{}, ErrUnsafe
+	}
+	created, err := parseExecutionTime(dto.CreatedAt)
+	if err != nil {
+		return workflow.State{}, ErrUnsafe
+	}
+	updated, err := parseExecutionTime(dto.UpdatedAt)
+	if err != nil {
+		return workflow.State{}, ErrUnsafe
+	}
+	state := workflow.State{
+		ExecutionID: dto.ExecutionID, FormatVersion: dto.FormatVersion, WorkflowVersion: dto.WorkflowVersion,
+		ProjectID: dto.ProjectID, RepositoryKey: dto.RepositoryKey, WorkItem: dto.WorkItem, RuntimeID: dto.RuntimeID,
+		Stage: dto.Stage, Revision: dto.Revision, Status: dto.Status, Transitions: dto.Transitions,
+		CreatedAt: created, UpdatedAt: updated, Provenance: dto.Provenance, Terminal: dto.Terminal, Projections: dto.Projections,
+	}
+	if !workflow.ValidState(state) {
 		return workflow.State{}, ErrUnsafe
 	}
 	return state, nil
 }
 
-func validWorkflowState(state workflow.State) bool {
-	if !validWorkflowAddress(state.ProjectID, state.RepositoryKey, state.WorkItem) || !filepath.IsAbs(state.RepositoryPath) || len(state.Steps) != len(workflow.Gates) || state.Current < 0 || state.Current > len(state.Steps) {
-		return false
-	}
-	if state.Status != "active" && state.Status != "interrupted" && state.Status != "completed" {
-		return false
-	}
-	for index, step := range state.Steps {
-		if step.Gate != workflow.Gates[index] || step.Status != "pending" && step.Status != "passed" && step.Status != "failed" {
-			return false
-		}
-		if step.Gate == "completion" {
-			if step.Reference != "" || step.Digest != ([32]byte{}) || step.Status == "failed" {
-				return false
-			}
-		} else if step.Status == "pending" {
-			if (step.Reference == "") != (step.Digest == ([32]byte{})) {
-				return false
-			}
-		} else if step.Reference == "" || step.Digest == ([32]byte{}) {
-			return false
-		}
-		if index < state.Current && step.Status != "passed" {
-			return false
-		}
-		if index > state.Current && step.Status != "pending" {
-			return false
-		}
-	}
-	if state.Status == "completed" {
-		return state.Current == len(state.Steps)
-	}
-	if state.Current == len(state.Steps) {
-		return false
-	}
-	if state.Status == "active" {
-		return state.Steps[state.Current].Status == "pending"
-	}
-	return state.Steps[state.Current].Status == "failed"
+func parseExecutionTime(value string) (time.Time, error) {
+	return time.Parse(timeFormat, value)
 }
 
-func validWorkflowAddress(projectID, repositoryKey string, workItem int) bool {
-	return len(project.ValidateIdentity(projectID, "workflow")) == 0 && project.ValidSlug(repositoryKey) && workItem > 0
+func validExecutionAddress(projectID, repositoryKey string, item workflow.WorkItem) bool {
+	if len(project.ValidateIdentity(projectID, "execution")) != 0 || !project.ValidSlug(repositoryKey) {
+		return false
+	}
+	probe := workflow.State{
+		ExecutionID: "00000000-0000-4000-8000-000000000000", FormatVersion: workflow.FormatVersion,
+		WorkflowVersion: workflow.WorkflowVersion, ProjectID: projectID, RepositoryKey: repositoryKey,
+		WorkItem: item, RuntimeID: "probe", Stage: workflow.Intake, Revision: 1, Status: workflow.ExecutionActive,
+		CreatedAt: time.Unix(1, 0).UTC(), UpdatedAt: time.Unix(1, 0).UTC(),
+		Provenance: workflow.Identity{Product: "Axiom", Version: "development", Revision: "unavailable", SourceState: "unknown"},
+	}
+	return workflow.ValidState(probe)
 }
 
-func workflowName(repositoryKey string, workItem int) string {
-	return fmt.Sprintf("%s-%d.json", repositoryKey, workItem)
+func executionName(repositoryKey string, item workflow.WorkItem) string {
+	value := sha256.Sum256([]byte(repositoryKey + "\x00" + item.Provider + "\x00" + item.Resource + "\x00" + item.ExternalID))
+	return hex.EncodeToString(value[:]) + ".json"
+}
+
+func workflowStoreError(err error) error {
+	switch {
+	case errors.Is(err, ErrRecoveryRequired):
+		return errors.Join(err, workflow.ErrRecoveryRequired)
+	case errors.Is(err, ErrConflict):
+		return errors.Join(err, workflow.ErrConflict)
+	case errors.Is(err, ErrNotFound), os.IsNotExist(err):
+		return errors.Join(err, workflow.ErrNotFound)
+	default:
+		return err
+	}
 }

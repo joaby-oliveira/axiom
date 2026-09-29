@@ -8,6 +8,7 @@ import (
 
 	"github.com/rgomids/axiom/internal/completion"
 	"github.com/rgomids/axiom/internal/provenance"
+	"github.com/rgomids/axiom/internal/workitem"
 )
 
 func TestCompletionGoldenMatrix(t *testing.T) {
@@ -96,6 +97,45 @@ func TestCompletionOutputIsBounded(t *testing.T) {
 		}
 		if output.Len() == 0 || output.Len() > MaxCompletionOutputBytes {
 			t.Fatalf("%s output bytes = %d", format, output.Len())
+		}
+	}
+}
+
+func TestCompletionPreservesStableDetailReferenceAcrossRenderers(t *testing.T) {
+	statement, err := provenance.NewText("diagnostic available", provenance.AxiomAuthored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := completion.New(completion.Facts{Completed: true}, statement, nil, provenance.Text{}, "artifact:123e4567-e89b-42d3-a456-426614174000", completionProvenance(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		format CompletionFormat
+		want   string
+	}{{CompletionJSON, `"details":"artifact:123e4567-e89b-42d3-a456-426614174000"`}, {CompletionHuman, "details: artifact:123e4567-e89b-42d3-a456-426614174000"}} {
+		var output bytes.Buffer
+		if code := WriteCompletion(&output, test.format, result); code != ExitSuccess || !strings.Contains(output.String(), test.want) {
+			t.Fatalf("%s code=%d output=%q", test.format, code, output.String())
+		}
+	}
+}
+
+func TestWorkItemPreviewWithWorstCaseEscapingRemainsBounded(t *testing.T) {
+	content := strings.Repeat(`"\\<>`, 4*1024)
+	preview := &workitem.DraftPreview{
+		Draft:            workitem.Draft{Sections: []workitem.DraftSection{{Name: "problem", Content: content, Authorship: provenance.UserAuthored}}},
+		ProviderDocument: workitem.ProviderDocument{Title: "Axiom draft", Body: content},
+		Digest:           strings.Repeat("a", 64),
+	}
+	result := canonicalResult(t, completion.Success, nil, "Review preview", completionProvenance(t))
+	for _, mode := range []outputMode{humanOutput, jsonOutput} {
+		var output bytes.Buffer
+		if code := emitWorkItemCompletion(&output, mode, result, Result{Draft: preview}); code != ExitSuccess {
+			t.Fatalf("%s exit=%d bytes=%d", mode, code, output.Len())
+		}
+		if output.Len() == 0 || output.Len() > maxWorkItemPreviewOutputBytes {
+			t.Fatalf("%s bytes=%d", mode, output.Len())
 		}
 	}
 }

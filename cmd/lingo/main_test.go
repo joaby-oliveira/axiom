@@ -14,6 +14,7 @@ import (
 	"github.com/rgomids/axiom/internal/cli"
 	"github.com/rgomids/axiom/internal/codexruntime"
 	"github.com/rgomids/axiom/internal/completion"
+	"github.com/rgomids/axiom/internal/local"
 	"github.com/rgomids/axiom/internal/projectapp"
 	"github.com/rgomids/axiom/internal/provenance"
 	"github.com/rgomids/axiom/internal/workflow"
@@ -66,6 +67,60 @@ func TestComposedCLIRejectsRelativeRoot(t *testing.T) {
 	}
 }
 
+func TestWorkflowSelectorAmbiguityFailsBeforeFallbackOrEffects(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "projects")
+	state := filepath.Join(t.TempDir(), "state")
+	runtimeRoot := filepath.Join(t.TempDir(), "skills")
+	providerLedger := filepath.Join(t.TempDir(), "provider-called")
+	ghBinary := filepath.Join(t.TempDir(), "gh")
+	if err := os.WriteFile(ghBinary, []byte("#!/bin/sh\nprintf called >\"$AXIOM_TEST_PROVIDER_LEDGER\"\nexit 1\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("LINGO_PROJECTS_ROOT", root)
+	t.Setenv("LINGO_STATE_ROOT", state)
+	t.Setenv("AXIOM_CODEX_SKILLS_ROOT", runtimeRoot)
+	t.Setenv("AXIOM_GH_BIN", ghBinary)
+	t.Setenv("AXIOM_TEST_PROVIDER_LEDGER", providerLedger)
+	for _, id := range []string{"123e4567-e89b-42d3-a456-426614174000", "123e4567-e89b-42d3-a456-426614174001"} {
+		source := filepath.Join(t.TempDir(), id)
+		if err := os.Mkdir(source, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		record, issues := local.NewRecord(local.RecordState{
+			ProjectID:        id,
+			ObservedSlug:     "duplicate",
+			SourceLocation:   source,
+			PortableRevision: projectapp.RecordedPortableRevision([32]byte{1}),
+			ArtifactDigests:  []projectapp.ArtifactDigest{{Name: "axiom.yaml", Digest: [32]byte{1}}},
+		})
+		if len(issues) != 0 {
+			t.Fatal(issues)
+		}
+		wire, issues := local.EncodeRecord(record)
+		if len(issues) != 0 {
+			t.Fatal(issues)
+		}
+		directory := filepath.Join(state, "projects", id)
+		if err := os.MkdirAll(directory, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(directory, "installation.json"), wire, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	before := snapshotTrees(t, state)
+	runCanonicalCLI(t, compose(), []string{"workflow", "status", "--project", "duplicate", "--repository", "main", "--work-item", "github:owner/repo#7", "--execution", "018f4a44-7c31-7dd4-9d00-111111111111"}, cli.ExitFailure, "validation_failure", "Execution workflow operation did not complete")
+	after := snapshotTrees(t, state)
+	if !bytes.Equal(before, after) {
+		t.Fatalf("ambiguous selector mutated local state\nbefore=%s\nafter=%s", before, after)
+	}
+	for _, path := range []string{root, runtimeRoot, providerLedger} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("ambiguous selector used fallback or caused effect at %s: %v", path, err)
+		}
+	}
+}
+
 func TestConfigurePublishesPortableKeysAndLocalPathsThenResolves(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "projects")
 	state := filepath.Join(t.TempDir(), "state")
@@ -82,6 +137,24 @@ func TestConfigurePublishesPortableKeysAndLocalPathsThenResolves(t *testing.T) {
 		t.Fatalf("equivalent replay effects = %v", preview.Effects)
 	}
 	runCLI(t, service, []string{"project", "resolve", "--selector", "configured"}, cli.ExitSuccess, "project_resolved")
+	var shown bytes.Buffer
+	if code := cli.Run(context.Background(), []string{"project", "show", "--selector", "configured"}, service, currentProvenance(), &shown); code != cli.ExitSuccess {
+		t.Fatalf("project show exit=%d output=%s", code, shown.String())
+	}
+	var showEvent struct {
+		Project *struct {
+			Slug         string `json:"slug"`
+			Repositories []struct {
+				Key string `json:"key"`
+			} `json:"repositories"`
+		} `json:"project"`
+	}
+	if err := json.Unmarshal(shown.Bytes(), &showEvent); err != nil {
+		t.Fatalf("project show JSON: %v: %s", err, shown.String())
+	}
+	if showEvent.Project == nil || showEvent.Project.Slug != "configured" || len(showEvent.Project.Repositories) != 1 || showEvent.Project.Repositories[0].Key != "main" {
+		t.Fatalf("project show payload = %+v", showEvent.Project)
+	}
 	manifestBytes, err := os.ReadFile(filepath.Join(root, "configured", "axiom.yaml"))
 	if err != nil {
 		t.Fatal(err)
@@ -265,8 +338,8 @@ func TestWorkItemJourneyRequiresReadyConfiguredCapability(t *testing.T) {
 			t.Setenv("LINGO_STATE_ROOT", state)
 			service := compose()
 			configureProject(t, service, "capability", "Capability", "main="+repository, provider)
-			result := service.WorkItemCreate(context.Background(), cli.WorkItemInput{Project: "capability", Repository: "main", Title: "Blocked", AuthorizeExternal: true})
-			if result.Status != cli.Failed || result.Category != "work_item_capability_unavailable" {
+			result := service.WorkItemCreate(context.Background(), cli.WorkItemInput{Project: "capability", Repository: "main", ProviderRepository: "owner/repo", Intent: "Blocked", AuthorizeExternal: true})
+			if result.Completion == nil || result.Completion.Status() != completion.ValidationFailure || result.Category != "work_item_capability_unavailable" {
 				t.Fatalf("provider %q work item result = %#v", provider, result)
 			}
 		})
@@ -292,13 +365,13 @@ func TestFirstRunReportsMissingReadyAndIncompatibleSkillStates(t *testing.T) {
 	if ready.Completion == nil || ready.Completion.Status() != completion.Success || ready.Runtime == nil || ready.Runtime.Skills[0].State != "equivalent" {
 		t.Fatalf("ready first run = %#v", ready)
 	}
-	incompatibleRuntime, err := codexruntime.NewForBinary(skills, "2")
+	incompatibleRuntime, err := codexruntime.NewForBinary(skills, "3")
 	if err != nil {
 		t.Fatal(err)
 	}
 	service.codex = incompatibleRuntime
 	incompatible := service.RuntimeCodexStatus(context.Background())
-	if incompatible.Completion == nil || incompatible.Completion.Status() != completion.ValidationFailure || incompatible.Runtime == nil || incompatible.Runtime.BinaryCompatibility != "2" {
+	if incompatible.Completion == nil || incompatible.Completion.Status() != completion.ValidationFailure || incompatible.Runtime == nil || incompatible.Runtime.BinaryCompatibility != "3" {
 		t.Fatalf("incompatible first run = %#v", incompatible)
 	}
 }
@@ -361,45 +434,39 @@ func TestProjectShowClassifiesResolutionCauses(t *testing.T) {
 
 func TestWorkItemFailureRendersCommittedExternalState(t *testing.T) {
 	result := workItemResult(workitem.Result{
-		Status:   workitem.Failed,
-		Category: "provider_committed_local_failed",
+		Status:   completion.Partial,
+		Category: "provider_confirmed_local_failed",
 		Link: workitem.Link{
-			ProjectID:          "123e4567-e89b-42d3-a456-426614174000",
-			RepositoryKey:      "main",
-			ProviderRepository: "owner/repo",
-			Number:             7,
-			URL:                "https://github.com/owner/repo/issues/7",
-			State:              "CLOSED",
+			ProjectID: "123e4567-e89b-42d3-a456-426614174000", RepositoryKey: "main",
+			Provider: "github", Resource: "owner/repo", ExternalID: "7",
+			URL: "https://github.com/owner/repo/issues/7", State: "CLOSED",
 		},
-	})
-	if result.WorkItem == nil || result.WorkItem.ProjectID == "" || result.WorkItem.RepositoryKey != "main" || result.WorkItem.Repository != "owner/repo" || result.WorkItem.State != "CLOSED" {
+	}, currentProvenance())
+	if result.WorkItem == nil || result.WorkItem.ProjectID == "" || result.WorkItem.RepositoryKey != "main" || result.WorkItem.Provider != "github" || result.WorkItem.Resource != "owner/repo" || result.WorkItem.ExternalID != "7" || result.WorkItem.State != "CLOSED" {
 		t.Fatalf("result = %#v", result)
 	}
 	payload, err := json.Marshal(result.WorkItem)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, expected := range []string{`"projectId":"123e4567-e89b-42d3-a456-426614174000"`, `"repositoryKey":"main"`, `"repository":"owner/repo"`, `"number":7`, `"url":"https://github.com/owner/repo/issues/7"`, `"state":"CLOSED"`} {
+	for _, expected := range []string{`"projectId":"123e4567-e89b-42d3-a456-426614174000"`, `"repositoryKey":"main"`, `"provider":"github"`, `"resource":"owner/repo"`, `"externalId":"7"`, `"url":"https://github.com/owner/repo/issues/7"`, `"state":"CLOSED"`} {
 		if !bytes.Contains(payload, []byte(expected)) {
 			t.Fatalf("work item payload missing %q: %s", expected, payload)
 		}
 	}
 }
 
-func TestWorkflowFailureRendersCommittedExternalState(t *testing.T) {
+func TestWorkflowPartialRendersCommittedExternalState(t *testing.T) {
 	result := workflowResult(workflow.Result{
-		Status:   workflow.Failed,
-		Category: "provider_committed_local_failed",
-		WorkItem: &workflow.WorkItem{
-			ProjectID:          "123e4567-e89b-42d3-a456-426614174000",
-			RepositoryKey:      "main",
-			ProviderRepository: "owner/repo",
-			Number:             7,
-			URL:                "https://github.com/owner/repo/issues/7",
-			State:              "CLOSED",
+		Status:   workflow.Partial,
+		Category: "provider_confirmed_projection_bookkeeping_failed",
+		State: workflow.State{
+			ExecutionID: "018f4a44-7c31-7dd4-9d00-111111111111",
+			ProjectID:   "123e4567-e89b-42d3-a456-426614174000", RepositoryKey: "main",
+			WorkItem: workflow.WorkItem{Provider: "github", Resource: "owner/repo", ExternalID: "7", URL: "https://github.com/owner/repo/issues/7", State: "OPEN"},
 		},
-	})
-	if result.WorkItem == nil || result.WorkItem.ProjectID == "" || result.WorkItem.RepositoryKey != "main" || result.WorkItem.Repository != "owner/repo" || result.WorkItem.State != "CLOSED" {
+	}, currentProvenance())
+	if result.Workflow == nil || result.Workflow.WorkItem.ProjectID == "" || result.Workflow.WorkItem.RepositoryKey != "main" || result.Workflow.WorkItem.Provider != "github" || result.Workflow.WorkItem.Resource != "owner/repo" || result.Workflow.WorkItem.ExternalID != "7" || result.Workflow.WorkItem.State != "OPEN" {
 		t.Fatalf("result = %#v", result)
 	}
 }

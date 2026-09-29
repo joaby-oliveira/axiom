@@ -7,207 +7,133 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/rgomids/axiom/internal/provenance"
 	"github.com/rgomids/axiom/internal/workflow"
 )
 
-func TestWorkflowStoreRoundTripsStrictPrivateState(t *testing.T) {
+func TestExecutionStoreRoundTripsClosedPrivateState(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "state")
 	store, err := NewWorkflowStore(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	state := validWorkflow(t.TempDir())
+	state := validExecution()
 	if err := store.Create(context.Background(), state); err != nil {
 		t.Fatal(err)
 	}
 	loaded, err := store.Load(context.Background(), state.ProjectID, state.RepositoryKey, state.WorkItem)
-	if err != nil || loaded.RepositoryPath != state.RepositoryPath || loaded.Steps[0].Gate != "specification" {
+	if err != nil || loaded.ExecutionID != state.ExecutionID || loaded.Stage != workflow.Intake || loaded.StorageRevision == ([32]byte{}) {
 		t.Fatalf("loaded = %#v, %v", loaded, err)
 	}
-	record := filepath.Join(root, "workflows", state.ProjectID, "main-7.json")
+	record := filepath.Join(root, "executions", "v1", state.ProjectID, executionName(state.RepositoryKey, state.WorkItem))
 	info, err := os.Stat(record)
 	if err != nil || info.Mode().Perm() != 0o600 {
 		t.Fatalf("record mode = %v, %v", info, err)
 	}
 }
 
-func TestWorkflowServiceStartReturnsExistingWorkflowWithRealStore(t *testing.T) {
-	repository := t.TempDir()
-	store, err := NewWorkflowStore(filepath.Join(t.TempDir(), "state"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	service := workflow.New(
-		workflowStoreResolver{repository: repository},
-		workflowStoreWorkItems{},
-		store,
-	)
-	target := workflow.Target{ProjectSelector: "sample", RepositoryKey: "main", WorkItem: 7}
-
-	first := service.Start(context.Background(), target)
-	if first.Status != workflow.Succeeded || first.Category != "workflow_started" {
-		t.Fatalf("first start = %#v", first)
-	}
-	second := service.Start(context.Background(), target)
-	if second.Status != workflow.Succeeded || second.Category != "workflow_already_started" {
-		t.Fatalf("second start = %#v", second)
-	}
-}
-
-func TestWorkflowStoreCreateCollisionNeverReplacesCanonicalState(t *testing.T) {
-	for _, test := range []struct {
-		name   string
-		change func(*workflow.State)
-	}{
-		{name: "identical", change: func(*workflow.State) {}},
-		{name: "different", change: func(state *workflow.State) { state.RepositoryPath = t.TempDir() }},
+func TestExecutionStoreRejectsUnknownNewerAndMalformedState(t *testing.T) {
+	for _, mutate := range []func([]byte) []byte{
+		func(wire []byte) []byte {
+			return bytes.Replace(wire, []byte(`"status":`), []byte(`"unknown":true,"status":`), 1)
+		},
+		func(wire []byte) []byte {
+			return bytes.Replace(wire, []byte(`"formatVersion":1`), []byte(`"formatVersion":2`), 1)
+		},
+		func([]byte) []byte { return []byte("{not-json}\n") },
 	} {
-		t.Run(test.name, func(t *testing.T) {
-			store, err := NewWorkflowStore(filepath.Join(t.TempDir(), "state"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			state := validWorkflow(t.TempDir())
-			if err := store.Create(context.Background(), state); err != nil {
-				t.Fatal(err)
-			}
-			attempt := state
-			test.change(&attempt)
-
-			if err := store.Create(context.Background(), attempt); !errors.Is(err, ErrConflict) {
-				t.Fatalf("create collision = %v", err)
-			}
-			loaded, err := store.Load(context.Background(), state.ProjectID, state.RepositoryKey, state.WorkItem)
-			if err != nil || loaded.Status != state.Status || loaded.RepositoryPath != state.RepositoryPath {
-				t.Fatalf("canonical state = %#v, %v", loaded, err)
-			}
-		})
+		root := filepath.Join(t.TempDir(), "state")
+		store, _ := NewWorkflowStore(root)
+		state := validExecution()
+		if err := store.Create(context.Background(), state); err != nil {
+			t.Fatal(err)
+		}
+		record := filepath.Join(root, "executions", "v1", state.ProjectID, executionName(state.RepositoryKey, state.WorkItem))
+		wire, _ := os.ReadFile(record)
+		if err := os.WriteFile(record, mutate(wire), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := store.Load(context.Background(), state.ProjectID, state.RepositoryKey, state.WorkItem); err == nil {
+			t.Fatal("unsafe state accepted")
+		}
 	}
 }
 
-func TestWorkflowStoreRequiresExpectedRevision(t *testing.T) {
-	store, err := NewWorkflowStore(filepath.Join(t.TempDir(), "state"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	state := validWorkflow(t.TempDir())
+func TestExecutionStoreRequiresStorageRevisionAndRejectsStaleWriter(t *testing.T) {
+	store, _ := NewWorkflowStore(filepath.Join(t.TempDir(), "state"))
+	state := validExecution()
 	if err := store.Create(context.Background(), state); err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := store.Load(context.Background(), state.ProjectID, state.RepositoryKey, state.WorkItem)
-	if err != nil || loaded.Revision == ([32]byte{}) {
-		t.Fatalf("missing revision: %#v %v", loaded, err)
-	}
-	stale := loaded
-	stale.Steps = append([]workflow.Step(nil), loaded.Steps...)
-	loaded.Status = "interrupted"
-	loaded.Steps[0].Status = "failed"
-	loaded.Steps[0].Reference = "spec.md"
-	loaded.Steps[0].Digest[0] = 1
-	if err := store.Save(context.Background(), loaded); err != nil {
+	first, _ := store.Load(context.Background(), state.ProjectID, state.RepositoryKey, state.WorkItem)
+	stale := first
+	first = advancedExecution(first)
+	if err := store.Save(context.Background(), first); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.Save(context.Background(), stale); !errors.Is(err, ErrConflict) {
+	stale = interruptedExecution(stale)
+	if err := store.Save(context.Background(), stale); !errors.Is(err, workflow.ErrConflict) {
 		t.Fatalf("stale save = %v", err)
+	}
+	loaded, _ := store.Load(context.Background(), state.ProjectID, state.RepositoryKey, state.WorkItem)
+	if loaded.Stage != workflow.Specification || loaded.Revision != 2 {
+		t.Fatalf("winning state = %#v", loaded)
 	}
 }
 
-func TestWorkflowStoreFailsClosedAcrossF0F8(t *testing.T) {
+func TestExecutionStoreFailsClosedAcrossF0F8(t *testing.T) {
 	for index, stage := range []FaultStage{FaultF0, FaultF1, FaultF2, FaultF3, FaultF4, FaultF5, FaultF6, FaultF7, FaultF8} {
 		t.Run(string(stage), func(t *testing.T) {
-			store, err := NewWorkflowStore(filepath.Join(t.TempDir(), "state"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			state := validWorkflow(t.TempDir())
+			store, _ := NewWorkflowStore(filepath.Join(t.TempDir(), "state"))
+			state := validExecution()
 			if err := store.Create(context.Background(), state); err != nil {
 				t.Fatal(err)
 			}
-			loaded, err := store.Load(context.Background(), state.ProjectID, state.RepositoryKey, state.WorkItem)
-			if err != nil {
-				t.Fatal(err)
-			}
-			loaded.Status = "interrupted"
-			loaded.Steps[0].Status = "failed"
-			loaded.Steps[0].Reference = "spec.md"
-			loaded.Steps[0].Digest[0] = 1
+			loaded, _ := store.Load(context.Background(), state.ProjectID, state.RepositoryKey, state.WorkItem)
+			loaded = advancedExecution(loaded)
 			store.hooks.fault = func(current FaultStage) error {
 				if current == stage {
 					return ErrSimulatedInterruption
 				}
 				return nil
 			}
-			err = store.Save(context.Background(), loaded)
+			err := store.Save(context.Background(), loaded)
 			var publication *PublicationError
 			if !errors.As(err, &publication) || publication.Committed != (index >= 6) {
-				t.Fatalf("fault outcome: %v", err)
+				t.Fatalf("fault outcome = %v", err)
 			}
 			_, readErr := store.Load(context.Background(), state.ProjectID, state.RepositoryKey, state.WorkItem)
 			if stage == FaultF0 || stage == FaultF1 {
 				if readErr != nil {
-					t.Fatalf("%s lost prior authority: %v", stage, readErr)
+					t.Fatalf("prior authority lost: %v", readErr)
 				}
 				return
 			}
-			if !errors.Is(readErr, ErrRecoveryRequired) {
-				t.Fatalf("stage %s reader = %v", stage, readErr)
+			if !errors.Is(readErr, workflow.ErrRecoveryRequired) {
+				t.Fatalf("reader = %v", readErr)
 			}
 		})
 	}
 }
 
-func TestWorkflowStoreRejectsUnknownFieldsAndMissingSave(t *testing.T) {
-	root := filepath.Join(t.TempDir(), "state")
-	store, err := NewWorkflowStore(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	state := validWorkflow(t.TempDir())
-	if err := store.Save(context.Background(), state); err == nil {
-		t.Fatal("save created missing workflow")
-	}
-	if err := store.Create(context.Background(), state); err != nil {
-		t.Fatal(err)
-	}
-	record := filepath.Join(root, "workflows", state.ProjectID, "main-7.json")
-	wire, err := os.ReadFile(record)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wire = bytes.Replace(wire, []byte(`"status":`), []byte(`"unknown":true,"status":`), 1)
-	if err := os.WriteFile(record, wire, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.Load(context.Background(), state.ProjectID, state.RepositoryKey, state.WorkItem); err == nil {
-		t.Fatal("unknown field accepted")
-	}
+func validExecution() workflow.State {
+	source, _ := provenance.FromBuild(provenance.Build{Version: provenance.Development, Revision: "abc123", SourceState: provenance.Clean}, nil)
+	now := time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC)
+	return workflow.State{ExecutionID: "018f4a44-7c31-7dd4-9d00-111111111111", FormatVersion: workflow.FormatVersion, WorkflowVersion: workflow.WorkflowVersion, ProjectID: "123e4567-e89b-42d3-a456-426614174000", RepositoryKey: "main", WorkItem: workflow.WorkItem{Provider: "github", Resource: "owner/repo", ExternalID: "7", URL: "https://github.com/owner/repo/issues/7", State: "OPEN"}, RuntimeID: "codex", Stage: workflow.Intake, Revision: 1, Status: workflow.ExecutionActive, CreatedAt: now, UpdatedAt: now, Provenance: workflow.Identity{Product: source.Product(), Version: source.Version(), Revision: source.Revision(), SourceState: string(source.SourceState())}}
 }
 
-func validWorkflow(repository string) workflow.State {
-	steps := make([]workflow.Step, len(workflow.Gates))
-	for index, gate := range workflow.Gates {
-		steps[index] = workflow.Step{Gate: gate, Status: "pending"}
-	}
-	return workflow.State{ProjectID: "123e4567-e89b-42d3-a456-426614174000", RepositoryKey: "main", RepositoryPath: repository, WorkItem: 7, Status: "active", Steps: steps}
+func advancedExecution(state workflow.State) workflow.State {
+	now := state.UpdatedAt.Add(time.Second)
+	state.Revision, state.Stage, state.UpdatedAt = 2, workflow.Specification, now
+	state.Transitions = []workflow.Transition{{Revision: 2, From: workflow.Intake, To: workflow.Specification, Outcome: workflow.OutcomePassed, RequestDigest: string(bytes.Repeat([]byte{'a'}, 64)), CommittedAt: now, Provenance: state.Provenance}}
+	return state
 }
 
-type workflowStoreResolver struct{ repository string }
-
-func (r workflowStoreResolver) Resolve(context.Context, string) (workflow.Project, string) {
-	return workflow.Project{
-		ID: "123e4567-e89b-42d3-a456-426614174000",
-		Repositories: []workflow.Repository{{
-			Key:  "main",
-			Path: r.repository,
-		}},
-	}, ""
-}
-
-type workflowStoreWorkItems struct{}
-
-func (workflowStoreWorkItems) Available(context.Context, string, string, int) bool { return true }
-
-func (workflowStoreWorkItems) Complete(context.Context, string, string, int, bool) workflow.WorkItemCompletion {
-	return workflow.WorkItemCompletion{}
+func interruptedExecution(state workflow.State) workflow.State {
+	now := state.UpdatedAt.Add(time.Second)
+	state.Revision, state.Status, state.UpdatedAt = 2, workflow.ExecutionInterrupted, now
+	state.Transitions = []workflow.Transition{{Revision: 2, From: workflow.Intake, To: workflow.Intake, Outcome: workflow.OutcomeFailed, RequestDigest: string(bytes.Repeat([]byte{'b'}, 64)), CommittedAt: now, Provenance: state.Provenance}}
+	return state
 }

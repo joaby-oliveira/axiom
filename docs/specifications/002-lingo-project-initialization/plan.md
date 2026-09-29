@@ -1,5 +1,27 @@
 # Plan — Specification 002: Lingo Project Initialization
 
+## Issue #94 policy-reference reconciliation — approved 2026-09-24
+
+Specification 004's approved Work Item metadata policy reuses the existing
+`policies` list of contained relative document references. The closed
+`schemaVersion: 1` field table below does not change, so existing readers continue
+to accept/reject the same `axiom.yaml` structures and no manifest migration exists.
+
+After ordinary v1 manifest/reference/containment validation, a policy-owning
+workflow may recognize a referenced document by its own exact kind and validate a
+separately versioned closed schema. That document is not recursively parsed as a
+Project manifest and cannot override Project identity, security, local workflow
+truth, Provider authority, or the portable/local boundary. Unsupported versions,
+unknown fields, duplicate recognized policy kinds, and malformed values fail the
+dependent operation before prompts or effects. Unrecognized policy documents
+remain untrusted data and grant no behavior or authority.
+
+This clarification was explicitly approved with Issue #94 on 2026-09-24. T28
+implementation remains separately gated. It preserves ADR-0004; adding structured
+fields directly to
+`axiom.yaml` would instead require an explicit manifest-version decision and
+cross-Specification schema evolution.
+
 ## HD-3 filesystem threat-model reconciliation — 2026-09-20
 
 Human-approved Specification 004 HD-3 narrows the proof boundary consumed by this

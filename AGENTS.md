@@ -69,6 +69,7 @@ Use the skills below instead of reproducing long procedures in this file.
 - Review and validation → `.agents/skills/axiom-review/SKILL.md`
 - Documentation reconciliation → `.agents/skills/axiom-document/SKILL.md`
 - Generate another Codex agent/harness → `.agents/skills/axiom-agent-factory/SKILL.md`
+- Release / publication → `.agents/skills/axiom-release/SKILL.md`
 
 Load only the skill(s) required for the current task.
 
@@ -119,7 +120,24 @@ Repository hygiene:
 - do not create speculative abstractions with no validated requirement;
 - do not adopt experimental dependencies as architecture by implication;
 - do not mark hypotheses as accepted decisions;
-- do not mix Claude-specific files into a Codex harness unless explicitly designing a multi-target artifact.
+- do not add runtime-specific instruction files beyond the approved bootstrap below.
+
+## Maintainer runtimes
+
+Codex and Claude are both valid maintainer runtimes for this repository. This
+file, with the policies and skills it routes to, is the single canonical agent
+policy for both; neither runtime has its own rules.
+
+A runtime-specific bootstrap file may exist only when a runtime cannot consume
+`AGENTS.md` directly, and only to point at it. The approved bootstrap is the
+root `CLAUDE.md` whose entire content is `@AGENTS.md`. Any other content,
+target, location, or runtime configuration (for example `.claude/`) requires an
+explicit recorded decision; the repository validators reject it.
+
+Maintainer runtime support is not Axiom product multi-runtime orchestration
+(Runtime/model resolution, Execution Graph, multi-agent execution), which
+belongs to Slice S8 and is not delivered by this bootstrap. Generated Codex
+harnesses keep their own isolation rule in `.agents/policies/agent-generation.md`.
 
 ## Agent factory rule
 

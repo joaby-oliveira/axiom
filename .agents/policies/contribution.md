@@ -28,6 +28,28 @@ Before opening a Pull Request, inspect the branch, complete diff, commits, PR
 title and description, related references, Evidence, documentation impact,
 security impact, limitations, and absence of out-of-scope changes.
 
+For an Axiom-managed Work Item under the approved Issue #94 amendment, the agent
+must also:
+
+- preserve Repository artifacts as technical truth, local Execution/workflow as
+  canonical workflow truth, and Provider state as projection/recovery signal;
+- validate exact current/target canonical Execution gate, current/expected derived
+  lifecycle stage, revision, prerequisites, references, blockers, and authority
+  before any local transition;
+- keep blocked/decision/approval/recovery conditions as auxiliary flags rather
+  than inventing stage combinations;
+- treat merge, CI, review, Issue closure, and Provider metadata as non-authority
+  for workflow advance or human acceptance;
+- keep Provider history bounded, idempotent, and reference-first;
+- resolve Project metadata policy before asking, and keep provider-specific fields
+  inside the adapter;
+- return `recovery_required` for missing, insufficient, or contradictory local
+  truth instead of reconstructing an Execution or inferring progress.
+
+These rules govern the approved amendment, but do not by themselves authorize
+T26–T29 implementation. S6 implementation remains separately gated and starts only
+after explicit authorization.
+
 When opening a Pull Request, use the repository template and replace every
 placeholder with truthful content or an objective not-applicable explanation.
 
@@ -42,6 +64,9 @@ The agent must not:
 - include unrelated changes;
 - treat green CI as sufficient Evidence;
 - treat technical merge as human acceptance;
+- advance or accept a Work Item from Provider labels, Issue/PR state, or green CI;
+- reconstruct missing local workflow truth from Provider history or Repository
+  artifacts;
 - advance to another Task or Slice without explicit authority;
 - merge its own Pull Request without explicit human authorization.
 

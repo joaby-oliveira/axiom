@@ -77,10 +77,12 @@ build_target() {
   local bundle="axiom-${version}-${platform}-${arch}"
   local root="$work/$bundle"
   mkdir -p "$root/skills"
-  GOOS="$goos" GOARCH="$arch" CGO_ENABLED=0 go build -trimpath \
+  # Build from the repository root so the module is this checkout, not the
+  # caller's working directory.
+  (cd "$repository_root" && GOOS="$goos" GOARCH="$arch" CGO_ENABLED=0 go build -trimpath \
     -ldflags "-s -w -X main.buildVersion=$version -X main.buildRevision=${revision:0:12} -X main.buildSourceState=$source_state -X main.buildRelease=$release" \
-    -o "$root/lingo" "$repository_root/cmd/lingo"
-  chmod 700 "$root/lingo"
+    -o "$root/axiom" ./cmd/lingo)
+  chmod 700 "$root/axiom"
   cp "$repository_root/LICENSE" "$root/LICENSE"
   cp "$repository_root/scripts/install-release.sh" "$root/install.sh"
   chmod 700 "$root/install.sh"
@@ -110,7 +112,7 @@ build_target() {
     printf 'skillSetVersion=1\n'
   } >"$root/release-metadata.txt"
   {
-    printf '%s  lingo\n' "$(digest "$root/lingo")"
+    printf '%s  axiom\n' "$(digest "$root/axiom")"
     printf '%s  LICENSE\n' "$(digest "$root/LICENSE")"
     printf '%s  install.sh\n' "$(digest "$root/install.sh")"
     printf '%s  release-metadata.txt\n' "$(digest "$root/release-metadata.txt")"
@@ -121,12 +123,14 @@ build_target() {
     done < <(find "$root/skills" -type f | LC_ALL=C sort)
   } >"$root/MANIFEST.sha256"
   local archive="$output/$bundle.tar.gz"
-  tar -C "$work" -czf "$archive" "$bundle"
+  # macOS bsdtar otherwise embeds AppleDouble ._* entries for extended
+  # attributes; they are unlisted in MANIFEST.sha256 and break other hosts.
+  COPYFILE_DISABLE=1 tar -C "$work" -czf "$archive" "$bundle"
   printf '%s  %s\n' "$(digest "$archive")" "$(basename "$archive")" >>"$checksums"
 }
 
 build_target macos-27 darwin arm64
-build_target ubuntu-26.04 linux amd64
-build_target ubuntu-26.04 linux arm64
+build_target linux linux amd64
+build_target linux linux arm64
 
 printf 'release_build_success: %s\n' "$output"

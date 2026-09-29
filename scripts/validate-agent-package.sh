@@ -24,9 +24,9 @@ if find "$TARGET" -path "$TARGET/.git" -prune -o -type l -print -quit | grep -q 
   fail "symlinks are not allowed in Codex packages"
 fi
 
-if [[ -f "$TARGET/CLAUDE.md" || -d "$TARGET/.claude" ]]; then
-  fail "Claude artifacts found in Codex package"
-fi
+# Only the approved root bootstrap CLAUDE.md ("@AGENTS.md") is tolerated;
+# the Codex renderer never emits it. Any other Claude artifact fails.
+"$SCRIPT_DIR/check-claude-bootstrap.sh" "$TARGET" || fail "Claude artifacts found in Codex package"
 
 "$SCRIPT_DIR/check-sensitive-files.sh" --directory "$TARGET"
 

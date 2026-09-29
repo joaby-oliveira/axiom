@@ -28,6 +28,40 @@ printf 'EXAMPLE_VALUE=replace-me\n' > "$SAFE_PACKAGE/.env.example"
 "$VALIDATOR" "$SAFE_PACKAGE" >/dev/null 2>&1 \
   || fail "regular package should pass validation"
 
+POINTER_PACKAGE="$TEST_ROOT/pointer"
+new_package "$POINTER_PACKAGE"
+printf '@AGENTS.md\n' > "$POINTER_PACKAGE/CLAUDE.md"
+"$VALIDATOR" "$POINTER_PACKAGE" >/dev/null 2>&1 \
+  || fail "exact CLAUDE.md pointer to AGENTS.md should pass validation"
+
+CLAUDE_PACKAGE="$TEST_ROOT/claude"
+new_package "$CLAUDE_PACKAGE"
+printf '@AGENTS.md\nAlways use Claude-specific instructions.\n' > "$CLAUDE_PACKAGE/CLAUDE.md"
+if "$VALIDATOR" "$CLAUDE_PACKAGE" >/dev/null 2>&1; then
+  fail "CLAUDE.md with its own instructions should fail validation"
+fi
+
+TARGET_PACKAGE="$TEST_ROOT/claude-target"
+new_package "$TARGET_PACKAGE"
+printf '@README.md\n' > "$TARGET_PACKAGE/CLAUDE.md"
+if "$VALIDATOR" "$TARGET_PACKAGE" >/dev/null 2>&1; then
+  fail "CLAUDE.md pointing to another file should fail validation"
+fi
+
+NESTED_PACKAGE="$TEST_ROOT/nested-claude"
+new_package "$NESTED_PACKAGE"
+printf '@AGENTS.md\n' > "$NESTED_PACKAGE/.agents/skills/example/CLAUDE.md"
+if "$VALIDATOR" "$NESTED_PACKAGE" >/dev/null 2>&1; then
+  fail "nested CLAUDE.md should fail validation"
+fi
+
+DOT_CLAUDE_PACKAGE="$TEST_ROOT/dot-claude"
+new_package "$DOT_CLAUDE_PACKAGE"
+mkdir "$DOT_CLAUDE_PACKAGE/.claude"
+if "$VALIDATOR" "$DOT_CLAUDE_PACKAGE" >/dev/null 2>&1; then
+  fail ".claude directory should fail validation"
+fi
+
 LINKED_PACKAGE="$TEST_ROOT/linked"
 new_package "$LINKED_PACKAGE"
 printf '# Outside content\n' > "$TEST_ROOT/outside.md"

@@ -1,0 +1,5 @@
+tag=v0.1.0-poc.1
+revision=242d67c4cf2d4c3efe534dd894cb56a05558e139
+generator=scripts/generate-poc-fixture.sh
+go=go1.26.1
+normalized_prefix=/axiom-poc-fixture

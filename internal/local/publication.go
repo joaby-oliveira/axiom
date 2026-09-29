@@ -41,6 +41,8 @@ func (e *PublicationError) Error() string {
 
 func (e *PublicationError) Unwrap() error { return e.Err }
 
+func (e *PublicationError) EffectCommitted() bool { return e.Committed }
+
 type protocolMarker struct {
 	FormatVersion  int        `json:"formatVersion"`
 	OperationID    string     `json:"operationId"`

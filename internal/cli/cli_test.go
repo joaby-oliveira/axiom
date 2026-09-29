@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/rgomids/axiom/internal/completion"
+	"github.com/rgomids/axiom/internal/workitem"
 )
 
 func TestRunDelegatesEachLifecycleOperation(t *testing.T) {
@@ -25,11 +26,16 @@ func TestRunDelegatesEachLifecycleOperation(t *testing.T) {
 		{"update", []string{"project", "update", "--slug", "alpha", "--name", "Renamed"}, "update:alpha:Renamed"},
 		{"runtime install", []string{"runtime", "codex", "install"}, "runtime-install"},
 		{"runtime status", []string{"runtime", "codex", "status"}, "runtime-status"},
+		{"claude install", []string{"runtime", "claude", "install"}, "runtime-claude-install"},
+		{"claude status", []string{"runtime", "claude", "status"}, "runtime-claude-status"},
+		{"first run", []string{"first-run"}, "first-run"},
 		{"resolve", []string{"project", "resolve", "--selector", "alpha"}, "resolve:alpha"},
 		{"show", []string{"project", "show", "--selector", "alpha"}, "resolve:alpha"},
 		{"configure", []string{"project", "configure", "--slug", "alpha", "--name", "Alpha", "--repository", "main=/tmp/alpha"}, "configure:alpha:Alpha:main:/tmp/alpha"},
-		{"work item select", []string{"work-item", "select", "--project", "alpha", "--repository", "main", "--number", "7"}, "work-item-select:alpha:main:7"},
-		{"workflow advance", []string{"workflow", "advance", "--project", "alpha", "--repository", "main", "--number", "7", "--gate", "specification", "--outcome", "pass", "--reference", "spec.md"}, "workflow-advance:alpha:main:7:specification:pass:spec.md"},
+		{"work item select", []string{"work-item", "select", "--project", "alpha", "--repository", "main", "--provider-repository", "owner/repo", "--number", "7"}, "work-item-select:alpha:main:7"},
+		{"work item exact", []string{"work-item", "show", "--project", "alpha", "--repository", "main", "--work-item", "github:owner/repo#7"}, "work-item-show:alpha:main:github:owner/repo:7"},
+		{"workflow advance", []string{"workflow", "advance", "--project", "alpha", "--repository", "main", "--number", "7", "--expected-revision", "1", "--gate", "intake", "--outcome", "pass"}, "workflow-advance:alpha:main:7:intake:pass:"},
+		{"workflow exact", []string{"workflow", "status", "--project", "alpha", "--repository", "main", "--work-item", "github:owner/repo#7", "--execution", "018f4a44-7c31-7dd4-9d00-111111111111"}, "workflow-status:alpha:main:github:owner/repo:7:018f4a44-7c31-7dd4-9d00-111111111111"},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -40,9 +46,12 @@ func TestRunDelegatesEachLifecycleOperation(t *testing.T) {
 			if service.call != test.call {
 				t.Fatalf("call = %q, want %q", service.call, test.call)
 			}
-			operation := test.args[1]
+			operation := "first_run"
+			if len(test.args) > 1 {
+				operation = test.args[1]
+			}
 			if test.args[0] == "runtime" {
-				operation = "runtime_codex_" + test.args[2]
+				operation = "runtime_" + test.args[1] + "_" + test.args[2]
 			}
 			if test.args[0] == "work-item" {
 				operation = "work_item_" + test.args[1]
@@ -52,6 +61,59 @@ func TestRunDelegatesEachLifecycleOperation(t *testing.T) {
 			}
 			assertEvent(t, output.String(), operation, Succeeded, "applied")
 		})
+	}
+}
+
+func TestStrictSelectorParserRejectsUnknownDuplicateAndConflictingInput(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"unknown", []string{"workflow", "status", "--project", "alpha", "--repository", "main", "--work-item", "github:owner/repo#7", "--execution", "execution", "--unknown", "value"}},
+		{"duplicate", []string{"workflow", "status", "--project", "alpha", "--project", "other", "--repository", "main", "--work-item", "github:owner/repo#7", "--execution", "execution"}},
+		{"single-hyphen duplicate project", []string{"workflow", "status", "-project", "alpha", "-project", "other", "--repository", "main", "--work-item", "github:owner/repo#7", "--execution", "execution"}},
+		{"mixed-hyphen duplicate project", []string{"workflow", "status", "--project", "alpha", "-project", "other", "--repository", "main", "--work-item", "github:owner/repo#7", "--execution", "execution"}},
+		{"single-hyphen duplicate execution", []string{"workflow", "status", "--project", "alpha", "--repository", "main", "--work-item", "github:owner/repo#7", "-execution", "first", "-execution", "second"}},
+		{"conflicting", []string{"workflow", "status", "--project", "alpha", "--repository", "main", "--work-item", "github:owner/repo#7", "--number", "7", "--execution", "execution"}},
+		{"unsafe selector", []string{"workflow", "status", "--project", "alpha", "--repository", "main", "--work-item", "github:owner/repo#7;touch", "--execution", "execution"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := &recordingService{}
+			var output bytes.Buffer
+			if code := Run(context.Background(), test.args, service, completionProvenance(t), &output); code != ExitFailure {
+				t.Fatalf("exit=%d output=%s", code, output.String())
+			}
+			if service.call != "" {
+				t.Fatalf("application called: %s", service.call)
+			}
+			var event completionEvent
+			if err := json.Unmarshal(output.Bytes(), &event); err != nil || event.Status != completion.ValidationFailure {
+				t.Fatalf("event=%+v err=%v output=%s", event, err, output.String())
+			}
+		})
+	}
+}
+
+func TestStrictSelectorPromptsOnlyForMissingExecution(t *testing.T) {
+	service := &recordingService{}
+	var output, prompts bytes.Buffer
+	input := strings.NewReader("018f4a44-7c31-7dd4-9d00-111111111111\n")
+	code := RunInteractive(context.Background(), []string{"--json", "workflow", "status", "--project", "alpha", "--repository", "main", "--work-item", "github:owner/repo#7"}, service, completionProvenance(t), input, &output, &prompts)
+	if code != ExitSuccess || service.call != "workflow-status:alpha:main:github:owner/repo:7:018f4a44-7c31-7dd4-9d00-111111111111" {
+		t.Fatalf("exit=%d call=%q output=%s", code, service.call, output.String())
+	}
+	if prompts.String() != "Execution ID: " {
+		t.Fatalf("prompts=%q", prompts.String())
+	}
+}
+
+func TestStrictSelectorCompleteInputAsksZeroQuestions(t *testing.T) {
+	service := &recordingService{}
+	var output, prompts bytes.Buffer
+	code := RunInteractive(context.Background(), []string{"--json", "workflow", "status", "--project", "alpha", "--repository", "main", "--work-item", "github:owner/repo#7", "--execution", "018f4a44-7c31-7dd4-9d00-111111111111"}, service, completionProvenance(t), strings.NewReader(""), &output, &prompts)
+	if code != ExitSuccess || prompts.Len() != 0 {
+		t.Fatalf("exit=%d prompts=%q output=%s", code, prompts.String(), output.String())
 	}
 }
 
@@ -86,6 +148,34 @@ func TestRunInteractiveAsksOnlyMissingProvider(t *testing.T) {
 	}
 	if !strings.Contains(prompts.String(), "Work Item provider") || strings.Contains(prompts.String(), "Project slug") || strings.Contains(prompts.String(), "Project name") || strings.Contains(prompts.String(), "Repository key") {
 		t.Fatalf("missing-only prompts = %q", prompts.String())
+	}
+}
+
+func TestRunInteractiveGuidesWorkItemCreateAndBindsExactPreview(t *testing.T) {
+	service := &guidedWorkItemService{completion: canonicalResult(t, completion.Success, []string{"operation:work_item_create"}, "Review result", completionProvenance(t))}
+	input := strings.NewReader("alpha\nmain\nowner/repo\nObserved problem\nSafe outcome\nRelevant context\nBounded scope\nPreserve authority\nNo workflow\nTests pass\nyes\n")
+	var output, prompts bytes.Buffer
+	code := RunInteractive(context.Background(), []string{"--json", "work-item", "create"}, service, completionProvenance(t), input, &output, &prompts)
+	if code != ExitSuccess || len(service.inputs) != 2 {
+		t.Fatalf("exit=%d inputs=%#v output=%q", code, service.inputs, output.String())
+	}
+	if service.inputs[0].AuthorizeExternal || service.inputs[1].PreviewDigest != "reviewed-digest" || !service.inputs[1].AuthorizeExternal {
+		t.Fatalf("authority inputs = %#v", service.inputs)
+	}
+	if !strings.Contains(prompts.String(), `"digest": "reviewed-digest"`) || !strings.Contains(prompts.String(), "Publish this create-attempt fence") {
+		t.Fatalf("prompts = %q", prompts.String())
+	}
+}
+
+func TestRunInteractiveWorkItemCancellationHasNoAuthority(t *testing.T) {
+	service := &guidedWorkItemService{completion: canonicalResult(t, completion.Success, []string{"operation:work_item_create"}, "Review result", completionProvenance(t))}
+	input := strings.NewReader("alpha\nmain\nowner/repo\nObserved problem\nSafe outcome\nRelevant context\nBounded scope\nPreserve authority\nNo workflow\nTests pass\nno\n")
+	var output bytes.Buffer
+	if code := RunInteractive(context.Background(), []string{"--json", "work-item", "create"}, service, completionProvenance(t), input, &output, io.Discard); code != ExitSuccess {
+		t.Fatalf("exit=%d output=%q", code, output.String())
+	}
+	if len(service.inputs) != 2 || !service.inputs[1].Cancelled || service.inputs[1].AuthorizeExternal {
+		t.Fatalf("cancellation inputs = %#v", service.inputs)
 	}
 }
 
@@ -132,7 +222,7 @@ func TestCanonicalProjectParserFailuresDoNotCallApplicationServices(t *testing.T
 		wantNext   string
 	}{
 		{"validate unknown flag", []string{"project", "validate", "--unknown", sentinel}, "Project validation input is invalid", "Review supported validation flags and retry"},
-		{"show unknown flag", []string{"project", "show", "--unknown", sentinel}, "Project inspection input is invalid", "Review supported inspection flags and retry"},
+		{"show unknown flag", []string{"project", "show", "--unknown", sentinel}, "Explicit selector input is invalid", "Remove unknown, duplicate, or conflicting inputs and retry"},
 		{"validate missing slug", []string{"project", "validate"}, "Project slug is required", "Provide a Project slug and retry validation"},
 		{"show missing selector", []string{"project", "show"}, "Project selector is required", "Provide a Project UUID or slug and retry inspection"},
 	}
@@ -205,6 +295,23 @@ type canonicalRecordingService struct {
 	Result Result
 }
 
+type guidedWorkItemService struct {
+	recordingService
+	completion completion.Result
+	inputs     []WorkItemInput
+}
+
+func (s *guidedWorkItemService) WorkItemCreate(_ context.Context, input WorkItemInput) Result {
+	s.inputs = append(s.inputs, input)
+	if input.Cancelled {
+		return Result{Completion: &s.completion}
+	}
+	if !input.AuthorizeExternal {
+		return Result{Completion: &s.completion, Draft: &workitem.DraftPreview{Digest: "reviewed-digest"}}
+	}
+	return Result{Completion: &s.completion}
+}
+
 func (s *canonicalRecordingService) Validate(context.Context, ProjectInput) Result { return s.Result }
 
 func (s *recordingService) Init(_ context.Context, input InitInput) Result {
@@ -235,6 +342,18 @@ func (s *recordingService) RuntimeCodexStatus(context.Context) Result {
 	s.call = "runtime-status"
 	return Result{Status: Succeeded, Category: "applied"}
 }
+func (s *recordingService) RuntimeClaudeInstall(context.Context) Result {
+	s.call = "runtime-claude-install"
+	return Result{Status: Succeeded, Category: "applied"}
+}
+func (s *recordingService) RuntimeClaudeStatus(context.Context) Result {
+	s.call = "runtime-claude-status"
+	return Result{Status: Succeeded, Category: "applied"}
+}
+func (s *recordingService) FirstRun(context.Context) Result {
+	s.call = "first-run"
+	return Result{Status: Succeeded, Category: "applied"}
+}
 func (s *recordingService) Resolve(_ context.Context, input ResolveInput) Result {
 	s.call = "resolve:" + input.Selector
 	return Result{Status: Succeeded, Category: "applied", Project: &ProjectView{ID: "123e4567-e89b-42d3-a456-426614174000", Slug: input.Selector, Repositories: []RepositoryView{{Key: "main", Path: "/tmp/alpha"}}}}
@@ -256,7 +375,8 @@ func (s *recordingService) WorkItemSelect(_ context.Context, input WorkItemInput
 	s.call = "work-item-select:" + input.Project + ":" + input.Repository + ":" + fmt.Sprint(input.Number)
 	return Result{Status: Succeeded, Category: "applied"}
 }
-func (s *recordingService) WorkItemShow(context.Context, WorkItemInput) Result {
+func (s *recordingService) WorkItemShow(_ context.Context, input WorkItemInput) Result {
+	s.call = "work-item-show:" + input.Project + ":" + input.Repository + ":" + input.Provider + ":" + input.ProviderRepository + ":" + input.ExternalID
 	return Result{Status: Succeeded, Category: "applied"}
 }
 func (s *recordingService) WorkItemComment(context.Context, WorkItemInput) Result {
@@ -275,9 +395,13 @@ func (s *recordingService) WorkflowAdvance(_ context.Context, input WorkflowInpu
 func (s *recordingService) WorkflowResume(context.Context, WorkflowInput) Result {
 	return Result{Status: Succeeded, Category: "applied"}
 }
-func (s *recordingService) WorkflowStatus(context.Context, WorkflowInput) Result {
+func (s *recordingService) WorkflowStatus(_ context.Context, input WorkflowInput) Result {
+	s.call = "workflow-status:" + input.Project + ":" + input.Repository + ":" + input.Provider + ":" + input.ProviderRepository + ":" + input.ExternalID + ":" + input.Execution
 	return Result{Status: Succeeded, Category: "applied"}
 }
 func (s *recordingService) WorkflowEvidence(context.Context, WorkflowInput) Result {
+	return Result{Status: Succeeded, Category: "applied"}
+}
+func (s *recordingService) WorkflowReconcile(context.Context, WorkflowInput) Result {
 	return Result{Status: Succeeded, Category: "applied"}
 }

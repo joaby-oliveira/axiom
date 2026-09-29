@@ -42,7 +42,8 @@ For native Codex packages:
 
 - `AGENTS.md` is the main entrypoint;
 - reusable workflows belong under `.agents/skills/<skill>/SKILL.md`;
-- avoid Claude-specific files;
+- avoid Claude-specific files in Codex-only packages (the repository's own
+  maintainer bootstrap is governed by `AGENTS.md`, not by this renderer rule);
 - do not enable experimental permissions/hooks automatically;
 - keep entrypoint concise;
 - avoid duplicating the same rules across multiple files.

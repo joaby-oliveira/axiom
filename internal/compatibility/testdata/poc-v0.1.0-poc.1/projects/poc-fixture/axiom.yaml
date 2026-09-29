@@ -1,0 +1,7 @@
+schemaVersion: 1
+project:
+  id: 46f9e9bf-9da2-4769-b9b7-f058f0ab6e90
+  slug: poc-fixture
+  name: POC Fixture
+repositories:
+  - key: main

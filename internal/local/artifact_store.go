@@ -19,6 +19,8 @@ type ArtifactStore struct {
 	allocate func() (string, error)
 	capacity func(*os.Root) (int, int64, error)
 	hooks    publicationHooks
+	// beforeCleanupRemoval is a deterministic test seam between exact removals.
+	beforeCleanupRemoval func(int) error
 }
 
 func NewArtifactStore(root string) (ArtifactStore, error) {
@@ -137,6 +139,9 @@ func (s ArtifactStore) create(ctx context.Context, artifact detailartifact.Artif
 			return err
 		}
 		return ErrRecoveryRequired
+	}
+	if err := s.supersedeRetirements(root, artifact); err != nil {
+		return err
 	}
 	if _, err := shard.Lstat(artifact.ID); err == nil {
 		return ErrConflict

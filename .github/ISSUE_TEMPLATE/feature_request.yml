@@ -5,6 +5,7 @@ body:
     attributes:
       value: |
         An Issue does not represent approval, change the roadmap, or authorize implementation.
+        Issue labels, status, closure, PR merge, and green CI do not advance canonical Axiom workflow state or establish human acceptance.
         Do not include secrets or private data. Use [SECURITY.md](https://github.com/rgomids/axiom/blob/main/SECURITY.md) for vulnerabilities.
   - type: textarea
     id: problem
