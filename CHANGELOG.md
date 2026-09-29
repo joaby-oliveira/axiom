@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/rgomids/axiom/compare/v0.1.0...v0.1.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **install:** accept any Linux distribution on amd64/arm64 ([#112](https://github.com/rgomids/axiom/issues/112)) ([6994a80](https://github.com/rgomids/axiom/commit/6994a807201b045bc93946a21846995a98c0fa70))
+
 ## 0.1.0 (2026-09-28)
 
 
