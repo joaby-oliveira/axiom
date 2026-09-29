@@ -19,7 +19,7 @@ set -eu
 umask 077
 
 repository_url=https://github.com/rgomids/axiom
-supported_rows='macOS 27.0/arm64, Ubuntu 26.04/amd64, Ubuntu 26.04/arm64'
+supported_rows='macOS 27.0/arm64, Linux/amd64, Linux/arm64'
 
 fail() {
   printf 'install_error: %s\n' "$1" >&2
@@ -125,15 +125,11 @@ case "$system:$machine" in
     fi
     ;;
   Linux:x86_64|Linux:aarch64)
-    if [ -r /etc/os-release ] \
-      && [ "$(grep -c '^ID=' /etc/os-release)" = 1 ] && [ "$(grep -c '^VERSION_ID=' /etc/os-release)" = 1 ] \
-      && grep -Eq '^ID=(ubuntu|"ubuntu")$' /etc/os-release \
-      && grep -Eq '^VERSION_ID=(26\.04|"26\.04")$' /etc/os-release; then
-      case "$machine" in
-        x86_64) row=ubuntu-26.04-amd64 ;;
-        aarch64) row=ubuntu-26.04-arm64 ;;
-      esac
-    fi
+    # Any Linux distribution runs the static linux build.
+    case "$machine" in
+      x86_64) row=linux-amd64 ;;
+      aarch64) row=linux-arm64 ;;
+    esac
     ;;
 esac
 [ -n "$row" ] || fail "unsupported host $system/$machine; supported rows are exactly $supported_rows"

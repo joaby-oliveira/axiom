@@ -631,7 +631,7 @@ func TestUpgradeRefusalsHaveZeroEffects(t *testing.T) {
 			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
 		}, "binary_modified"},
 		{"unsupported host", func(t *testing.T, i *installation) Candidate {
-			hostRow = func() string { return "ubuntu-26.04:linux:amd64" }
+			hostRow = func() string { return "linux:linux:amd64" }
 			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
 		}, "unsupported_host"},
 		{"concurrent installation", func(t *testing.T, i *installation) Candidate {

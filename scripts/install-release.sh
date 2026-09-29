@@ -44,26 +44,14 @@ host_matches_release_row() {
       command -v sw_vers >/dev/null 2>&1 || return 1
       [[ $(sw_vers -productVersion 2>/dev/null) == 27.0 ]]
       ;;
-    ubuntu-26.04:linux:amd64)
-      [[ "$host_system:$host_architecture" == Linux:x86_64 ]] || return 1
-      ubuntu_26_04_host
+    linux:linux:amd64)
+      [[ "$host_system:$host_architecture" == Linux:x86_64 ]]
       ;;
-    ubuntu-26.04:linux:arm64)
-      [[ "$host_system:$host_architecture" == Linux:aarch64 ]] || return 1
-      ubuntu_26_04_host
+    linux:linux:arm64)
+      [[ "$host_system:$host_architecture" == Linux:aarch64 ]]
       ;;
     *) return 1 ;;
   esac
-}
-
-ubuntu_26_04_host() {
-  local os_release=/etc/os-release os_id os_version
-  [[ -r "$os_release" ]] || return 1
-  [[ $(grep -c '^ID=' "$os_release") == 1 && $(grep -c '^VERSION_ID=' "$os_release") == 1 ]] || return 1
-  os_id=$(awk -F= '$1 == "ID" {print $2}' "$os_release")
-  os_version=$(awk -F= '$1 == "VERSION_ID" {print $2}' "$os_release")
-  [[ "$os_id" == ubuntu || "$os_id" == '"ubuntu"' ]] || return 1
-  [[ "$os_version" == 26.04 || "$os_version" == '"26.04"' ]]
 }
 
 archive_name=$(basename "$archive")

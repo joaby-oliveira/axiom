@@ -65,7 +65,7 @@ expect_failure 'invalid version' 'exact semantic version required' "$build" --ve
 grep -Fxq "revision=$revision" "$temporary/evidence"
 grep -Fxq 'publication=none' "$temporary/evidence"
 grep -Fxq 'result=pass' "$temporary/evidence"
-for row in macos-27-arm64 ubuntu-26.04-amd64 ubuntu-26.04-arm64; do
+for row in macos-27-arm64 linux-amd64 linux-arm64; do
   grep -Eq "^archive=axiom-0\\.1\\.0-rc\\.1-$row\\.tar\\.gz sha256=[0-9a-f]{64} " "$temporary/evidence"
 done
 [[ $(grep -c '^archive=' "$temporary/evidence") == 3 ]]
@@ -93,7 +93,7 @@ mutate() {
   printf '%s\n' "$temporary/$name"
 }
 case_dir=$(mutate missing-row)
-rm -- "$case_dir/axiom-0.1.0-rc.1-ubuntu-26.04-arm64.tar.gz"
+rm -- "$case_dir/axiom-0.1.0-rc.1-linux-arm64.tar.gz"
 expect_failure 'missing row' 'artifact set is not exactly' "$verify" --dir "$case_dir" --version 0.1.0-rc.1 --revision "$revision"
 
 case_dir=$(mutate missing-checksum)
@@ -101,7 +101,7 @@ grep -v 'macos-27-arm64' "$temporary/first/SHA256SUMS" >"$case_dir/SHA256SUMS"
 expect_failure 'missing checksum line' 'SHA256SUMS must list exactly the three archives' "$verify" --dir "$case_dir" --version 0.1.0-rc.1 --revision "$revision"
 
 case_dir=$(mutate checksum-mismatch)
-printf 'tamper\n' >>"$case_dir/axiom-0.1.0-rc.1-ubuntu-26.04-amd64.tar.gz"
+printf 'tamper\n' >>"$case_dir/axiom-0.1.0-rc.1-linux-amd64.tar.gz"
 expect_failure 'checksum mismatch' 'checksum mismatch' "$verify" --dir "$case_dir" --version 0.1.0-rc.1 --revision "$revision"
 
 case_dir=$(mutate extra-file)
@@ -118,7 +118,7 @@ expect_failure 'wrong revision' 'checkout is not the artifact source revision' "
 
 # A bundle that ships lingo instead of the canonical axiom executable.
 case_dir=$(mutate lingo-bundle)
-bundle=axiom-0.1.0-rc.1-ubuntu-26.04-amd64
+bundle=axiom-0.1.0-rc.1-linux-amd64
 mkdir "$temporary/repack"
 tar -xzf "$case_dir/$bundle.tar.gz" -C "$temporary/repack"
 mv "$temporary/repack/$bundle/axiom" "$temporary/repack/$bundle/lingo"

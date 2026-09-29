@@ -1,12 +1,9 @@
 package install
 
 import (
-	"bufio"
-	"bytes"
 	"os"
 	"regexp"
 	"runtime"
-	"strings"
 )
 
 var productVersionPattern = regexp.MustCompile(`<key>ProductVersion</key>\s*<string>([0-9.]+)</string>`)
@@ -21,20 +18,8 @@ var hostRow = func() string {
 			return "macos-27:darwin:arm64"
 		}
 	case "linux/amd64", "linux/arm64":
-		wire, err := os.ReadFile("/etc/os-release")
-		if err != nil {
-			return ""
-		}
-		values := map[string]string{}
-		scanner := bufio.NewScanner(bytes.NewReader(wire))
-		for scanner.Scan() {
-			if key, value, ok := strings.Cut(scanner.Text(), "="); ok {
-				values[key] = strings.Trim(value, `"`)
-			}
-		}
-		if values["ID"] == "ubuntu" && values["VERSION_ID"] == "26.04" {
-			return "ubuntu-26.04:linux:" + runtime.GOARCH
-		}
+		// Any Linux distribution runs the static linux build.
+		return "linux:linux:" + runtime.GOARCH
 	}
 	return ""
 }

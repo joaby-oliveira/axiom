@@ -109,8 +109,8 @@ step release-archive-suite "$repository_root/scripts/test-release-archives.sh"
 platform_bundle=
 case "$row" in
   macos-*) platform_bundle=macos-27-arm64 ;;
-  ubuntu-26.04-amd64-*) platform_bundle=ubuntu-26.04-amd64 ;;
-  ubuntu-26.04-arm64-*) platform_bundle=ubuntu-26.04-arm64 ;;
+  ubuntu-26.04-amd64-*) platform_bundle=linux-amd64 ;;
+  ubuntu-26.04-arm64-*) platform_bundle=linux-arm64 ;;
 esac
 build_flag=()
 [[ -n $(git -C "$repository_root" status --porcelain --untracked-files=normal) ]] && build_flag=(--development)
