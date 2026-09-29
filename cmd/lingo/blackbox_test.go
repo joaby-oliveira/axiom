@@ -129,6 +129,7 @@ type canonicalEvent struct {
 	} `json:"workItem"`
 	Workflow *struct {
 		ExecutionID, Status, CurrentGate, RepositoryKey string
+		RuntimeID                                       string
 		Revision                                        uint64
 		WorkItem                                        struct{ Resource string }
 	} `json:"workflow"`
@@ -470,7 +471,8 @@ exit 0
 	}
 	runCanonical(0, "success", "Historical Work Item comment completed", "work-item", "comment", "--project", "configured", "--repository", "main", "--number", "7", "--message", "Evidence", "--authorize-external")
 	started := runCanonical(0, "success", "Execution workflow operation completed", "workflow", "start", "--project", "configured", "--repository", "main", "--number", "7")
-	if started.Workflow == nil || started.Workflow.ExecutionID == "" || started.Workflow.CurrentGate != "intake" || started.Workflow.Revision != 1 {
+	// No --runtime keeps the historical Codex default.
+	if started.Workflow == nil || started.Workflow.ExecutionID == "" || started.Workflow.CurrentGate != "intake" || started.Workflow.Revision != 1 || started.Workflow.RuntimeID != "codex" {
 		t.Fatalf("started workflow = %+v", started.Workflow)
 	}
 	exactWorkItem := "github:owner/repo#7"

@@ -626,7 +626,8 @@ Strict S5 workflow selectors are explicit and independent of current directory:
 axiom --json workflow start \
   --project <project-uuid-or-slug> \
   --repository <project-scoped-key> \
-  --work-item 'github:<owner>/<repository>#<number>'
+  --work-item 'github:<owner>/<repository>#<number>' \
+  --runtime <codex|claude>
 
 axiom --json workflow status \
   --project <project-uuid-or-slug> \
@@ -797,12 +798,22 @@ and must not be treated as workflow progress or human acceptance.
 
 ## Execute the bounded workflow
 
-Start one workflow from an already linked Work Item:
+Start one workflow from an already linked Work Item, naming the Runtime that
+conducts it:
 
 ```bash
-axiom workflow start --project my-project --repository main --number 123
+axiom workflow start --project my-project --repository main --number 123 --runtime claude
 axiom workflow status --project my-project --repository main --number 123
 ```
+
+`--runtime` accepts exactly `codex` or `claude` and is accepted only by
+`workflow start`. It is explicit caller input; Lingo never infers it from
+installed executables or the parent process. Omitting it keeps the historical
+`codex` default. An unsupported value fails validation before any Execution is
+created. The Execution persists the selected Runtime as its truth: status,
+advance, fact, evidence, reconcile, and resume use the recorded Runtime and reject
+`--runtime`, and a later `workflow start` naming a different Runtime for the same
+Work Item returns `validation_failure` without changing the Execution.
 
 Advance gates in fixed order from the exact current revision. Optional references
 are either a machine-local detail artifact or a repository-relative regular
@@ -887,8 +898,13 @@ Projection uses exactly one of `intake`, `specifying`, `specified`, `planning`,
 `planned`, `implementing`, `implemented`, `reviewing`, `reviewed`, or `accepted`
 under `axiom:stage:*`, plus applicable `axiom:blocked`,
 `axiom:needs-decision`, `axiom:needs-approval`, and
-`axiom:recovery-required` flags. Zero, multiple, unknown, or contradictory Axiom
-markers require recovery. Projection removes only positively identified obsolete
+`axiom:recovery-required` flags. The first projection of an Execution may find an
+Issue without any `axiom:stage:*` marker, such as one created by
+`work-item create`; its preview creates the stage label when the repository lacks
+it, adds it to the Issue, and posts the transition comment, removing nothing.
+Once the Execution's projection ledger records an established stage marker, zero
+markers are drift. Multiple, unknown, or contradictory Axiom markers always require
+recovery. Projection removes only positively identified obsolete
 managed labels and posts at most one provenance-marked comment per Execution
 revision. It preserves foreign labels/content. Every
 mutation is reinspected before its intended/confirmed ledger advances. Ambiguous

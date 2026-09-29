@@ -8,8 +8,11 @@ description: Start or resume the bounded Axiom delivery workflow for a configure
 Collect only missing Project, Project-scoped Repository, exact Work Item, and
 applicable Execution selectors. Use `--project <uuid-or-slug> --repository <key>
 --work-item github:<owner>/<repository>#<number>`. `workflow start` omits
-`--execution`; every resume, advance, status, evidence, or reconcile call forwards
-the exact `--execution <id>` returned by Lingo. Follow `currentGate` returned by
+`--execution` and passes `--runtime codex` or `--runtime claude`, naming the
+Runtime executing this skill; never guess it from installed executables. Every
+resume, advance, status, evidence, or reconcile call forwards the exact
+`--execution <id>` returned by Lingo and never passes `--runtime`: the Execution
+keeps the Runtime recorded at start. Follow `currentGate` returned by
 Lingo. Advance through `axiom --json workflow advance` with its required revision,
 outcome, and repository-relative artifact reference.
 

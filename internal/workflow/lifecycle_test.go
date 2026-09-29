@@ -228,9 +228,8 @@ func TestLifecycleLabelsAreExactAndExternalSignalsGrantNothing(t *testing.T) {
 	}
 }
 
-func TestLifecycleProjectionRejectsZeroMultipleAndUnknownStages(t *testing.T) {
+func TestLifecycleProjectionRejectsMultipleAndUnknownStages(t *testing.T) {
 	for name, labels := range map[string][]string{
-		"zero":     {"external"},
 		"multiple": {"axiom:stage:intake", "axiom:stage:specifying"},
 		"unknown":  {"axiom:stage:invented"},
 	} {
@@ -239,6 +238,11 @@ func TestLifecycleProjectionRejectsZeroMultipleAndUnknownStages(t *testing.T) {
 				t.Fatal("drift accepted")
 			}
 		})
+	}
+	// Zero markers are reported as absent; prepareProjectionPreview decides
+	// between first-projection bootstrap and drift from the Execution ledger.
+	if observed, legacy, err := observedLifecycleStage([]string{"external"}); observed != "" || legacy || err != nil {
+		t.Fatalf("zero markers = %q %v %v", observed, legacy, err)
 	}
 }
 

@@ -95,6 +95,7 @@ type WorkflowInput struct {
 	Project, Repository, WorkItem, Provider, ProviderRepository string
 	ExternalID, Execution, Gate, Outcome, Reference, Next       string
 	Fact                                                        string
+	Runtime                                                     string
 	Number                                                      int
 	ExpectedRevision                                            uint64
 	PreviewDigest                                               string
@@ -405,6 +406,7 @@ type requestInput struct {
 	scope, constraints, nonGoals, acceptance string
 	message                                  string
 	gate, outcome, reference, next, fact     string
+	runtime                                  string
 	number                                   int
 	expectedRevision                         uint64
 	authorizeExternal                        bool
@@ -622,6 +624,9 @@ func workflowFlags(operation action, args []string) (requestInput, bool) {
 	set.StringVar(&values.workItem, "work-item", "", "")
 	set.StringVar(&values.execution, "execution", "", "")
 	set.IntVar(&values.number, "number", 0, "")
+	if operation == workflowStartAction {
+		set.StringVar(&values.runtime, "runtime", "", "")
+	}
 	if operation == workflowAdvanceAction || operation == workflowFactAction || operation == workflowResumeAction || operation == workflowReconcileAction {
 		set.Uint64Var(&values.expectedRevision, "expected-revision", 0, "")
 	}
@@ -646,6 +651,16 @@ func workflowFlags(operation action, args []string) (requestInput, bool) {
 	}
 	if err := set.Parse(args); err != nil || set.NArg() != 0 || values.workItem != "" && values.number != 0 {
 		return requestInput{}, false
+	}
+	if operation == workflowStartAction {
+		// Only Start selects the Runtime; later operations use the one persisted
+		// in the Execution. Absence keeps the historical Codex default.
+		if !flagSupplied(args, "--runtime") {
+			values.runtime = "codex"
+		}
+		if !workflow.SupportedRuntime(values.runtime) {
+			return requestInput{}, false
+		}
 	}
 	return values, true
 }
@@ -784,7 +799,7 @@ func dispatch(ctx context.Context, operation action, input requestInput, service
 		if input.workItem != "" && !ok {
 			return Result{Status: Failed, Category: "invalid_input"}
 		}
-		value := WorkflowInput{Project: input.project, Repository: input.repository, WorkItem: input.workItem, Provider: provider, ProviderRepository: resource, ExternalID: externalID, Execution: input.execution, Number: input.number, Gate: input.gate, Outcome: input.outcome, Reference: input.reference, Next: input.next, Fact: input.fact, Active: input.active, ExpectedRevision: input.expectedRevision, PreviewDigest: input.previewDigest, AuthorizeExternal: input.authorizeExternal, AuthorizeLocal: input.authorizeLocal}
+		value := WorkflowInput{Project: input.project, Repository: input.repository, WorkItem: input.workItem, Provider: provider, ProviderRepository: resource, ExternalID: externalID, Execution: input.execution, Number: input.number, Gate: input.gate, Outcome: input.outcome, Reference: input.reference, Next: input.next, Fact: input.fact, Active: input.active, ExpectedRevision: input.expectedRevision, PreviewDigest: input.previewDigest, AuthorizeExternal: input.authorizeExternal, AuthorizeLocal: input.authorizeLocal, Runtime: input.runtime}
 		switch operation {
 		case workflowStartAction:
 			return service.WorkflowStart(ctx, value)

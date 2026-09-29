@@ -20,6 +20,7 @@ import (
 // digest here whenever the skill text changes.
 var publishedSharedRevisions = []string{
 	"98c861ec8f4448f5e63299d576a11fd41c6cf3f8d43270bb060bd77e9ba327ec",
+	"9edcd211cdf251a9d8ffd6e20e89809ed2ae51ac5d54ce0b9c0d927431fa2a5f",
 }
 
 func TestEveryPublishedSharedRevisionStaysOwned(t *testing.T) {

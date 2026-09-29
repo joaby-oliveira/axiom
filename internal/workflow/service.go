@@ -271,6 +271,11 @@ func (s Service) Start(ctx context.Context, target Target) Result {
 	if target.ExecutionID != "" {
 		return result(ValidationFailed, "execution_selector_conflict", State{})
 	}
+	// The Runtime is an explicit Start input and is persisted as Execution truth;
+	// it is never derived from executables, the parent process, or a default here.
+	if !SupportedRuntime(target.RuntimeID) {
+		return result(ValidationFailed, "invalid_execution_input", State{})
+	}
 	project, repository, item, failed := s.resolve(ctx, target)
 	if failed.Category != "" {
 		return failed
@@ -571,7 +576,7 @@ func (s Service) Project(ctx context.Context, target Target, expectedRevision ui
 }
 
 func (s Service) resolve(ctx context.Context, target Target) (Project, Repository, WorkItem, Result) {
-	if s.resolver == nil || s.workItems == nil || s.store == nil || !s.source.Valid() || !validText(target.ProjectSelector) || !validText(target.RepositoryKey) || !validText(target.WorkItem) || !validText(target.RuntimeID) {
+	if s.resolver == nil || s.workItems == nil || s.store == nil || !s.source.Valid() || !validText(target.ProjectSelector) || !validText(target.RepositoryKey) || !validText(target.WorkItem) || target.RuntimeID != "" && !validText(target.RuntimeID) {
 		return Project{}, Repository{}, WorkItem{}, result(ValidationFailed, "invalid_execution_input", State{})
 	}
 	project, category := s.resolver.Resolve(ctx, target.ProjectSelector)
@@ -612,7 +617,13 @@ func (s Service) loadResolved(ctx context.Context, target Target) (State, Reposi
 	if !ValidState(state) {
 		return State{}, Repository{}, result(ValidationFailed, "invalid_execution_state", State{})
 	}
-	if !equivalentStart(state, project.ID, repository.Key, item, target.RuntimeID) {
+	// Operations after Start act on the persisted Runtime. A supplied Runtime
+	// must match it exactly; nothing can reassign an existing Execution.
+	runtimeID := target.RuntimeID
+	if runtimeID == "" {
+		runtimeID = state.RuntimeID
+	}
+	if !equivalentStart(state, project.ID, repository.Key, item, runtimeID) {
 		return State{}, Repository{}, result(ValidationFailed, "execution_scope_conflict", state)
 	}
 	if target.ExecutionID != "" && state.ExecutionID != target.ExecutionID {
@@ -668,6 +679,11 @@ func prepareProjectionPreview(state State, lifecycle LifecycleProjection, observ
 	if err != nil {
 		return ProjectionPreview{}, err
 	}
+	// Zero stage markers are the bootstrap of a Work Item this Execution never
+	// projected. Once any projection was established, losing the marker is drift.
+	if observedStage == "" && projectionEstablished(state) {
+		return ProjectionPreview{}, ErrRecoveryRequired
+	}
 	label := lifecycleLabel(lifecycle.Stage)
 	key := projectionKey(state.ExecutionID, state.Revision)
 	comment := transitionComment(state, key)
@@ -684,7 +700,7 @@ func prepareProjectionPreview(state State, lifecycle LifecycleProjection, observ
 			effects = append(effects, ProjectionEffect{Kind: AddStageLabel, Value: wanted})
 		}
 	}
-	if observedStage != label || legacyStage {
+	if observedStage != "" && (observedStage != label || legacyStage) {
 		effects = append(effects, ProjectionEffect{Kind: RemoveStageLabel, Value: observedStage})
 	}
 	for _, current := range observation.IssueLabels {
@@ -864,6 +880,11 @@ func replayed(state State, expected uint64, requestDigest string) bool {
 	last := state.Transitions[len(state.Transitions)-1]
 	return last.Revision == expected+1 && last.RequestDigest == requestDigest
 }
+
+// SupportedRuntime reports whether id names a Runtime that may conduct a new
+// Execution. The closed set matches the operator-authorized Runtime paths.
+func SupportedRuntime(id string) bool { return id == "codex" || id == "claude" }
+
 func equivalentStart(state State, projectID, repositoryKey string, item WorkItem, runtimeID string) bool {
 	return state.FormatVersion == FormatVersion && state.WorkflowVersion == WorkflowVersion && state.ProjectID == projectID && state.RepositoryKey == repositoryKey && state.RuntimeID == runtimeID && state.WorkItem == item
 }
@@ -1135,6 +1156,10 @@ func validLegacyStageLabel(value string) bool {
 	stage := Stage(strings.TrimPrefix(value, stagePrefix))
 	return stage.Valid() && value == stagePrefix+string(stage)
 }
+
+// observedLifecycleStage returns the single observed stage marker, or "" when
+// the Issue carries none. Invalid, unknown, or multiple markers fail closed;
+// callers decide whether zero markers is bootstrap or drift.
 func observedLifecycleStage(labels []string) (string, bool, error) {
 	var observed string
 	legacy := false
@@ -1154,10 +1179,25 @@ func observedLifecycleStage(labels []string) (string, bool, error) {
 		observed = label
 		legacy = !validStageEffect(label)
 	}
-	if observed == "" {
-		return "", false, ErrRecoveryRequired
-	}
 	return observed, legacy, nil
+}
+
+// projectionEstablished reports whether the Execution ledger proves a stage
+// marker was once present on the Issue: a complete record, or any confirmed
+// effect other than repository label creation (stage addition precedes removal
+// and comment effects in every preview).
+func projectionEstablished(state State) bool {
+	for _, record := range state.Projections {
+		if record.Complete {
+			return true
+		}
+		for _, effect := range record.Confirmed {
+			if effect.Kind != CreateStageLabel {
+				return true
+			}
+		}
+	}
+	return false
 }
 func validDigest(value string) bool {
 	decoded, err := hex.DecodeString(value)

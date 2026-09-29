@@ -100,6 +100,8 @@ func TestCurrentLocalTruthPreviewsRecognizedProjectionDrift(t *testing.T) {
 func TestZeroUnknownOrMultipleProviderLifecycleLabelsRequireRecovery(t *testing.T) {
 	state := lifecycleTestState()
 	advanceLifecycleState(&state)
+	// A confirmed earlier projection makes a missing marker drift, not bootstrap.
+	state.Projections = []ProjectionRecord{{ExecutionRevision: state.Revision, Key: projectionKey(state.ExecutionID, state.Revision), Intended: []ProjectionEffect{{Kind: AddStageLabel, Value: "axiom:stage:specifying"}}, Confirmed: []ProjectionEffect{{Kind: AddStageLabel, Value: "axiom:stage:specifying"}}, Complete: true}}
 	for name, labels := range map[string][]string{
 		"zero":     {"external"},
 		"unknown":  {"axiom:stage:invented"},
@@ -114,6 +116,24 @@ func TestZeroUnknownOrMultipleProviderLifecycleLabelsRequireRecovery(t *testing.
 			}
 		})
 	}
+}
+
+func TestZeroProviderLifecycleLabelsBootstrapNeverProjectedExecution(t *testing.T) {
+	state := lifecycleTestState()
+	advanceLifecycleState(&state)
+	provider := alignedReconciliationObservation(state)
+	provider.RepositoryLabels = []string{"external"}
+	provider.IssueLabels = []string{"external"}
+	provider.CommentPresent = false
+	result := InspectReconciliation(ReconciliationInput{Current: &state, Provider: &provider})
+	if result.Kind != ReconciliationCurrentTruth || result.Projection == nil {
+		t.Fatalf("result = %#v", result)
+	}
+	assertOnlyProjectionEffects(t, result.Projection.Effects,
+		ProjectionEffect{Kind: CreateStageLabel, Value: "axiom:stage:specifying"},
+		ProjectionEffect{Kind: AddStageLabel, Value: "axiom:stage:specifying"},
+		ProjectionEffect{Kind: PostTransitionComment, Value: result.Projection.Comment},
+	)
 }
 
 func TestSemanticallyInvalidLocalGenerationRequiresRecovery(t *testing.T) {

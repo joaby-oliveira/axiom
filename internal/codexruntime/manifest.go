@@ -41,9 +41,18 @@ type skillSetRevision struct {
 // them, as Axiom-owned, so a binary whose skill text changed converges each
 // Runtime root it finds instead of only the root `axiom upgrade` publishes.
 // When the embedded skill text changes, append the revision being replaced
-// here; never extend one Runtime's own history instead. Empty today: the
-// embedded skill set is the first one published to Claude.
-var sharedSkillHistory = []skillSetRevision{}
+// here; never extend one Runtime's own history instead.
+var sharedSkillHistory = []skillSetRevision{
+	// First shared skill set (S9/T40), published through v0.1.2-rc.1; replaced
+	// when axiom-work-item-run began selecting the Execution Runtime explicitly.
+	{skillSetVersion: "2", binaryCompatibility: "2", skills: map[string]string{
+		"axiom-project-configure": "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3",
+		"axiom-project-show":      "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09",
+		"axiom-work-item-create":  "85e4f4badff647a337acf59e96d07909c9a3c47ce5e8df65fac08395c8aac8c4",
+		"axiom-work-item-run":     "f0fd487fbbfcfb87bee9906244fb1fedbc0dd5bcbd1fb01594dc3df0c8e5e897",
+		"axiom-work-item-status":  "6a139090ff66759b64e630181373c32ff51ad2672d90d26184b6f81e9879b7d9",
+	}},
+}
 
 // currentRevision is the skill set embedded in this binary.
 func currentRevision() (skillSetRevision, error) {

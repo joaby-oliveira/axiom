@@ -49,6 +49,7 @@ Strict selector vocabulary:
   --repository <project-scoped-key>
   --work-item github:<owner>/<repository>#<number>
   --execution <execution-id> (all workflow operations except start)
+  --runtime codex|claude (workflow start only; default codex; kept by the Execution)
 
 Fully specified selectors require no prompt. Missing selectors may be prompted;
 unknown, duplicate, conflicting, or ambiguous selectors fail validation without

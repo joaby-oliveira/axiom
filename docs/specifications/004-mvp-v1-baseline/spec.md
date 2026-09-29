@@ -14,6 +14,26 @@ The macOS installer still requires 27.0/arm64 and archive metadata `macos-27`;
 generic OS naming does not remove that executable compatibility constraint.
 T24, Runtime execution and human acceptance remain separately gated.
 
+## S9 dogfood defect reconciliation — 2026-09-29
+
+The S9 dogfood against `v0.1.2-rc.1` found two Major product defects. Their
+correction clarifies two existing contracts without changing architecture, the
+closed stage set, or recorded Evidence; this clarification is pending human
+review with the correcting pull request:
+
+- **Execution Runtime (FR-018, ADR-0008 record):** the Runtime ID persisted in an
+  Execution is the Runtime explicitly selected at `workflow start`
+  (`--runtime codex|claude`; absent keeps the historical `codex` default). It is
+  never inferred from executables or the parent process. After start the persisted
+  Runtime is Execution truth; later operations cannot re-select or switch it.
+- **First projection (FR-039, AC-08, AC-27):** zero `axiom:stage:*` markers are
+  drift only once the Execution's projection ledger shows an established marker.
+  The first projection of an Issue that never carried one (for example, created by
+  `work-item create`) is a bootstrap that creates and adds the derived marker.
+  Multiple, unknown, invalid, or contradictory markers still fail closed.
+
+Dated observations of `v0.1.2-rc.1` remain historical and are not rewritten.
+
 ## Status and authority
 
 **Approved — human approval recorded on 2026-09-20.**
@@ -218,7 +238,9 @@ axiom:stage:accepted
 
 A successfully managed GitHub Work Item MUST expose exactly one marker from that
 closed set. Zero, multiple, unknown, or contradictory `axiom:stage:*` observations
-are projection drift and MUST fail closed for Provider reconciliation. They do not
+are projection drift and MUST fail closed for Provider reconciliation; zero markers
+before the Execution's first established projection are the bootstrap defined by
+the 2026-09-29 dogfood defect reconciliation, not drift. They do not
 advance, rewind, or veto an otherwise valid canonical local gate transition.
 
 Orthogonal conditions use zero or more separate provider-neutral flags. The
@@ -561,7 +583,8 @@ the final human acceptance decision.
   Execution gate/history plus the explicit local facts defined by this amendment;
   it MUST NOT be independently persisted or transitioned. GitHub MUST map the
   derived value to the exact `axiom:stage:*` set and treat zero, multiple, unknown,
-  or contradictory markers as projection drift.
+  or contradictory markers as projection drift (zero markers before the first
+  established projection are bootstrap; see the 2026-09-29 reconciliation).
 - **FR-040 Gate projection:** every canonical gate transition MUST retain S4's
   exact current gate/revision, prerequisite, reference, blocker, and authority
   checks. Lifecycle derivation from the resulting snapshot MUST either return the

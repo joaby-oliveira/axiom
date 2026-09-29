@@ -385,7 +385,8 @@ func (s *recordingService) WorkItemComment(context.Context, WorkItemInput) Resul
 func (s *recordingService) WorkItemComplete(context.Context, WorkItemInput) Result {
 	return Result{Status: Succeeded, Category: "applied"}
 }
-func (s *recordingService) WorkflowStart(context.Context, WorkflowInput) Result {
+func (s *recordingService) WorkflowStart(_ context.Context, input WorkflowInput) Result {
+	s.call = "workflow-start:" + input.Project + ":" + input.Repository + ":" + fmt.Sprint(input.Number) + ":" + input.Runtime
 	return Result{Status: Succeeded, Category: "applied"}
 }
 func (s *recordingService) WorkflowAdvance(_ context.Context, input WorkflowInput) Result {
