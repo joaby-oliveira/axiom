@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "envelope": "E",
+  "envelopeSHA256": "d4966153266aeddf36486180af7180281aaf1e0a96fee3ba8da419e7b1f20730",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "E9-review-projection-apply",
+  "authority": "provider",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {
+    "issueNumber": "125",
+    "projectionDigest": "7700e63b06c7fb7d50b1cac5545ad0cb3ab64878abb515c382d8435605665162"
+  },
+  "startedAtUnix": 1790724361,
+  "observations": [
+    {
+      "label": "review-projection-apply",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "reconcile",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "10",
+        "--preview-digest",
+        "7700e63b06c7fb7d50b1cac5545ad0cb3ab64878abb515c382d8435605665162",
+        "--authorize-external"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 12.747,
+      "outputSHA256": "e7fcfbf3653c366c3d5cbe02f5bb20a4c071cb30a73072752862a94912bf85df",
+      "outputBytes": 3839,
+      "retainedSHA256": "e7fcfbf3653c366c3d5cbe02f5bb20a4c071cb30a73072752862a94912bf85df",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/review-projection-apply.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "review-projection-apply",
+      "local": [],
+      "external": [
+        "GitHub rgomids/axiom Issue #<issueNumber> only: create the axiom:stage:* label if absent, add it, remove only positively identified obsolete managed labels, post at most one provenance-marked comment for this Execution revision"
+      ],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {},
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "human: PR review/merge/close; remote branch deletion after merge; Issue closure only after merge and separately authorized; lab preserved",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

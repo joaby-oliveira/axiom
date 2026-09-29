@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "envelope": "D",
+  "envelopeSHA256": "007c792d1e035541900dbf487065ef6f1aff19b27ba1b9c619d1fbd0f9291d9e",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "D6-run02-prepare",
+  "authority": "runtime",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {
+    "projectId": "a1664139-a520-4979-8251-e76c2cbcc345"
+  },
+  "startedAtUnix": 1790722046,
+  "observations": [
+    {
+      "label": "graph-prepare",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run02",
+        "prepare",
+        "--spec",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec-run02.json",
+        "--project-id",
+        "a1664139-a520-4979-8251-e76c2cbcc345"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.71,
+      "outputSHA256": "488d227dee8e21e36e30bc02138a1b2b3fa31b364dc24e89e64d7e7eaa10bdc7",
+      "outputBytes": 189,
+      "retainedSHA256": "488d227dee8e21e36e30bc02138a1b2b3fa31b364dc24e89e64d7e7eaa10bdc7",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/graph-prepare.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "graph-prepare",
+      "local": [
+        "second graph under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/state; Evidence under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/evidence/graph-run02"
+      ],
+      "external": [
+        "`codex --version` and `claude --version` only"
+      ],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {
+    "graph-prepare.parentId": "84c16fdc-a18a-4a0c-9733-6789549481c2",
+    "graph-prepare.runEnvelopeDigest": "f65ba808b8a353429d8d9f9a9fb74641ad69d85879626f42a28c45ea3236eeb5",
+    "graph-prepare.base": "859969a07f3807822580431a05b6c78b07691fb1"
+  },
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; worktrees, state and Evidence preserved (preserve_pending_human_review); no automatic deletion",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

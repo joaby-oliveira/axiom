@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "envelope": "C",
+  "envelopeSHA256": "b16acf86767b6f4d3f0729f7c19a52294a244d7a78baaac9ca4b506a7add32ef",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "C2-claude-run",
+  "authority": "runtime",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {},
+  "startedAtUnix": 1790721225,
+  "observations": [
+    {
+      "label": "claude-print",
+      "argv": [
+        "/Users/rgomids/.local/bin/claude",
+        "--print",
+        "--model",
+        "sonnet",
+        "--no-session-persistence",
+        "--strict-mcp-config",
+        "--permission-mode",
+        "acceptEdits",
+        "--allowedTools",
+        "Bash(axiom:*),Read,Glob,Grep",
+        "--output-format",
+        "text",
+        "Bounded Axiom T24 acceptance check for release candidate v0.1.2-rc.2. Use only the installed Axiom skills: /axiom-project-configure, then /axiom-project-show. Configure exactly one Axiom Project with slug axiom-t24-claude, name 'Axiom T24 Claude', repository key main bound to /Users/rgomids/Projects/axiom-t24-rc2-lab/c/source, work item provider github. The operator authorized local publication of exactly this Project configuration: run the read-only preview, then apply it with the returned preview digest and --authorize-local. Then show the Project by slug. Do not create or select Work Items, do not contact GitHub, do not edit repository files, do not read, print or copy credentials, do not install anything. Final answer, one line only: project=<project-id> slug=axiom-t24-claude"
+      ],
+      "attempt": 1,
+      "exitCode": 1,
+      "timedOut": false,
+      "durationSeconds": 0.347,
+      "outputSHA256": "ca901b5be3db10d7195703bfaf9ad3b674be07855555b3cb8f6ed0555be38a59",
+      "outputBytes": 35,
+      "retainedSHA256": "ca901b5be3db10d7195703bfaf9ad3b674be07855555b3cb8f6ed0555be38a59",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c/source",
+      "expected": "success",
+      "retainedOutput": "artifacts/claude-print.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "claude-print",
+      "local": [
+        "Axiom Project state under /Users/rgomids/Projects/axiom-t24-rc2-lab/c/state and /Users/rgomids/Projects/axiom-t24-rc2-lab/c/projects",
+        "Claude files under /Users/rgomids/Projects/axiom-t24-rc2-lab/c/claude-config",
+        "Claude vendor-managed caches outside the config dir (not audited)"
+      ],
+      "external": [
+        "model inference through the existing Claude account/subscription (usage unavailable)"
+      ],
+      "status": "exit-1"
+    }
+  ],
+  "captures": {},
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; lab retained under /Users/rgomids/Projects/axiom-t24-rc2-lab/c pending human review; no automatic deletion",
+  "limitations": [
+    "claude-print: exit 1, expected success"
+  ],
+  "stageResult": "failed"
+}

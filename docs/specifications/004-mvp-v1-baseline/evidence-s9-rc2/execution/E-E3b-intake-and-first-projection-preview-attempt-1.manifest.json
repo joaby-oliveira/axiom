@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "envelope": "E",
+  "envelopeSHA256": "afd5bb0f91d8561c5d6dac4d5644fc02a024862b37f3c0a0708cd75338888a44",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "E3b-intake-and-first-projection-preview",
+  "authority": "local",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {
+    "issueNumber": "125"
+  },
+  "startedAtUnix": 1790721574,
+  "observations": [
+    {
+      "label": "advance-intake-pass",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "advance",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "1",
+        "--gate",
+        "intake",
+        "--outcome",
+        "pass"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.071,
+      "outputSHA256": "9301b2dc44a74cbf8a295a046c207332e8da859dc60e801974883e287696b06e",
+      "outputBytes": 827,
+      "retainedSHA256": "9301b2dc44a74cbf8a295a046c207332e8da859dc60e801974883e287696b06e",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/advance-intake-pass.txt"
+    },
+    {
+      "label": "first-projection-preview",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "reconcile",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "2"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 1.946,
+      "outputSHA256": "83c0b6e4332afd488d5b416262d9eadaf4c2f4706ca46718f8edac50ebd51354",
+      "outputBytes": 2697,
+      "retainedSHA256": "83c0b6e4332afd488d5b416262d9eadaf4c2f4706ca46718f8edac50ebd51354",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/first-projection-preview.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "advance-intake-pass",
+      "local": [
+        "workflow gate intake pass (local transition)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "first-projection-preview",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {
+    "first-projection-preview.digest": "72cc0b83cee86844987f8a2c21a1149c8796de7b6070f44d132e9c5f216348aa",
+    "first-projection-preview.label": "axiom:stage:specifying",
+    "first-projection-preview.effects": [
+      {
+        "kind": "create_stage_label",
+        "value": "axiom:stage:specifying"
+      },
+      {
+        "kind": "add_stage_label",
+        "value": "axiom:stage:specifying"
+      },
+      {
+        "kind": "post_transition_comment",
+        "value": "<!-- axiom:workflow-projection:d830e78d56d2b422e250df0a4ce9a28316df66797157d67c85a8a76dac81da6d -->\nAxiom lifecycle projection\n\n- Lifecycle: `specifying`\n- Canonical gate: `specification`\n- Outcome: `pass`\n\n_Axiom 0.1.2-rc.2 \u00b7 859969a07f38 \u00b7 clean \u00b7 428b87fb-2130-4a97-9d11-acc0318b1863_"
+      }
+    ]
+  },
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "human: PR review/merge/close; remote branch deletion after merge; Issue closure only after merge and separately authorized; lab preserved",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

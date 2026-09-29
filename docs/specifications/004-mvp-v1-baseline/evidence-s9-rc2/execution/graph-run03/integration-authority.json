@@ -1,0 +1,15 @@
+{
+  "PreviewDigest": "5f05de36afabbe73567bdae1f0de602c4bcafd065a760b652e04078f5cc2a2bc",
+  "TargetRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "Effects": [
+    {
+      "kind": "repository-write",
+      "target": "docs/commands.md"
+    },
+    {
+      "kind": "repository-write",
+      "target": "scripts/test-install-bootstrap.sh"
+    }
+  ],
+  "Reference": "human:t24-rc2-envelope-D-run03:integration"
+}

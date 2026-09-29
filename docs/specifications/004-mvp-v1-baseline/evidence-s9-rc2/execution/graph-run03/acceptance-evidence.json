@@ -1,0 +1,175 @@
+{
+  "FormatVersion": 1,
+  "Status": "real_run_recorded",
+  "BaseRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "ConfigurationDigest": "687590114c803d91fd67d07150ea75505b12d5f129b0168e4c3412edc9ea5ffb",
+  "ParentID": "bb87cc22-00ce-4bf0-9f67-ab51551a3329",
+  "GraphRevision": 1,
+  "GraphDigest": "16070b98bddef0a9d1c06d0ddccf6a17be5725b14e86ac33aab98d516d2d1f87",
+  "Dispatch": [
+    {
+      "ChildID": "13cb4498-1590-4d02-9909-61731517dc3e",
+      "AttemptID": "be703863-efc1-49bc-a2ae-40e581659796",
+      "Status": "succeeded",
+      "StartedAt": "2026-09-29T23:18:24.774507Z",
+      "EndedAt": "2026-09-29T23:21:10.219051Z"
+    },
+    {
+      "ChildID": "aaeaefdd-8abf-45f5-b7da-b9409819e454",
+      "AttemptID": "b111e0b3-a66f-4f20-bd89-4d706974d7d8",
+      "Status": "succeeded",
+      "StartedAt": "2026-09-29T23:18:24.891697Z",
+      "EndedAt": "2026-09-29T23:18:51.110774Z"
+    }
+  ],
+  "RuntimeExecutions": [
+    {
+      "ChildID": "13cb4498-1590-4d02-9909-61731517dc3e",
+      "AttemptID": "be703863-efc1-49bc-a2ae-40e581659796",
+      "RuntimeID": "codex",
+      "ModelProfileID": "t24-codex-implementation",
+      "RuntimeVersion": "0.157.1",
+      "ConfigurationRevision": 1,
+      "ObservationRevision": 1,
+      "InvocationDigest": "321d8761ee44a0b6a5518d85a8ef2398b13dcad8a43c02b88a32d068c178d570",
+      "ResultReference": "process-output:3af5294ad32212a185942930cd7daa85f20c982253ed2d482f5460a293933194"
+    },
+    {
+      "ChildID": "aaeaefdd-8abf-45f5-b7da-b9409819e454",
+      "AttemptID": "b111e0b3-a66f-4f20-bd89-4d706974d7d8",
+      "RuntimeID": "claude",
+      "ModelProfileID": "t24-claude-documentation",
+      "RuntimeVersion": "2.1.285",
+      "ConfigurationRevision": 1,
+      "ObservationRevision": 1,
+      "InvocationDigest": "039dfb7e178a860415277916a4c688d120267c6dcc1b4fdd3e5b699f4f24ccd4",
+      "ResultReference": "process-output:f8f55736f52205d5c231e4cf3928a823b636632542e40f6f4c93927a4df45e40"
+    }
+  ],
+  "CoordinationRecords": [
+    "eyJmb3JtYXRWZXJzaW9uIjoxLCJyZWNvcmRJZCI6IjBlZTc1MTRjLThhZDItNGUwZS1hNzAxLWJiMjE0MjM1YTNiMCIsImtpbmQiOiJhbnN3ZXIiLCJwYXJlbnRJZCI6ImJiODdjYzIyLTAwY2UtNGJmMC05ZjY3LWFiNTE1NTFhMzMyOSIsImNoaWxkSWQiOiJhYWVhZWZkZC04YWJmLTQ1ZjUtYjdkYS1iOTQwOTgxOWU0NTQiLCJncmFwaFJldmlzaW9uIjoxLCJhdHRlbXB0SWQiOiJiMTExZTBiMy1hNjZmLTRmMjAtYmQ4OS00ZDcwNjk3NGQ3ZDgiLCJyZXZpc2lvbiI6MSwicHJvdmVuYW5jZSI6eyJQcm9kdWN0IjoiYXhpb20iLCJWZXJzaW9uIjoidjAuMS4yLXJjLjIiLCJSZXZpc2lvbiI6Ijg1OTk2OWEwN2YzODA3ODIyNTgwNDMxYTA1YjZjNzhiMDc2OTFmYjEiLCJTb3VyY2VTdGF0ZSI6ImNsZWFuIn0sImZpZWxkcyI6W3sibmFtZSI6ImFuc3dlciIsInZhbHVlIjoiQ29uZmlybWVkLiBEb2N1bWVudGF0aW9uIGRyb3BzIHRoZSBzeW50aGV0aWMgVWJ1bnR1IHJvdyBzZW50ZW5jZSBhbmQgQVhJT01fVEVTVF9TWU5USEVUSUNfVUJVTlRVX1JPVywgYW5kIGtlZXBzIHRoYXQgYW55IExpbnV4IHg4Nl82NC9hYXJjaDY0IGhvc3QgcXVhbGlmaWVzIGZvciBzdXBwb3J0ZWQtcm93IGNhc2VzLiJ9LHsibmFtZSI6InF1ZXN0aW9uX3JlZmVyZW5jZSIsInZhbHVlIjoiMTUwOGVjMjctNGM4Zi00MGIxLWI4MmQtYzZlZGRkNjZmM2U1In1dLCJjcmVhdGVkQXQiOiIyMDI2LTA5LTI5VDIzOjE4OjM4LjM5MTkyM1oiLCJkaWdlc3QiOiI2ODI3NTZiYzlmYWFiMGMyMzM0OGFjNzQ4OGRhN2FjMjM4NmRiZmVmYTg0YTk3ZTMzOWM2N2Y5YTk4NWVmNzhjIn0K",
+    "eyJmb3JtYXRWZXJzaW9uIjoxLCJyZWNvcmRJZCI6IjE1MDhlYzI3LTRjOGYtNDBiMS1iODJkLWM2ZWRkZDY2ZjNlNSIsImtpbmQiOiJxdWVzdGlvbl9yZXF1ZXN0IiwicGFyZW50SWQiOiJiYjg3Y2MyMi0wMGNlLTRiZjAtOWY2Ny1hYjUxNTUxYTMzMjkiLCJjaGlsZElkIjoiMTNjYjQ0OTgtMTU5MC00ZDAyLTk5MDktNjE3MzE1MTdkYzNlIiwiZ3JhcGhSZXZpc2lvbiI6MSwiYXR0ZW1wdElkIjoiYmU3MDM4NjMtZWZjMS00OWJjLWEyYWUtNDBlNTgxNjU5Nzk2IiwicmV2aXNpb24iOjEsInByb3ZlbmFuY2UiOnsiUHJvZHVjdCI6ImF4aW9tIiwiVmVyc2lvbiI6InYwLjEuMi1yYy4yIiwiUmV2aXNpb24iOiI4NTk5NjlhMDdmMzgwNzgyMjU4MDQzMWEwNWI2Yzc4YjA3NjkxZmIxIiwiU291cmNlU3RhdGUiOiJjbGVhbiJ9LCJmaWVsZHMiOlt7Im5hbWUiOiJxdWVzdGlvbiIsInZhbHVlIjoiQ29uZmlybSBjb250cmFjdDogcmVtb3ZlIHRoZSBzeW50aGV0aWMgVWJ1bnR1IHJvdywgaGVhZGVyIGNvbW1lbnQgYW5kIEFYSU9NX1RFU1RfU1lOVEhFVElDX1VCVU5UVV9ST1cgZnJvbSBzY3JpcHRzL3Rlc3QtaW5zdGFsbC1ib290c3RyYXAuc2g7IGtlZXAgYWxsIG90aGVyIGNhc2VzIGFuZCBleGl0IGNvZGVzOyBkb2NzIGRyb3AgdGhlIHN5bnRoZXRpYyByb3cgc2VudGVuY2UgYW5kIGtlZXAgJ2FueSBMaW51eCB4ODZfNjQvYWFyY2g2NCBxdWFsaWZpZXMnPyJ9XSwiY3JlYXRlZEF0IjoiMjAyNi0wOS0yOVQyMzoxODozOC4wOTM4OTFaIiwiZGlnZXN0IjoiOGI1ZjFhMDE4NjAxMmNjYjcwNzhkNzJjZWYzYWQwOWUzZmU0M2M5MDdjYTk5YzEzNzMxODFjMzBmZmYwMWNhZCJ9Cg=="
+  ],
+  "Coordination": [
+    {
+      "RecordID": "0ee7514c-8ad2-4e0e-a701-bb214235a3b0",
+      "Kind": "answer",
+      "ParentID": "bb87cc22-00ce-4bf0-9f67-ab51551a3329",
+      "GraphRevision": 1,
+      "ChildID": "aaeaefdd-8abf-45f5-b7da-b9409819e454",
+      "AttemptID": "b111e0b3-a66f-4f20-bd89-4d706974d7d8",
+      "Digest": "682756bc9faab0c23348ac7488da7ac2386dbfefa84a97e339c67f9a985ef78c",
+      "Reference": "1508ec27-4c8f-40b1-b82d-c6eddd66f3e5",
+      "Decision": ""
+    },
+    {
+      "RecordID": "1508ec27-4c8f-40b1-b82d-c6eddd66f3e5",
+      "Kind": "question_request",
+      "ParentID": "bb87cc22-00ce-4bf0-9f67-ab51551a3329",
+      "GraphRevision": 1,
+      "ChildID": "13cb4498-1590-4d02-9909-61731517dc3e",
+      "AttemptID": "be703863-efc1-49bc-a2ae-40e581659796",
+      "Digest": "8b5f1a0186012ccb7078d72cef3ad09e3fe43c907ca99c1373181c30fff01cad",
+      "Reference": "",
+      "Decision": ""
+    }
+  ],
+  "Rollup": {
+    "Status": "success",
+    "ParentID": "bb87cc22-00ce-4bf0-9f67-ab51551a3329",
+    "GraphRevision": 1,
+    "ChildOutcomes": [
+      {
+        "ChildID": "13cb4498-1590-4d02-9909-61731517dc3e",
+        "Status": "succeeded",
+        "Required": true
+      },
+      {
+        "ChildID": "aaeaefdd-8abf-45f5-b7da-b9409819e454",
+        "Status": "succeeded",
+        "Required": true
+      },
+      {
+        "ChildID": "f8dd54d6-0ac5-4e00-976e-4a7ce600bcc1",
+        "Status": "succeeded",
+        "Required": true
+      }
+    ],
+    "IntegrationChildID": "f8dd54d6-0ac5-4e00-976e-4a7ce600bcc1",
+    "IntegrationResultTree": "20da4d95f9cc48468813ecdf13c318ea6ded5fc5",
+    "ValidationResults": [
+      {
+        "CommandReference": "go-test",
+        "ExitCode": 0,
+        "OutputDigest": "f866635a3f6c72481ac33f1383f9e61388a2ec8bed320fbb25b4809f88415685"
+      },
+      {
+        "CommandReference": "go-race",
+        "ExitCode": 0,
+        "OutputDigest": "abe62c38849e2160b7719a9352281ba61f8e9c8e5abd21e01359a20a4507d276"
+      },
+      {
+        "CommandReference": "go-vet",
+        "ExitCode": 0,
+        "OutputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "CommandReference": "go-build",
+        "ExitCode": 0,
+        "OutputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "CommandReference": "go-mod-verify",
+        "ExitCode": 0,
+        "OutputDigest": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+      },
+      {
+        "CommandReference": "bootstrap-suite",
+        "ExitCode": 0,
+        "OutputDigest": "2fde4363f6f217fda525f891d10f760da50409bdeca96755c0ac991ec3f3620d"
+      },
+      {
+        "CommandReference": "repository",
+        "ExitCode": 0,
+        "OutputDigest": "04d4a10c2787183c4f48d835caca7684b9bf57682d28fff72355cb9dd2d59f7a"
+      },
+      {
+        "CommandReference": "sensitive-files",
+        "ExitCode": 0,
+        "OutputDigest": "22a7b3658bc40132308671af3ddcdc6f021c651a57901eb0f89f17b185d5d7a7"
+      },
+      {
+        "CommandReference": "diff-check",
+        "ExitCode": 0,
+        "OutputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "CommandReference": "gitleaks",
+        "ExitCode": 0,
+        "OutputDigest": "4b8f8e187da72be565ff37cb19b0279edfaa49a56a5bf986c00ca2ada87287c3"
+      }
+    ],
+    "References": [
+      "git-workspace:f8dd54d6-0ac5-4e00-976e-4a7ce600bcc1",
+      "git-tree:20da4d95f9cc48468813ecdf13c318ea6ded5fc5"
+    ]
+  },
+  "ValidationReferences": [
+    "bootstrap-suite",
+    "diff-check",
+    "gitleaks",
+    "go-build",
+    "go-mod-verify",
+    "go-race",
+    "go-test",
+    "go-vet",
+    "repository",
+    "sensitive-files"
+  ],
+  "Limitations": [
+    "graph driven through internal/graphapplication; the published CLI has no graph surface",
+    "integration performed by the concrete local service",
+    "usage and cost unavailable"
+  ],
+  "Digest": "3bb26fbd1023fab0662d9c410e6dd7595d22c23b91eb6a3113980b4af9ad3011"
+}

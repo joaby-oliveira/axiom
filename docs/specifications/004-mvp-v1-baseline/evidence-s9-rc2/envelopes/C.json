@@ -1,0 +1,537 @@
+{
+  "schema": "axiom-s9-rc-envelope/v1",
+  "id": "C",
+  "purpose": "Real bounded Claude invocation driving the installed rc.2 Axiom skills (project configure/show) from an isolated HOME (default Claude config root inside it)",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "candidateSHA256": "84b11ddc7541d68a978d17916299c12dc0718ac15a286cfbce774fbc2aed88b2",
+  "toolingSHA256": {
+    "s9-rc-envelope.py": "19ca6bf9bfccc2a14fad3981d2e9ab1c9df41bd4586737440ec4a903a30e299f",
+    "s9-rc-evidence.py": "04535913fc850556fbeb04fc9306adaaaf6138d72743d40241ec0861847687a7"
+  },
+  "runtime": {
+    "id": "claude",
+    "executable": "/Users/rgomids/.local/bin/claude",
+    "realPath": "/Users/rgomids/.local/share/claude/versions/2.1.285",
+    "version": "2.1.285 (from install path; not executed during planning)",
+    "modelProfile": "none (direct `claude --print`)",
+    "model": "sonnet"
+  },
+  "provider": "none",
+  "maxAttempts": 2,
+  "parameters": {},
+  "localEffects": [
+    "everything under /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+    "Claude vendor-managed state under the host ~/.claude during the session (no session persistence; same class as D's Claude child and T36); host Axiom skill files are read only and digest-checked before and after"
+  ],
+  "externalEffects": [
+    "one bounded Claude model session (inference only)"
+  ],
+  "forbiddenEffects": [
+    "GitHub or any Provider mutation",
+    "Work Item create/select",
+    "push/PR/merge",
+    "credential read/copy/print",
+    "Runtime/Axiom install outside the lab",
+    "host HOME skill roots (~/.agents/skills, ~/.claude/skills)",
+    "host Axiom install (~/.local/bin/axiom v0.1.1)",
+    "subagents or login",
+    "automatic retry",
+    "any change to host Axiom skill files (checked after the run)"
+  ],
+  "cleanup": "operator; lab retained under /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4 pending human review; no automatic deletion",
+  "evidencePaths": [
+    "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/C-<phase>-attempt-<n>/"
+  ],
+  "secretsBoundary": "Claude reuses the existing macOS login (Keychain) through USER/LOGNAME/SHELL/HOME identity only (T36 finding 5); the harness never reads, copies or prints credentials and never runs login.",
+  "phases": [
+    {
+      "id": "C1-setup",
+      "authority": "local",
+      "steps": [
+        {
+          "label": "make-config",
+          "argv": [
+            "/bin/mkdir",
+            "-p",
+            "-m",
+            "700",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.claude"
+          ],
+          "cwd": "/",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "create /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.claude"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "make-roots",
+          "argv": [
+            "/bin/mkdir",
+            "-p",
+            "-m",
+            "700",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/runtime-path",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/state",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/projects"
+          ],
+          "cwd": "/",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "create private directories under /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "fetch-installer",
+          "argv": [
+            "/usr/bin/curl",
+            "--disable",
+            "--proto",
+            "=https",
+            "--tlsv1.2",
+            "-fsSL",
+            "--max-time",
+            "60",
+            "--max-filesize",
+            "65536",
+            "https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh",
+            "-o",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/remote-install.sh"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp"
+          },
+          "timeoutSeconds": 120,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "write /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/remote-install.sh"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "installer-digest",
+          "argv": [
+            "/usr/bin/shasum",
+            "-a",
+            "256",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/remote-install.sh"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "requireOutput": [
+            "3bf39863f4c542f04181ec9e76e86b587ec64cfb26e905a80be875ad87558dc7"
+          ],
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "install-exact-rc",
+          "argv": [
+            "/bin/sh",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/remote-install.sh",
+            "--version",
+            "v0.1.2-rc.2"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp"
+          },
+          "timeoutSeconds": 600,
+          "expect": "success",
+          "requireOutput": [
+            "install_status=installed",
+            "install_tag=v0.1.2-rc.2",
+            "install_revision=859969a07f38"
+          ],
+          "effects": {
+            "local": [
+              "install axiom v0.1.2-rc.2 into /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.local/bin and receipt under /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.local/state"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "version",
+          "argv": [
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.local/bin/axiom",
+            "--json",
+            "version"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp"
+          },
+          "timeoutSeconds": 60,
+          "expect": "success",
+          "requireOutput": [
+            "\"version\":\"0.1.2-rc.2\"",
+            "\"revision\":\"859969a07f38\"",
+            "\"sourceState\":\"clean\""
+          ],
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "link-claude",
+          "argv": [
+            "/bin/ln",
+            "-s",
+            "/Users/rgomids/.local/share/claude/versions/2.1.285",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/runtime-path/claude"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "symlink /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/runtime-path/claude -> /Users/rgomids/.local/share/claude/versions/2.1.285 (detection only)"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "first-run-claude-only",
+          "argv": [
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.local/bin/axiom",
+            "--json",
+            "first-run"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+            "PATH": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/runtime-path:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp"
+          },
+          "timeoutSeconds": 120,
+          "expect": "success",
+          "requireOutput": [
+            "\"status\":\"success\"",
+            "\"detected\":1",
+            "\"runtime\":\"claude\",\"executable\":\"claude\",\"present\":true",
+            "\"state\":\"configured\""
+          ],
+          "effects": {
+            "local": [
+              "install rc.2 Axiom skills into /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.claude/skills (default user-global Claude root of the isolated HOME)"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "clone-exact-source",
+          "argv": [
+            "/opt/homebrew/bin/git",
+            "clone",
+            "--quiet",
+            "--no-checkout",
+            "https://github.com/rgomids/axiom.git",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/source"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+            "PATH": "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp"
+          },
+          "timeoutSeconds": 300,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "public clone into /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/source"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "checkout-exact-source",
+          "argv": [
+            "/opt/homebrew/bin/git",
+            "-C",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/source",
+            "checkout",
+            "--quiet",
+            "--detach",
+            "859969a07f3807822580431a05b6c78b07691fb1"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+            "PATH": "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp"
+          },
+          "timeoutSeconds": 120,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "detached checkout of the exact RC revision"
+            ],
+            "external": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "C2-claude-run",
+      "authority": "runtime",
+      "steps": [
+        {
+          "label": "host-skills-match-rc2-before",
+          "argv": [
+            "/usr/bin/shasum",
+            "-a",
+            "256",
+            "/Users/rgomids/.claude/skills/axiom-project-configure/SKILL.md",
+            "/Users/rgomids/.claude/skills/axiom-project-show/SKILL.md",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.claude/skills/axiom-project-configure/SKILL.md",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.claude/skills/axiom-project-show/SKILL.md"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "requireOutput": [
+            "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3  /Users/rgomids/.claude/skills/axiom-project-configure/SKILL.md",
+            "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3  /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.claude/skills/axiom-project-configure/SKILL.md",
+            "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09  /Users/rgomids/.claude/skills/axiom-project-show/SKILL.md",
+            "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09  /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.claude/skills/axiom-project-show/SKILL.md"
+          ],
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "claude-print",
+          "argv": [
+            "/Users/rgomids/.local/bin/claude",
+            "--print",
+            "--model",
+            "sonnet",
+            "--no-session-persistence",
+            "--strict-mcp-config",
+            "--permission-mode",
+            "acceptEdits",
+            "--allowedTools",
+            "Bash(axiom:*),Read,Glob,Grep",
+            "--output-format",
+            "text",
+            "Bounded Axiom T24 acceptance check for release candidate v0.1.2-rc.2. Use only the installed Axiom skills: /axiom-project-configure, then /axiom-project-show. Configure exactly one Axiom Project with slug axiom-t24-claude, name 'Axiom T24 Claude', repository key main bound to /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/source, work item provider github. The operator authorized local publication of exactly this Project configuration: run the read-only preview, then apply it with the returned preview digest and --authorize-local. Then show the Project by slug. Do not create or select Work Items, do not contact GitHub, do not edit repository files, do not read, print or copy credentials, do not install anything. Final answer, one line only: project=<project-id> slug=axiom-t24-claude"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/source",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "LINGO_STATE_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/state",
+            "LINGO_PROJECTS_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/projects",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp",
+            "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+          },
+          "timeoutSeconds": 900,
+          "expect": "success",
+          "requireOutput": [
+            "slug=axiom-t24-claude"
+          ],
+          "effects": {
+            "local": [
+              "Axiom Project state under /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/state and /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/projects",
+              "Claude files under /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.claude",
+              "Claude vendor-managed caches outside the config dir (not audited)"
+            ],
+            "external": [
+              "model inference through the existing Claude account/subscription (usage unavailable)"
+            ]
+          }
+        },
+        {
+          "label": "host-skills-unchanged-after",
+          "argv": [
+            "/usr/bin/shasum",
+            "-a",
+            "256",
+            "/Users/rgomids/.claude/skills/axiom-project-configure/SKILL.md",
+            "/Users/rgomids/.claude/skills/axiom-project-show/SKILL.md"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "requireOutput": [
+            "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3  /Users/rgomids/.claude/skills/axiom-project-configure/SKILL.md",
+            "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09  /Users/rgomids/.claude/skills/axiom-project-show/SKILL.md"
+          ],
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "C3-verify",
+      "authority": "local",
+      "steps": [
+        {
+          "label": "project-show-direct",
+          "argv": [
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.local/bin/axiom",
+            "--json",
+            "project",
+            "show",
+            "--selector",
+            "axiom-t24-claude"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "LINGO_STATE_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/state",
+            "LINGO_PROJECTS_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/projects",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp",
+            "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+          },
+          "timeoutSeconds": 60,
+          "expect": "success",
+          "requireOutput": [
+            "\"status\":\"success\"",
+            "axiom-t24-claude"
+          ],
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        }
+      ]
+    }
+  ],
+  "sequencing": [
+    "C1-setup",
+    "C2-claude-run",
+    "C3-verify"
+  ],
+  "hypotheses": [
+    "Revision 2 (isolated CLAUDE_CONFIG_DIR) and revision 3 (isolated HOME) both observed 'Not logged in': Claude 2.1.285's login is bound to the host config root. Revision 4 runs Claude with the host HOME. C1 still proves Claude-only first-run into the isolated root; C2 checks that the two skills exercised in the host root are byte-identical to the rc.2 skills installed by C1, and unchanged afterwards. Credentials are never read, copied or provisioned.",
+    "H-C2: without --safe-mode (used in T36) Claude loads user skills from its default config root; T36's --safe-mode is omitted because skills are the object under test."
+  ]
+}

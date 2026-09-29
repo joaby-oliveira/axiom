@@ -1,0 +1,6 @@
+helper question: succeeded
+edit: removed synthetic branch, variables and marker; documented Linux eligibility
+bash -n: exit 0
+bootstrap suite: exit 0
+helper wait-answer: exit 0
+final check: diff reviewed; only allowed file changed; no synthetic references; matching documentation answer confirmed; both tests passed

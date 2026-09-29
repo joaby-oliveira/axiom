@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "envelope": "E",
+  "envelopeSHA256": "d4966153266aeddf36486180af7180281aaf1e0a96fee3ba8da419e7b1f20730",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "E7-branch-and-pr",
+  "authority": "provider",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {
+    "integrationResultTree": "20da4d95f9cc48468813ecdf13c318ea6ded5fc5",
+    "issueNumber": "125",
+    "graphParentId": "bb87cc22-00ce-4bf0-9f67-ab51551a3329",
+    "workflowExecutionId": "428b87fb-2130-4a97-9d11-acc0318b1863"
+  },
+  "startedAtUnix": 1790724335,
+  "observations": [
+    {
+      "label": "integration-tree",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "-C",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run03/integration",
+        "write-tree"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.012,
+      "outputSHA256": "876a9164a84d9db982acd1e46e3ae039cb3a9dcc572087579d76a2634605e27b",
+      "outputBytes": 41,
+      "retainedSHA256": "876a9164a84d9db982acd1e46e3ae039cb3a9dcc572087579d76a2634605e27b",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/integration-tree.txt"
+    },
+    {
+      "label": "create-branch",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "-C",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run03/integration",
+        "switch",
+        "--quiet",
+        "-c",
+        "t24-rc2/dogfood-retire-synthetic-ubuntu-row"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.011,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/create-branch.txt"
+    },
+    {
+      "label": "stage",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "-C",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run03/integration",
+        "add",
+        "--",
+        "scripts/test-install-bootstrap.sh",
+        "docs/commands.md"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.009,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/stage.txt"
+    },
+    {
+      "label": "commit",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "-C",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run03/integration",
+        "commit",
+        "--quiet",
+        "-m",
+        "test(install): retire obsolete synthetic Ubuntu bootstrap row (S9 dogfood)",
+        "-m",
+        "Work Item #125; T24 rc.2 graph parent bb87cc22-00ce-4bf0-9f67-ab51551a3329."
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.021,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/commit.txt"
+    },
+    {
+      "label": "commit-tree-matches-integration",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "-C",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run03/integration",
+        "rev-parse",
+        "HEAD^{tree}"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.009,
+      "outputSHA256": "876a9164a84d9db982acd1e46e3ae039cb3a9dcc572087579d76a2634605e27b",
+      "outputBytes": 41,
+      "retainedSHA256": "876a9164a84d9db982acd1e46e3ae039cb3a9dcc572087579d76a2634605e27b",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/commit-tree-matches-integration.txt"
+    },
+    {
+      "label": "push-branch",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "-C",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run03/integration",
+        "-c",
+        "credential.helper=",
+        "-c",
+        "credential.helper=!/opt/homebrew/bin/gh auth git-credential",
+        "push",
+        "https://github.com/rgomids/axiom.git",
+        "HEAD:refs/heads/t24-rc2/dogfood-retire-synthetic-ubuntu-row"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 2.074,
+      "outputSHA256": "4e668cf9542f55a6697b7d80d5b93569abfa16c5e46655a157b6146799bf80ef",
+      "outputBytes": 349,
+      "retainedSHA256": "4e668cf9542f55a6697b7d80d5b93569abfa16c5e46655a157b6146799bf80ef",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/push-branch.txt"
+    },
+    {
+      "label": "pr-create",
+      "argv": [
+        "/opt/homebrew/bin/gh",
+        "pr",
+        "create",
+        "--repo",
+        "rgomids/axiom",
+        "--base",
+        "main",
+        "--head",
+        "t24-rc2/dogfood-retire-synthetic-ubuntu-row",
+        "--title",
+        "test(install): retire obsolete synthetic Ubuntu bootstrap row (S9 dogfood)",
+        "--body",
+        "S9 T24 dogfood against v0.1.2-rc.2 (859969a07f38). Work Item: #125. Axiom workflow Execution 428b87fb-2130-4a97-9d11-acc0318b1863; S8 graph parent bb87cc22-00ce-4bf0-9f67-ab51551a3329 (Codex child + Claude child, local Integration/Reconciliation, combined validation). This PR is the bounded dogfood change only; it is not T24/T25 completion, RC acceptance or human acceptance."
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 2.349,
+      "outputSHA256": "a0e92d179b5f2e55e9673218712b0519c4d50286269a26f1becc4a09cc908696",
+      "outputBytes": 42,
+      "retainedSHA256": "a0e92d179b5f2e55e9673218712b0519c4d50286269a26f1becc4a09cc908696",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/pr-create.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "integration-tree",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "create-branch",
+      "local": [
+        "local branch t24-rc2/dogfood-retire-synthetic-ubuntu-row in the integration worktree"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "stage",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "commit",
+      "local": [
+        "one local commit authored with the operator's configured git identity"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "commit-tree-matches-integration",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "push-branch",
+      "local": [],
+      "external": [
+        "create remote branch t24-rc2/dogfood-retire-synthetic-ubuntu-row in rgomids/axiom (new ref only; no force)"
+      ],
+      "status": "exit-0"
+    },
+    {
+      "label": "pr-create",
+      "local": [],
+      "external": [
+        "open one PR t24-rc2/dogfood-retire-synthetic-ubuntu-row -> main in rgomids/axiom with the reviewed title/body"
+      ],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {},
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "human: PR review/merge/close; remote branch deletion after merge; Issue closure only after merge and separately authorized; lab preserved",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

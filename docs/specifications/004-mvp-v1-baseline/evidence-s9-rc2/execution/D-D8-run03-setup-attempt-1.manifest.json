@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "envelope": "D",
+  "envelopeSHA256": "4ba85b8c2998ca36d7617111ec464dc9f216d8185cae7a5bf13a7a820fee5680",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "D8-run03-setup",
+  "authority": "local",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {
+    "toolingRevision": "62bb91c09c6f3bdb3fab75e262f7bb20d519c153"
+  },
+  "startedAtUnix": 1790723895,
+  "observations": [
+    {
+      "label": "fetch-tooling",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "-C",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+        "fetch",
+        "--quiet",
+        "origin"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 1.019,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/fetch-tooling.txt"
+    },
+    {
+      "label": "checkout-tooling",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "-C",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+        "checkout",
+        "--quiet",
+        "--detach",
+        "62bb91c09c6f3bdb3fab75e262f7bb20d519c153"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.025,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/checkout-tooling.txt"
+    },
+    {
+      "label": "tooling-product-tree-is-exact-rc",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "-C",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+        "diff",
+        "--quiet",
+        "859969a07f3807822580431a05b6c78b07691fb1",
+        "HEAD",
+        "--",
+        "cmd",
+        "internal",
+        "go.mod",
+        "go.sum"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.009,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/tooling-product-tree-is-exact-rc.txt"
+    },
+    {
+      "label": "graph-spec-digest",
+      "argv": [
+        "/usr/bin/shasum",
+        "-a",
+        "256",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec-run03.json"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.014,
+      "outputSHA256": "5c9ebf1a4dd734ba4cf1d5b2fb76e3fc6180cb1a4fd1842d81ab83bec4e7864d",
+      "outputBytes": 214,
+      "retainedSHA256": "5c9ebf1a4dd734ba4cf1d5b2fb76e3fc6180cb1a4fd1842d81ab83bec4e7864d",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/graph-spec-digest.txt"
+    },
+    {
+      "label": "build-graph-runner",
+      "argv": [
+        "/Users/rgomids/.local/go/bin/go",
+        "build",
+        "-o",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run03",
+        "./scripts/s9-graph-runner.go"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 1.555,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+      "expected": "success",
+      "retainedOutput": "artifacts/build-graph-runner.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "fetch-tooling",
+      "local": [
+        "public fetch into /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "checkout-tooling",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "tooling-product-tree-is-exact-rc",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "graph-spec-digest",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "build-graph-runner",
+      "local": [
+        "build /Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run03 (earlier binaries preserved)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {},
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; worktrees, state and Evidence preserved (preserve_pending_human_review); no automatic deletion",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

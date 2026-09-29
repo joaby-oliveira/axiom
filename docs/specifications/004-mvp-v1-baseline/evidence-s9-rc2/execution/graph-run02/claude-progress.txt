@@ -1,0 +1,2 @@
+helper answer: exit 
+edit docs/commands.md: done; helper answer failed (coordination wait expired)

@@ -1,0 +1,36 @@
+{
+  "base": "859969a07f3807822580431a05b6c78b07691fb1",
+  "parentId": "84c16fdc-a18a-4a0c-9733-6789549481c2",
+  "projectId": "a1664139-a520-4979-8251-e76c2cbcc345",
+  "rcTag": "v0.1.2-rc.2",
+  "runEnvelopeDigest": "f65ba808b8a353429d8d9f9a9fb74641ad69d85879626f42a28c45ea3236eeb5",
+  "runtimeObservations": [
+    {
+      "runtimeId": "codex",
+      "adapter": "codex",
+      "installed": true,
+      "available": true,
+      "version": "codex-cli 0.157.1",
+      "revision": 1,
+      "observedAt": "2026-09-29T22:47:26.967667Z",
+      "capabilityStatus": {
+        "integration": "proven",
+        "shell": "proven"
+      }
+    },
+    {
+      "runtimeId": "claude",
+      "adapter": "claude",
+      "installed": true,
+      "available": true,
+      "version": "2.1.285 (Claude Code)",
+      "revision": 1,
+      "observedAt": "2026-09-29T22:47:27.061325Z",
+      "capabilityStatus": {
+        "documentation": "proven"
+      }
+    }
+  ],
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "specSHA256": "e7bcba91ed83a4887f38a620ac2c540f3135a05a1b4ddc79455b54d382019c24"
+}

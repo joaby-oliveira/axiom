@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "envelope": "B",
+  "envelopeSHA256": "110ad4393e2393c30dafc9296869bf8c6b4f13467fc5ddc68e4728b6849a796b",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "B3-verify",
+  "authority": "local",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {},
+  "startedAtUnix": 1790721185,
+  "observations": [
+    {
+      "label": "project-show-direct",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/b-r2/home/.local/bin/axiom",
+        "--json",
+        "project",
+        "show",
+        "--selector",
+        "axiom-t24-codex"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.006,
+      "outputSHA256": "51be8e919ff50d82dd172d5becf31250e435be5ccedcf183cfc8a59e754a7122",
+      "outputBytes": 492,
+      "retainedSHA256": "51be8e919ff50d82dd172d5becf31250e435be5ccedcf183cfc8a59e754a7122",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/b-r2/home",
+      "expected": "success",
+      "retainedOutput": "artifacts/project-show-direct.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "project-show-direct",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {},
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; lab retained under /Users/rgomids/Projects/axiom-t24-rc2-lab/b-r2 pending human review; no automatic deletion",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

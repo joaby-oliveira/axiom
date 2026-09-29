@@ -1,0 +1,194 @@
+{
+  "schemaVersion": 1,
+  "envelope": "F",
+  "envelopeSHA256": "cc5415f0b9b3c923300cdf7f1d89b336472fcb9cdecf489e271b13678baa8318",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "F3-interruption-resume",
+  "authority": "local",
+  "attempt": 1,
+  "maxAttempts": 1,
+  "approvals": {
+    "issueNumber": "125"
+  },
+  "startedAtUnix": 1790724412,
+  "observations": [
+    {
+      "label": "advance-review-fail",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "advance",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "10",
+        "--gate",
+        "review",
+        "--outcome",
+        "fail"
+      ],
+      "attempt": 1,
+      "exitCode": 2,
+      "timedOut": false,
+      "durationSeconds": 0.053,
+      "outputSHA256": "5d7f54f21e803fafca6265f1927cff993f56f90b9bd67e879067e9a19bd9ed35",
+      "outputBytes": 1897,
+      "retainedSHA256": "5d7f54f21e803fafca6265f1927cff993f56f90b9bd67e879067e9a19bd9ed35",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "failure",
+      "retainedOutput": "artifacts/advance-review-fail.txt"
+    },
+    {
+      "label": "resume",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "resume",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "11"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.056,
+      "outputSHA256": "fba89cbf5626bd8c87b9dbc557056e46cc9be1bdd1aeb6f757d16f15d377cc2d",
+      "outputBytes": 1929,
+      "retainedSHA256": "fba89cbf5626bd8c87b9dbc557056e46cc9be1bdd1aeb6f757d16f15d377cc2d",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/resume.txt"
+    },
+    {
+      "label": "stale-resume-denied",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "resume",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "11"
+      ],
+      "attempt": 1,
+      "exitCode": 1,
+      "timedOut": false,
+      "durationSeconds": 0.012,
+      "outputSHA256": "b563f9bf34d058468f5d2b0e572526e1ddc86e9a18b790e595d19f4ebe9d85f8",
+      "outputBytes": 2015,
+      "retainedSHA256": "b563f9bf34d058468f5d2b0e572526e1ddc86e9a18b790e595d19f4ebe9d85f8",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "failure",
+      "retainedOutput": "artifacts/stale-resume-denied.txt"
+    },
+    {
+      "label": "recovery-inspect",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "recovery",
+        "inspect"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.009,
+      "outputSHA256": "ecdd7b666c4f74cc110ca2b1e55ad14097f4809be81ba1d822e6477adcd8722b",
+      "outputBytes": 417,
+      "retainedSHA256": "ecdd7b666c4f74cc110ca2b1e55ad14097f4809be81ba1d822e6477adcd8722b",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/recovery-inspect.txt"
+    },
+    {
+      "label": "workflow-evidence",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "evidence",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.009,
+      "outputSHA256": "fba89cbf5626bd8c87b9dbc557056e46cc9be1bdd1aeb6f757d16f15d377cc2d",
+      "outputBytes": 1929,
+      "retainedSHA256": "fba89cbf5626bd8c87b9dbc557056e46cc9be1bdd1aeb6f757d16f15d377cc2d",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/workflow-evidence.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "advance-review-fail",
+      "local": [
+        "workflow gate review fail (local transition)"
+      ],
+      "external": [],
+      "status": "exit-2"
+    },
+    {
+      "label": "resume",
+      "local": [
+        "resume at review (local)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "stale-resume-denied",
+      "local": [],
+      "external": [],
+      "status": "exit-1"
+    },
+    {
+      "label": "recovery-inspect",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "workflow-evidence",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {},
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; if F2 stops between remove and restore, the human restores the label (recorded) before any other projection",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

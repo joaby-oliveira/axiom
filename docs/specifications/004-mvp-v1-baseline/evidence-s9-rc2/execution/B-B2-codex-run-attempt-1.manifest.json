@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "envelope": "B",
+  "envelopeSHA256": "110ad4393e2393c30dafc9296869bf8c6b4f13467fc5ddc68e4728b6849a796b",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "B2-codex-run",
+  "authority": "runtime",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {},
+  "startedAtUnix": 1790721144,
+  "observations": [
+    {
+      "label": "codex-exec",
+      "argv": [
+        "/Users/rgomids/.local/bin/codex",
+        "exec",
+        "--model",
+        "gpt-6-astra",
+        "--ignore-user-config",
+        "--ephemeral",
+        "--sandbox",
+        "workspace-write",
+        "--add-dir",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/b-r2/state",
+        "--add-dir",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/b-r2/projects",
+        "--output-last-message",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/b-r2/codex-final.txt",
+        "-c",
+        "model_reasoning_effort=\"medium\"",
+        "Bounded Axiom T24 acceptance check for release candidate v0.1.2-rc.2. Use only the installed Axiom skills: $axiom-project-configure, then $axiom-project-show. Configure exactly one Axiom Project with slug axiom-t24-codex, name 'Axiom T24 Codex', repository key main bound to /Users/rgomids/Projects/axiom-t24-rc2-lab/b-r2/source, work item provider github. The operator authorized local publication of exactly this Project configuration: run the read-only preview, then apply it with the returned preview digest and --authorize-local. Then show the Project by slug. Do not create or select Work Items, do not contact GitHub, do not edit repository files, do not read, print or copy credentials, do not install anything. Final answer, one line only: project=<project-id> slug=axiom-t24-codex"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 34.548,
+      "outputSHA256": "4a4a4d8a60121f70690c8253b8bb24dad208e50c8788c828e2f0702837a5f79b",
+      "outputBytes": 5819,
+      "retainedSHA256": "4a4a4d8a60121f70690c8253b8bb24dad208e50c8788c828e2f0702837a5f79b",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/b-r2/source",
+      "expected": "success",
+      "retainedOutput": "artifacts/codex-exec.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "codex-exec",
+      "local": [
+        "Axiom Project state under /Users/rgomids/Projects/axiom-t24-rc2-lab/b-r2/state and /Users/rgomids/Projects/axiom-t24-rc2-lab/b-r2/projects",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/b-r2/codex-final.txt",
+        "Codex vendor-managed files under the existing CODEX_HOME (ephemeral session requested)"
+      ],
+      "external": [
+        "model inference through the existing Codex account/subscription (usage unavailable)"
+      ],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {},
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; lab retained under /Users/rgomids/Projects/axiom-t24-rc2-lab/b-r2 pending human review; no automatic deletion",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

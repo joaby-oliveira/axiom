@@ -1,0 +1,80 @@
+{
+  "Status": "success",
+  "ParentID": "bb87cc22-00ce-4bf0-9f67-ab51551a3329",
+  "GraphRevision": 1,
+  "ChildOutcomes": [
+    {
+      "ChildID": "13cb4498-1590-4d02-9909-61731517dc3e",
+      "Status": "succeeded",
+      "Required": true
+    },
+    {
+      "ChildID": "aaeaefdd-8abf-45f5-b7da-b9409819e454",
+      "Status": "succeeded",
+      "Required": true
+    },
+    {
+      "ChildID": "f8dd54d6-0ac5-4e00-976e-4a7ce600bcc1",
+      "Status": "succeeded",
+      "Required": true
+    }
+  ],
+  "IntegrationChildID": "f8dd54d6-0ac5-4e00-976e-4a7ce600bcc1",
+  "IntegrationResultTree": "20da4d95f9cc48468813ecdf13c318ea6ded5fc5",
+  "ValidationResults": [
+    {
+      "CommandReference": "go-test",
+      "ExitCode": 0,
+      "OutputDigest": "f866635a3f6c72481ac33f1383f9e61388a2ec8bed320fbb25b4809f88415685"
+    },
+    {
+      "CommandReference": "go-race",
+      "ExitCode": 0,
+      "OutputDigest": "abe62c38849e2160b7719a9352281ba61f8e9c8e5abd21e01359a20a4507d276"
+    },
+    {
+      "CommandReference": "go-vet",
+      "ExitCode": 0,
+      "OutputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "CommandReference": "go-build",
+      "ExitCode": 0,
+      "OutputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "CommandReference": "go-mod-verify",
+      "ExitCode": 0,
+      "OutputDigest": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+    },
+    {
+      "CommandReference": "bootstrap-suite",
+      "ExitCode": 0,
+      "OutputDigest": "2fde4363f6f217fda525f891d10f760da50409bdeca96755c0ac991ec3f3620d"
+    },
+    {
+      "CommandReference": "repository",
+      "ExitCode": 0,
+      "OutputDigest": "04d4a10c2787183c4f48d835caca7684b9bf57682d28fff72355cb9dd2d59f7a"
+    },
+    {
+      "CommandReference": "sensitive-files",
+      "ExitCode": 0,
+      "OutputDigest": "22a7b3658bc40132308671af3ddcdc6f021c651a57901eb0f89f17b185d5d7a7"
+    },
+    {
+      "CommandReference": "diff-check",
+      "ExitCode": 0,
+      "OutputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "CommandReference": "gitleaks",
+      "ExitCode": 0,
+      "OutputDigest": "4b8f8e187da72be565ff37cb19b0279edfaa49a56a5bf986c00ca2ada87287c3"
+    }
+  ],
+  "References": [
+    "git-workspace:f8dd54d6-0ac5-4e00-976e-4a7ce600bcc1",
+    "git-tree:20da4d95f9cc48468813ecdf13c318ea6ded5fc5"
+  ]
+}

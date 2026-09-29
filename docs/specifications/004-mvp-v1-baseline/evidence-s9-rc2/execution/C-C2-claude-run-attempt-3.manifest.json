@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "envelope": "C",
+  "envelopeSHA256": "5d5fc81d27d10171affa18fda85d8ef891989de2b3ee155caf0278237871cb44",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "C2-claude-run",
+  "authority": "runtime",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {},
+  "startedAtUnix": 1790721360,
+  "observations": [
+    {
+      "label": "host-skills-match-rc2-before",
+      "argv": [
+        "/usr/bin/shasum",
+        "-a",
+        "256",
+        "/Users/rgomids/.claude/skills/axiom-project-configure/SKILL.md",
+        "/Users/rgomids/.claude/skills/axiom-project-show/SKILL.md",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.claude/skills/axiom-project-configure/SKILL.md",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.claude/skills/axiom-project-show/SKILL.md"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.016,
+      "outputSHA256": "836b151d9ca970d78045ba819c101603485c5beac20fbedad515d9d31dd16ad9",
+      "outputBytes": 580,
+      "retainedSHA256": "836b151d9ca970d78045ba819c101603485c5beac20fbedad515d9d31dd16ad9",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+      "expected": "success",
+      "retainedOutput": "artifacts/host-skills-match-rc2-before.txt"
+    },
+    {
+      "label": "claude-print",
+      "argv": [
+        "/Users/rgomids/.local/bin/claude",
+        "--print",
+        "--model",
+        "sonnet",
+        "--no-session-persistence",
+        "--strict-mcp-config",
+        "--permission-mode",
+        "acceptEdits",
+        "--allowedTools",
+        "Bash(axiom:*),Read,Glob,Grep",
+        "--output-format",
+        "text",
+        "Bounded Axiom T24 acceptance check for release candidate v0.1.2-rc.2. Use only the installed Axiom skills: /axiom-project-configure, then /axiom-project-show. Configure exactly one Axiom Project with slug axiom-t24-claude, name 'Axiom T24 Claude', repository key main bound to /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/source, work item provider github. The operator authorized local publication of exactly this Project configuration: run the read-only preview, then apply it with the returned preview digest and --authorize-local. Then show the Project by slug. Do not create or select Work Items, do not contact GitHub, do not edit repository files, do not read, print or copy credentials, do not install anything. Final answer, one line only: project=<project-id> slug=axiom-t24-claude"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 17.049,
+      "outputSHA256": "1579b78092af856d1035d9615e2f33f27ba58fe90398f29671963f8f23b22e49",
+      "outputBytes": 67,
+      "retainedSHA256": "1579b78092af856d1035d9615e2f33f27ba58fe90398f29671963f8f23b22e49",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/source",
+      "expected": "success",
+      "retainedOutput": "artifacts/claude-print.txt"
+    },
+    {
+      "label": "host-skills-unchanged-after",
+      "argv": [
+        "/usr/bin/shasum",
+        "-a",
+        "256",
+        "/Users/rgomids/.claude/skills/axiom-project-configure/SKILL.md",
+        "/Users/rgomids/.claude/skills/axiom-project-show/SKILL.md"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.017,
+      "outputSHA256": "552ec50a00bd4c4a3ccc43c32c10f0c7beec91aa005a141ceb47a7094553836a",
+      "outputBytes": 253,
+      "retainedSHA256": "552ec50a00bd4c4a3ccc43c32c10f0c7beec91aa005a141ceb47a7094553836a",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+      "expected": "success",
+      "retainedOutput": "artifacts/host-skills-unchanged-after.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "host-skills-match-rc2-before",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "claude-print",
+      "local": [
+        "Axiom Project state under /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/state and /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/projects",
+        "Claude files under /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.claude",
+        "Claude vendor-managed caches outside the config dir (not audited)"
+      ],
+      "external": [
+        "model inference through the existing Claude account/subscription (usage unavailable)"
+      ],
+      "status": "exit-0"
+    },
+    {
+      "label": "host-skills-unchanged-after",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {},
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; lab retained under /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4 pending human review; no automatic deletion",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

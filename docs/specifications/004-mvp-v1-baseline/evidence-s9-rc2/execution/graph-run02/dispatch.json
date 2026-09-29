@@ -1,0 +1,236 @@
+{
+  "Graph": {
+    "formatVersion": 1,
+    "parent": {
+      "executionId": "84c16fdc-a18a-4a0c-9733-6789549481c2",
+      "graphRevision": 1,
+      "proposalDigest": "fbf1ff52960859fbac4b86c1254ac9100a42694adde85e165480de04c031f624",
+      "authorityDigest": "998265b22b2580ae0376398463d97649398431b7b9683d19b83259977f235e4b",
+      "authorityEffects": [
+        {
+          "kind": "integration",
+          "target": "docs/commands.md"
+        },
+        {
+          "kind": "integration",
+          "target": "scripts/test-install-bootstrap.sh"
+        },
+        {
+          "kind": "repository-write",
+          "target": "docs/commands.md"
+        },
+        {
+          "kind": "repository-write",
+          "target": "scripts/test-install-bootstrap.sh"
+        }
+      ],
+      "integrationChild": "b7ef3cef-179e-4b15-bdfe-b37345327d06",
+      "createdAt": "2026-09-29T22:47:27.061996Z"
+    },
+    "children": [
+      {
+        "executionId": "6c58b0a2-2450-4293-9c3e-f64ea5491928",
+        "parentId": "84c16fdc-a18a-4a0c-9733-6789549481c2",
+        "graphRevision": 1,
+        "nodeKey": "claude",
+        "envelope": {
+          "capability": {
+            "role": "documentation",
+            "complexity": "low",
+            "capabilities": [
+              "documentation"
+            ]
+          },
+          "inputs": [
+            "approved-plan"
+          ],
+          "outputs": [
+            "claude-result"
+          ],
+          "scope": {
+            "projectId": "a1664139-a520-4979-8251-e76c2cbcc345",
+            "repositoryKey": "main",
+            "paths": [
+              "docs/commands.md"
+            ]
+          },
+          "workspace": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run02/claude",
+          "dependencies": [],
+          "allowedEffects": [
+            {
+              "kind": "repository-write",
+              "target": "docs/commands.md"
+            }
+          ],
+          "authorityReference": "human:t24-rc2-envelope-D-run02:claude",
+          "controls": {
+            "timeout": 1200000000000,
+            "maximumAttempts": 2
+          },
+          "validationOwner": false,
+          "integrationOwner": false,
+          "optional": false,
+          "resolution": {
+            "runtimeId": "claude",
+            "modelProfileId": "t24-claude-documentation",
+            "configurationRevision": 1,
+            "observationRevision": 1
+          }
+        },
+        "attempts": [
+          {
+            "attemptId": "dd92eeb9-d65f-41c6-bdbd-0f5dd9b4ac0e",
+            "number": 1,
+            "status": "succeeded",
+            "startedAt": "2026-09-29T22:47:34.245171Z",
+            "finishedAt": "2026-09-29T22:57:45.387051Z",
+            "resultReference": "process-output:24fff43c63339e2220898d0b3e29d94c1a4b0a682e313b3258fff2a82bef6bf9",
+            "outputDigest": "24fff43c63339e2220898d0b3e29d94c1a4b0a682e313b3258fff2a82bef6bf9",
+            "ambiguousEffect": false
+          }
+        ]
+      },
+      {
+        "executionId": "2bbf5f5b-f911-4048-9e56-2484aeccfbdb",
+        "parentId": "84c16fdc-a18a-4a0c-9733-6789549481c2",
+        "graphRevision": 1,
+        "nodeKey": "codex",
+        "envelope": {
+          "capability": {
+            "role": "implementation",
+            "complexity": "low",
+            "capabilities": [
+              "shell"
+            ]
+          },
+          "inputs": [
+            "approved-plan"
+          ],
+          "outputs": [
+            "codex-result"
+          ],
+          "scope": {
+            "projectId": "a1664139-a520-4979-8251-e76c2cbcc345",
+            "repositoryKey": "main",
+            "paths": [
+              "scripts/test-install-bootstrap.sh"
+            ]
+          },
+          "workspace": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run02/codex",
+          "dependencies": [],
+          "allowedEffects": [
+            {
+              "kind": "repository-write",
+              "target": "scripts/test-install-bootstrap.sh"
+            }
+          ],
+          "authorityReference": "human:t24-rc2-envelope-D-run02:codex",
+          "controls": {
+            "timeout": 1200000000000,
+            "maximumAttempts": 2
+          },
+          "validationOwner": false,
+          "integrationOwner": false,
+          "optional": false,
+          "resolution": {
+            "runtimeId": "codex",
+            "modelProfileId": "t24-codex-implementation",
+            "configurationRevision": 1,
+            "observationRevision": 1
+          }
+        },
+        "attempts": [
+          {
+            "attemptId": "1bc0d9e7-1cfd-4c9e-b3f6-65395d980401",
+            "number": 1,
+            "status": "failed",
+            "startedAt": "2026-09-29T22:47:34.123908Z",
+            "finishedAt": "2026-09-29T22:47:39.478955Z",
+            "resultReference": "process-output:4e6ab0a55af6367a49dae25d9e7cd128da51718df371d12cea35f16e82d40d9e",
+            "outputDigest": "4e6ab0a55af6367a49dae25d9e7cd128da51718df371d12cea35f16e82d40d9e",
+            "exitCode": 1,
+            "ambiguousEffect": false
+          }
+        ]
+      },
+      {
+        "executionId": "b7ef3cef-179e-4b15-bdfe-b37345327d06",
+        "parentId": "84c16fdc-a18a-4a0c-9733-6789549481c2",
+        "graphRevision": 1,
+        "nodeKey": "integration",
+        "envelope": {
+          "capability": {
+            "role": "integration",
+            "complexity": "low",
+            "capabilities": [
+              "integration"
+            ]
+          },
+          "inputs": [
+            "approved-plan"
+          ],
+          "outputs": [
+            "integration-result"
+          ],
+          "scope": {
+            "projectId": "a1664139-a520-4979-8251-e76c2cbcc345",
+            "repositoryKey": "main",
+            "paths": [
+              "docs/commands.md",
+              "scripts/test-install-bootstrap.sh"
+            ]
+          },
+          "workspace": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run02/integration",
+          "dependencies": [
+            "6c58b0a2-2450-4293-9c3e-f64ea5491928",
+            "2bbf5f5b-f911-4048-9e56-2484aeccfbdb"
+          ],
+          "allowedEffects": [
+            {
+              "kind": "integration",
+              "target": "docs/commands.md"
+            },
+            {
+              "kind": "integration",
+              "target": "scripts/test-install-bootstrap.sh"
+            }
+          ],
+          "authorityReference": "human:t24-rc2-envelope-D-run02:integration",
+          "controls": {
+            "timeout": 900000000000,
+            "maximumAttempts": 2
+          },
+          "validationOwner": true,
+          "integrationOwner": true,
+          "optional": false,
+          "resolution": {
+            "runtimeId": "codex",
+            "modelProfileId": "t24-integration",
+            "configurationRevision": 1,
+            "observationRevision": 1
+          }
+        },
+        "attempts": null
+      }
+    ]
+  },
+  "Records": [
+    {
+      "ChildID": "2bbf5f5b-f911-4048-9e56-2484aeccfbdb",
+      "AttemptID": "1bc0d9e7-1cfd-4c9e-b3f6-65395d980401",
+      "Status": "failed",
+      "StartedAt": "2026-09-29T22:47:34.123908Z",
+      "EndedAt": "2026-09-29T22:47:39.478955Z"
+    },
+    {
+      "ChildID": "6c58b0a2-2450-4293-9c3e-f64ea5491928",
+      "AttemptID": "dd92eeb9-d65f-41c6-bdbd-0f5dd9b4ac0e",
+      "Status": "succeeded",
+      "StartedAt": "2026-09-29T22:47:34.245171Z",
+      "EndedAt": "2026-09-29T22:57:45.387051Z"
+    }
+  ],
+  "Blocked": {
+    "b7ef3cef-179e-4b15-bdfe-b37345327d06": "integration_pending"
+  }
+}

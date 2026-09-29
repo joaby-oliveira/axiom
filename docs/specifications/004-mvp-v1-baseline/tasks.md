@@ -52,7 +52,18 @@ VERIFIED from `f73d6d0c951dd40c5cc97c3794ad7ee5607092b5` (release ID
 `398805148`, `prerelease=true`, `immutable=true`); see
 [T23 Evidence](evidence-s9-t23.md). T24 is blocked and incomplete
 ([T24 checkpoint](evidence-s9-t24.md)); T25 is blocked. Human acceptance:
-PENDING. Stable promotion was not performed.**
+PENDING. Stable promotion was not performed.** (Historical rc.1 snapshot;
+superseded by the S9 RC acceptance state below.)
+
+**S9 RC acceptance — 2026-09-29: `v0.1.2-rc.2`
+(`859969a07f3807822580431a05b6c78b07691fb1`, release ID `399403900`) is
+PUBLISHED AND VERIFIED (T23 for rc.2). T24 COMPLETE: envelopes A–F executed
+under explicit human authority with no product defect
+([rc.2 record](evidence-s9-rc2/README.md), [acceptance matrix](evidence-s9-rc2/ac-matrix.md)).
+Linux amd64/arm64 ext4: human-attested manual validation; automation is post-MVP
+([#126](https://github.com/rgomids/axiom/issues/126)). T25 COMPLETE. Human
+acceptance: ACCEPTED (explicit human decision of 2026-09-29, conditional on A–F
+completing without a product defect; condition met). S9: COMPLETE.**
 
 Approved artifact: `main` at `c7f756209c608ff1f1a88947dcc425d07daaa831`, merge
 of [PR #72](https://github.com/rgomids/axiom/pull/72). Human approval in PR #72
@@ -103,9 +114,10 @@ Specification 004 — Approved
 -> S9 Release candidate acceptance (T23–T25, with T24/T25 reconciled for S8)
    -> T37–T40 — implemented and locally validated in PR #106 (unmerged); native macOS 27 local-fixture validation recorded; native Linux and real Runtime acceptance remain T24
    -> T23 — Complete: v0.1.2-rc.1 PUBLISHED AND VERIFIED (f73d6d0, release ID 398805148, immutable)
-   -> T24 — Blocked / incomplete
-   -> T25 — Blocked
-   -> Human acceptance — PENDING
+   -> T23 (rc.2) — Complete: v0.1.2-rc.2 PUBLISHED AND VERIFIED (859969a, release ID 399403900)
+   -> T24 — Complete against v0.1.2-rc.2 (Linux rows human-attested)
+   -> T25 — Complete
+   -> Human acceptance — ACCEPTED (2026-09-29)
 ```
 
 The accepted POC and current Go packages are implementation inputs and historical
@@ -1116,7 +1128,8 @@ source revision `f73d6d0c951dd40c5cc97c3794ad7ee5607092b5`; release ID
 `398805148`, `prerelease=true`, `draft=false`, `immutable=true`, with
 downloaded-byte verification. See [T23 Evidence](evidence-s9-t23.md). The RC is
 not human-accepted or final; T24 remains blocked, T25 blocked, and human
-acceptance PENDING. Earlier withheld-PREPARE and not-started statements are
+acceptance PENDING (historical rc.1 statement; T23 later published
+`v0.1.2-rc.2`, and T24/T25 completed with human acceptance on 2026-09-29). Earlier withheld-PREPARE and not-started statements are
 superseded historical checkpoints, not the current T23 execution state.
 
 - **Objective:** One clean revision produces immutable checksummed RC archives for all supported targets and, with exact authority, publishes them plus `SHA256SUMS` and instructions as an identified GitHub prerelease candidate.
@@ -1473,6 +1486,7 @@ distribution, Runtime bootstrap and release acceptance. Product scope recorded
 2026-09-27; Task amendment pending human approval. T37–T40 are implemented in
 PR #106 (unmerged) and recorded in [S9 Evidence](evidence-s9.md).
 T23–T25, publication and acceptance are not authorized or started.**
-(Historical snapshot. Current: T23 complete — `v0.1.2-rc.1` PUBLISHED AND
-VERIFIED at `f73d6d0c951dd40c5cc97c3794ad7ee5607092b5`; T24 and T25 blocked;
-human acceptance PENDING.)
+(Historical snapshot. Current, 2026-09-29: S9 COMPLETE — `v0.1.2-rc.2`
+PUBLISHED AND VERIFIED at `859969a07f3807822580431a05b6c78b07691fb1`; T24 and
+T25 complete ([rc.2 record](evidence-s9-rc2/README.md)); human acceptance
+ACCEPTED.)

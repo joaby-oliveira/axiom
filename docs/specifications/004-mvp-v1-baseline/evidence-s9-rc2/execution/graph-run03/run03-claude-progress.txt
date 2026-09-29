@@ -1,0 +1,3 @@
+helper answer: exit=
+edit docs/commands.md: done, removed AXIOM_TEST_SYNTHETIC_UBUNTU_ROW paragraph
+final check: diff limited to docs/commands.md

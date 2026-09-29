@@ -1,0 +1,318 @@
+{
+  "schemaVersion": 1,
+  "envelope": "C",
+  "envelopeSHA256": "5d5fc81d27d10171affa18fda85d8ef891989de2b3ee155caf0278237871cb44",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "C1-setup",
+  "authority": "local",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {},
+  "startedAtUnix": 1790721355,
+  "observations": [
+    {
+      "label": "make-config",
+      "argv": [
+        "/bin/mkdir",
+        "-p",
+        "-m",
+        "700",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.claude"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.003,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/",
+      "expected": "success",
+      "retainedOutput": "artifacts/make-config.txt"
+    },
+    {
+      "label": "make-roots",
+      "argv": [
+        "/bin/mkdir",
+        "-p",
+        "-m",
+        "700",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/tmp",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/runtime-path",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/state",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/projects"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.003,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/",
+      "expected": "success",
+      "retainedOutput": "artifacts/make-roots.txt"
+    },
+    {
+      "label": "fetch-installer",
+      "argv": [
+        "/usr/bin/curl",
+        "--disable",
+        "--proto",
+        "=https",
+        "--tlsv1.2",
+        "-fsSL",
+        "--max-time",
+        "60",
+        "--max-filesize",
+        "65536",
+        "https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh",
+        "-o",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/remote-install.sh"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.163,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+      "expected": "success",
+      "retainedOutput": "artifacts/fetch-installer.txt"
+    },
+    {
+      "label": "installer-digest",
+      "argv": [
+        "/usr/bin/shasum",
+        "-a",
+        "256",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/remote-install.sh"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.023,
+      "outputSHA256": "f85de9a51586c09c01ef079d734513cbde2519e929b91fbc0a95fe0f488b5283",
+      "outputBytes": 131,
+      "retainedSHA256": "f85de9a51586c09c01ef079d734513cbde2519e929b91fbc0a95fe0f488b5283",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+      "expected": "success",
+      "retainedOutput": "artifacts/installer-digest.txt"
+    },
+    {
+      "label": "install-exact-rc",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 1.632,
+      "outputSHA256": "e4503f0927a9a673f15418c51f35affed1434d01f29fc57e77dc382c01ac059e",
+      "outputBytes": 634,
+      "retainedSHA256": "e4503f0927a9a673f15418c51f35affed1434d01f29fc57e77dc382c01ac059e",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+      "expected": "success",
+      "retainedOutput": "artifacts/install-exact-rc.txt"
+    },
+    {
+      "label": "version",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.local/bin/axiom",
+        "--json",
+        "version"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.202,
+      "outputSHA256": "14b10a3c706a98eabfb3a591a7ae151e8d8629610afeb0733d9cfa226ac2237e",
+      "outputBytes": 160,
+      "retainedSHA256": "14b10a3c706a98eabfb3a591a7ae151e8d8629610afeb0733d9cfa226ac2237e",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+      "expected": "success",
+      "retainedOutput": "artifacts/version.txt"
+    },
+    {
+      "label": "link-claude",
+      "argv": [
+        "/bin/ln",
+        "-s",
+        "/Users/rgomids/.local/share/claude/versions/2.1.285",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/runtime-path/claude"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.003,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+      "expected": "success",
+      "retainedOutput": "artifacts/link-claude.txt"
+    },
+    {
+      "label": "first-run-claude-only",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.local/bin/axiom",
+        "--json",
+        "first-run"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.02,
+      "outputSHA256": "d22c15e7e1e1623c670d5fef67ddc7210bb244e0072f98644a97ade6e5232ce2",
+      "outputBytes": 1314,
+      "retainedSHA256": "d22c15e7e1e1623c670d5fef67ddc7210bb244e0072f98644a97ade6e5232ce2",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home",
+      "expected": "success",
+      "retainedOutput": "artifacts/first-run-claude-only.txt"
+    },
+    {
+      "label": "clone-exact-source",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "clone",
+        "--quiet",
+        "--no-checkout",
+        "https://github.com/rgomids/axiom.git",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/source"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 2.622,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+      "expected": "success",
+      "retainedOutput": "artifacts/clone-exact-source.txt"
+    },
+    {
+      "label": "checkout-exact-source",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "-C",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/source",
+        "checkout",
+        "--quiet",
+        "--detach",
+        "859969a07f3807822580431a05b6c78b07691fb1"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.077,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4",
+      "expected": "success",
+      "retainedOutput": "artifacts/checkout-exact-source.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "make-config",
+      "local": [
+        "create /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.claude"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "make-roots",
+      "local": [
+        "create private directories under /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "fetch-installer",
+      "local": [
+        "write /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/remote-install.sh"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "installer-digest",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "install-exact-rc",
+      "local": [
+        "install axiom v0.1.2-rc.2 into /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.local/bin and receipt under /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.local/state"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "version",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "link-claude",
+      "local": [
+        "symlink /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/runtime-path/claude -> /Users/rgomids/.local/share/claude/versions/2.1.285 (detection only)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "first-run-claude-only",
+      "local": [
+        "install rc.2 Axiom skills into /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/home/.claude/skills (default user-global Claude root of the isolated HOME)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "clone-exact-source",
+      "local": [
+        "public clone into /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4/source"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "checkout-exact-source",
+      "local": [
+        "detached checkout of the exact RC revision"
+      ],
+      "external": [],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {},
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; lab retained under /Users/rgomids/Projects/axiom-t24-rc2-lab/c-r4 pending human review; no automatic deletion",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

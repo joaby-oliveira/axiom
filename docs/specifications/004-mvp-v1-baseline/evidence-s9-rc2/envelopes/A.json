@@ -1,0 +1,582 @@
+{
+  "action": "isolated local remote-install, first-run matrix and installer-state stage",
+  "target": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "releaseId": 399403900,
+  "candidateSHA256": "84b11ddc7541d68a978d17916299c12dc0718ac15a286cfbce774fbc2aed88b2",
+  "priorCandidate": {
+    "tag": "v0.1.2-rc.1",
+    "sha256": "185959b6b78d2d86f0fa0c5406bca16d9e158b6b18908466979712dba2631d87"
+  },
+  "installerURL": "https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh",
+  "installerSHA256": "3bf39863f4c542f04181ec9e76e86b587ec64cfb26e905a80be875ad87558dc7",
+  "collectorSHA256": "04535913fc850556fbeb04fc9306adaaaf6138d72743d40241ec0861847687a7",
+  "assetSHA256": {
+    "SHA256SUMS": "372baf0587515c8dcb079066ba0e6dfc92544d1291347aed6217068fe14f82ea",
+    "axiom-0.1.2-rc.2-linux-amd64.tar.gz": "2e33522fa25c944855457a86dae222237d9293c47f90edd9f347ec7ed1d94dcb",
+    "axiom-0.1.2-rc.2-linux-arm64.tar.gz": "cc30bc528e2a16fe8b5c55de2a7d6cf924a41d366e37783ee30c0e13819185dc",
+    "axiom-0.1.2-rc.2-macos-27-arm64.tar.gz": "5a18fbbb6db0c2479758ee8e1d912247f8bdb3f05134609611c79d5e243127bb"
+  },
+  "row": "macos-27-arm64",
+  "runtimeExecutables": {
+    "codex": {
+      "status": "located-not-executed",
+      "located": "/Users/rgomids/.local/bin/codex",
+      "realPath": "/Users/rgomids/.codex/packages/standalone/releases/0.157.1-aarch64-apple-darwin/bin/codex",
+      "sha256": "27ceb5f9b957b43a519efe4eaa3816a0bffb0a531a2c89af18840c0a3c016a7d",
+      "bytes": 238223808
+    },
+    "claude": {
+      "status": "located-not-executed",
+      "located": "/Users/rgomids/.local/bin/claude",
+      "realPath": "/Users/rgomids/.local/share/claude/versions/2.1.285",
+      "sha256": "51f09bd1e021d9fa8a1864c179799bd37cb39962a937935c5cf6823398e86db4",
+      "bytes": 223821616
+    }
+  },
+  "steps": [
+    {
+      "label": "filesystem",
+      "argv": [
+        "/usr/sbin/diskutil",
+        "info",
+        "-plist",
+        "/dev/disk3s1"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "success",
+      "check": null,
+      "fixture": null
+    },
+    {
+      "label": "published-metadata",
+      "argv": [
+        "/usr/bin/curl",
+        "--disable",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        "--tlsv1.2",
+        "-fsSL",
+        "--connect-timeout",
+        "20",
+        "--max-time",
+        "60",
+        "--max-filesize",
+        "65536",
+        "https://api.github.com/repos/rgomids/axiom/releases/tags/v0.1.2-rc.2"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "success",
+      "check": "release",
+      "fixture": null
+    },
+    {
+      "label": "published-latest",
+      "argv": [
+        "/usr/bin/curl",
+        "--disable",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        "--tlsv1.2",
+        "-fsSL",
+        "--connect-timeout",
+        "20",
+        "--max-time",
+        "60",
+        "--max-filesize",
+        "65536",
+        "https://api.github.com/repos/rgomids/axiom/releases/latest"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "success",
+      "check": "latest",
+      "fixture": null
+    },
+    {
+      "label": "published-tag",
+      "argv": [
+        "/usr/bin/curl",
+        "--disable",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        "--tlsv1.2",
+        "-fsSL",
+        "--connect-timeout",
+        "20",
+        "--max-time",
+        "60",
+        "--max-filesize",
+        "65536",
+        "https://api.github.com/repos/rgomids/axiom/git/ref/tags/v0.1.2-rc.2"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "success",
+      "check": "tag",
+      "fixture": null
+    },
+    {
+      "label": "prior-published-metadata",
+      "argv": [
+        "/usr/bin/curl",
+        "--disable",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        "--tlsv1.2",
+        "-fsSL",
+        "--connect-timeout",
+        "20",
+        "--max-time",
+        "60",
+        "--max-filesize",
+        "65536",
+        "https://api.github.com/repos/rgomids/axiom/releases/tags/v0.1.2-rc.1"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "success",
+      "check": "prior-release",
+      "fixture": null
+    },
+    {
+      "label": "download-installer",
+      "argv": [
+        "/usr/bin/curl",
+        "--disable",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        "--tlsv1.2",
+        "-fsSL",
+        "--connect-timeout",
+        "20",
+        "--max-time",
+        "60",
+        "--max-filesize",
+        "65536",
+        "https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh",
+        "-o",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "success",
+      "check": "installer",
+      "fixture": null
+    },
+    {
+      "label": "install",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp",
+        "LINGO_STATE_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/state",
+        "LINGO_PROJECTS_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/projects"
+      },
+      "expect": "success",
+      "check": "installed",
+      "fixture": null
+    },
+    {
+      "label": "version",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/.local/bin/axiom",
+        "--json",
+        "version"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp",
+        "LINGO_STATE_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/state",
+        "LINGO_PROJECTS_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/projects"
+      },
+      "expect": "success",
+      "check": "provenance",
+      "fixture": null
+    },
+    {
+      "label": "first-run-neither",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/.local/bin/axiom",
+        "--json",
+        "first-run"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp",
+        "LINGO_STATE_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/state",
+        "LINGO_PROJECTS_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/projects"
+      },
+      "expect": "success",
+      "check": "first-run:",
+      "fixture": null
+    },
+    {
+      "label": "first-run-neither-rerun",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/.local/bin/axiom",
+        "--json",
+        "first-run"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp",
+        "LINGO_STATE_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/state",
+        "LINGO_PROJECTS_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/projects"
+      },
+      "expect": "success",
+      "check": "first-run:",
+      "fixture": null
+    },
+    {
+      "label": "reinstall",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp",
+        "LINGO_STATE_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/state",
+        "LINGO_PROJECTS_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/projects"
+      },
+      "expect": "success",
+      "check": "unchanged",
+      "fixture": null
+    },
+    {
+      "label": "first-run-codex",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/.local/bin/axiom",
+        "--json",
+        "first-run"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/first-run-codex",
+        "PATH": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/runtime-path/codex:/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "success",
+      "check": "first-run:codex",
+      "fixture": {
+        "action": "symlink Runtime executables into a private PATH directory; never executed",
+        "directory": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/runtime-path/codex",
+        "links": {
+          "codex": "/Users/rgomids/.codex/packages/standalone/releases/0.157.1-aarch64-apple-darwin/bin/codex"
+        }
+      }
+    },
+    {
+      "label": "first-run-claude",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/.local/bin/axiom",
+        "--json",
+        "first-run"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/first-run-claude",
+        "PATH": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/runtime-path/claude:/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "success",
+      "check": "first-run:claude",
+      "fixture": {
+        "action": "symlink Runtime executables into a private PATH directory; never executed",
+        "directory": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/runtime-path/claude",
+        "links": {
+          "claude": "/Users/rgomids/.local/share/claude/versions/2.1.285"
+        }
+      }
+    },
+    {
+      "label": "first-run-both",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/.local/bin/axiom",
+        "--json",
+        "first-run"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/first-run-both",
+        "PATH": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/runtime-path/both:/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "success",
+      "check": "first-run:codex,claude",
+      "fixture": {
+        "action": "symlink Runtime executables into a private PATH directory; never executed",
+        "directory": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/runtime-path/both",
+        "links": {
+          "codex": "/Users/rgomids/.codex/packages/standalone/releases/0.157.1-aarch64-apple-darwin/bin/codex",
+          "claude": "/Users/rgomids/.local/share/claude/versions/2.1.285"
+        }
+      }
+    },
+    {
+      "label": "first-run-both-rerun",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/.local/bin/axiom",
+        "--json",
+        "first-run"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/first-run-both",
+        "PATH": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/runtime-path/both:/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "success",
+      "check": "first-run-idempotent:codex,claude",
+      "fixture": null
+    },
+    {
+      "label": "foreign-refused",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/foreign",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "failure",
+      "check": "refused:install_error: foreign binary preserved",
+      "fixture": {
+        "action": "write a foreign 0700 file at HOME/.local/bin/axiom with no receipt"
+      }
+    },
+    {
+      "label": "modified-clean-install",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/modified",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "success",
+      "check": "installed",
+      "fixture": null
+    },
+    {
+      "label": "modified-refused",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/modified",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "failure",
+      "check": "refused:install_error: modified binary preserved",
+      "fixture": {
+        "action": "append one byte to the installed binary after a clean install"
+      }
+    },
+    {
+      "label": "unsafe-refused",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/unsafe",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "failure",
+      "check": "refused:install_error: unsafe destination ownership, permissions, ACL, or type",
+      "fixture": {
+        "action": "create HOME/.local/bin with mode 0777"
+      }
+    },
+    {
+      "label": "upgrade-prior-install",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.1"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/upgrade",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "success",
+      "check": "prior-installed",
+      "fixture": null
+    },
+    {
+      "label": "upgrade-owned",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/upgrade",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "success",
+      "check": "upgraded",
+      "fixture": null
+    },
+    {
+      "label": "upgrade-version",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/upgrade/.local/bin/axiom",
+        "--json",
+        "version"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/upgrade",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "success",
+      "check": "provenance",
+      "fixture": null
+    },
+    {
+      "label": "downgrade-refused",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.1"
+      ],
+      "env": {
+        "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/upgrade",
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/tmp"
+      },
+      "expect": "failure",
+      "check": "refused:install_error: owned upgrade refused",
+      "fixture": null
+    }
+  ],
+  "timeoutSecondsPerCommand": 600,
+  "maximumStageAttempts": 1,
+  "networkRetries": "installer-owned bounded retries; no harness retry",
+  "outputCapBytes": 65536,
+  "allowedEffects": [
+    "HTTPS public release reads",
+    "writes inside Evidence target",
+    "installer-owned temporary download directories under Evidence tmp",
+    "symlinks to Runtime executables inside Evidence runtime-path"
+  ],
+  "forbiddenEffects": [
+    "Runtime invocation",
+    "GitHub mutation",
+    "credential access",
+    "host HOME, installation or skill roots",
+    "release publication/promotion",
+    "deletion of any file outside Evidence target"
+  ],
+  "cleanupOwnership": "operator; retained isolated files only; no automatic deletion",
+  "runtimeProfile": "none; Runtime executables are detected, never executed",
+  "retain": "commands/exits, bounded CLI output, hashes, receipts, inventories, limitations"
+}

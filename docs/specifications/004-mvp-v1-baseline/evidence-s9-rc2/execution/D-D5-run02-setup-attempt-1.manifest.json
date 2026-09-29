@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "envelope": "D",
+  "envelopeSHA256": "007c792d1e035541900dbf487065ef6f1aff19b27ba1b9c619d1fbd0f9291d9e",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "D5-run02-setup",
+  "authority": "local",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {
+    "toolingRevision": "d9fbe0243fde3dd9039ca75cf4f2d17ea9374678"
+  },
+  "startedAtUnix": 1790722043,
+  "observations": [
+    {
+      "label": "make-diag",
+      "argv": [
+        "/bin/mkdir",
+        "-p",
+        "-m",
+        "700",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/diag"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.004,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/",
+      "expected": "success",
+      "retainedOutput": "artifacts/make-diag.txt"
+    },
+    {
+      "label": "fetch-tooling",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "-C",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+        "fetch",
+        "--quiet",
+        "origin"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.867,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/fetch-tooling.txt"
+    },
+    {
+      "label": "checkout-tooling",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "-C",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+        "checkout",
+        "--quiet",
+        "--detach",
+        "d9fbe0243fde3dd9039ca75cf4f2d17ea9374678"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.137,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/checkout-tooling.txt"
+    },
+    {
+      "label": "tooling-product-tree-is-exact-rc",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "-C",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+        "diff",
+        "--quiet",
+        "859969a07f3807822580431a05b6c78b07691fb1",
+        "HEAD",
+        "--",
+        "cmd",
+        "internal",
+        "go.mod",
+        "go.sum"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.01,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/tooling-product-tree-is-exact-rc.txt"
+    },
+    {
+      "label": "graph-spec-digest",
+      "argv": [
+        "/usr/bin/shasum",
+        "-a",
+        "256",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec-run02.json"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.014,
+      "outputSHA256": "9227b4d4d266c5259e6e976ac957e222d7792e6393dbc3be9a14d6582624c217",
+      "outputBytes": 214,
+      "retainedSHA256": "9227b4d4d266c5259e6e976ac957e222d7792e6393dbc3be9a14d6582624c217",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/graph-spec-digest.txt"
+    },
+    {
+      "label": "build-graph-runner",
+      "argv": [
+        "/Users/rgomids/.local/go/bin/go",
+        "build",
+        "-o",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run02",
+        "./scripts/s9-graph-runner.go"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 1.323,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+      "expected": "success",
+      "retainedOutput": "artifacts/build-graph-runner.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "make-diag",
+      "local": [
+        "create /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/diag"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "fetch-tooling",
+      "local": [
+        "public fetch into /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "checkout-tooling",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "tooling-product-tree-is-exact-rc",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "graph-spec-digest",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "build-graph-runner",
+      "local": [
+        "build /Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run02 (run 01 binary preserved)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {},
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; worktrees, state and Evidence preserved (preserve_pending_human_review); no automatic deletion",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

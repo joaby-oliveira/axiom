@@ -10,10 +10,21 @@ envelope, and missing native/Runtime/Provider/dogfood Evidence. T24 and T25
 remain blocked; human acceptance PENDING. Earlier no-release/not-started
 statements below describe their original productization/pre-T23 snapshots.
 
-`v0.1.2-rc.2` is **BLOCKED**: publication run 36599923652 made release
-`399339376` public as `untagged-898fac51a51187009dea` without the tag
-`v0.1.2-rc.2`. See the [rc.2 orphan release incident](evidence-s9-t23-rc2-incident.md).
-No new publication is authorized; T24/T25 and acceptance are not inferred.
+`v0.1.2-rc.2` (`859969a07f3807822580431a05b6c78b07691fb1`, release `399403900`)
+is **PUBLISHED AND VERIFIED** after the orphan incident was resolved (see the
+[incident record](evidence-s9-t23-rc2-incident.md)). **T24 and T25 are
+complete** against it ([rc.2 record](evidence-s9-rc2/README.md),
+[acceptance matrix](evidence-s9-rc2/ac-matrix.md)). The record covers:
+- macOS install matrix;
+- real Codex and Claude journeys;
+- the S8 Codex+Claude graph with Integration/Reconciliation;
+- the GitHub dogfood (Issue #125, PR #127);
+- recovery.
+
+No product defect was found. Linux rows: human-attested manual validation;
+automation is post-MVP [#126](https://github.com/rgomids/axiom/issues/126).
+**Human acceptance: ACCEPTED (2026-09-29). S9 complete.** The "blocked" and
+"not complete" statements below describe the pre-T23 productization snapshot.
 
 ## Claim and authority boundary
 

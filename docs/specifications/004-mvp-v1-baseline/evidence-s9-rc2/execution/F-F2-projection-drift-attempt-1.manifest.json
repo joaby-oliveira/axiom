@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "envelope": "F",
+  "envelopeSHA256": "cc5415f0b9b3c923300cdf7f1d89b336472fcb9cdecf489e271b13678baa8318",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "F2-projection-drift",
+  "authority": "provider",
+  "attempt": 1,
+  "maxAttempts": 1,
+  "approvals": {
+    "issueNumber": "125",
+    "stageLabel": "axiom:stage:reviewing"
+  },
+  "startedAtUnix": 1790724396,
+  "observations": [
+    {
+      "label": "remove-stage-label",
+      "argv": [
+        "/opt/homebrew/bin/gh",
+        "issue",
+        "edit",
+        "125",
+        "--repo",
+        "rgomids/axiom",
+        "--remove-label",
+        "axiom:stage:reviewing"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 2.25,
+      "outputSHA256": "ab430e340ec9138881c2c8a97f89c10214ac0731faa5de0dc9fb98b03d52a8b0",
+      "outputBytes": 44,
+      "retainedSHA256": "ab430e340ec9138881c2c8a97f89c10214ac0731faa5de0dc9fb98b03d52a8b0",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/remove-stage-label.txt"
+    },
+    {
+      "label": "drift-preview",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "reconcile",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "10"
+      ],
+      "attempt": 1,
+      "exitCode": 1,
+      "timedOut": false,
+      "durationSeconds": 1.569,
+      "outputSHA256": "c984a80594a7dafea2c259891d683825610da331a4ebc5d9c82536a19d30a07e",
+      "outputBytes": 1719,
+      "retainedSHA256": "c984a80594a7dafea2c259891d683825610da331a4ebc5d9c82536a19d30a07e",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "failure",
+      "retainedOutput": "artifacts/drift-preview.txt"
+    },
+    {
+      "label": "restore-stage-label",
+      "argv": [
+        "/opt/homebrew/bin/gh",
+        "issue",
+        "edit",
+        "125",
+        "--repo",
+        "rgomids/axiom",
+        "--add-label",
+        "axiom:stage:reviewing"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 1.704,
+      "outputSHA256": "ab430e340ec9138881c2c8a97f89c10214ac0731faa5de0dc9fb98b03d52a8b0",
+      "outputBytes": 44,
+      "retainedSHA256": "ab430e340ec9138881c2c8a97f89c10214ac0731faa5de0dc9fb98b03d52a8b0",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/restore-stage-label.txt"
+    },
+    {
+      "label": "converged-preview",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "reconcile",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "10"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 1.484,
+      "outputSHA256": "a2d7bde0622d221d57fbd1ef1e9047a7a348bac1fb7c5348c7c63e4204f6b962",
+      "outputBytes": 3258,
+      "retainedSHA256": "a2d7bde0622d221d57fbd1ef1e9047a7a348bac1fb7c5348c7c63e4204f6b962",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/converged-preview.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "remove-stage-label",
+      "local": [],
+      "external": [
+        "remove exactly the current axiom:stage:* label from the dogfood Issue in rgomids/axiom"
+      ],
+      "status": "exit-0"
+    },
+    {
+      "label": "drift-preview",
+      "local": [],
+      "external": [],
+      "status": "exit-1"
+    },
+    {
+      "label": "restore-stage-label",
+      "local": [],
+      "external": [
+        "re-add exactly that label to the same Issue"
+      ],
+      "status": "exit-0"
+    },
+    {
+      "label": "converged-preview",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {
+    "converged-preview.effects": []
+  },
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; if F2 stops between remove and restore, the human restores the label (recorded) before any other projection",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

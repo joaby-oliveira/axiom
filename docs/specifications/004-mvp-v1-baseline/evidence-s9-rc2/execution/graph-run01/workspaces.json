@@ -1,0 +1,47 @@
+[
+  {
+    "Repository": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source",
+    "CommonDirectory": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source/.git",
+    "ParentID": "67b02fc9-e4df-4e58-9a2e-bf843c11faec",
+    "ChildID": "05f54b48-5390-4f8e-8f48-7741f2205358",
+    "GraphRevision": 1,
+    "EnvelopeDigest": "d89b7231498b31813c4e2aa51e4975751b846513a768cf94b990d3bf487f2f62",
+    "Workspace": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces/claude",
+    "BaseRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+    "HeadRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+    "HeadTree": "6a27615f9617ea078a68f0dfe80bbebd14e27e4a",
+    "ResultTree": "",
+    "ChangedPaths": [],
+    "Clean": true
+  },
+  {
+    "Repository": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source",
+    "CommonDirectory": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source/.git",
+    "ParentID": "67b02fc9-e4df-4e58-9a2e-bf843c11faec",
+    "ChildID": "5de0ada8-727f-41bb-8237-9f628ccece35",
+    "GraphRevision": 1,
+    "EnvelopeDigest": "a997ff0fbb8f1a6c873a3c2463e30d9b5b2e65936e1f08b30cc1baa6c9412f6f",
+    "Workspace": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces/integration",
+    "BaseRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+    "HeadRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+    "HeadTree": "6a27615f9617ea078a68f0dfe80bbebd14e27e4a",
+    "ResultTree": "",
+    "ChangedPaths": [],
+    "Clean": true
+  },
+  {
+    "Repository": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source",
+    "CommonDirectory": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source/.git",
+    "ParentID": "67b02fc9-e4df-4e58-9a2e-bf843c11faec",
+    "ChildID": "740d5885-6fb2-48ae-94d4-2693566e4749",
+    "GraphRevision": 1,
+    "EnvelopeDigest": "f1e40a62eaae9a0ede757c47a9be6822fb7a7ce4ab8ee79d4354c08da222fb4c",
+    "Workspace": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces/codex",
+    "BaseRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+    "HeadRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+    "HeadTree": "6a27615f9617ea078a68f0dfe80bbebd14e27e4a",
+    "ResultTree": "",
+    "ChangedPaths": [],
+    "Clean": true
+  }
+]
