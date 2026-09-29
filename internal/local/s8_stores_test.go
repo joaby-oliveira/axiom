@@ -242,6 +242,9 @@ func TestCoordinationLatestRejectsUnsafeHierarchy(t *testing.T) {
 	if err := os.Mkdir(root, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.Chmod(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	store, err := NewCoordinationStore(root, "project-1")
 	if err != nil {
 		t.Fatal(err)
