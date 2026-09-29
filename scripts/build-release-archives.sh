@@ -130,7 +130,7 @@ build_target() {
 }
 
 build_target macos-27 darwin arm64
-build_target ubuntu-26.04 linux amd64
-build_target ubuntu-26.04 linux arm64
+build_target linux linux amd64
+build_target linux linux arm64
 
 printf 'release_build_success: %s\n' "$output"

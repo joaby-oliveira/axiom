@@ -18,8 +18,8 @@ var hostRow = func() string {
 			return "macos-27:darwin:arm64"
 		}
 	case "linux/amd64", "linux/arm64":
-		// Any Linux distribution runs the static ubuntu-26.04 build.
-		return "ubuntu-26.04:linux:" + runtime.GOARCH
+		// Any Linux distribution runs the static linux build.
+		return "linux:linux:" + runtime.GOARCH
 	}
 	return ""
 }

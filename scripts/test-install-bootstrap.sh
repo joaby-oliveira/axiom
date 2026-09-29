@@ -182,8 +182,8 @@ row=
 case "$(uname -s):$(uname -m)" in
   Darwin:arm64) [[ $(sw_vers -productVersion 2>/dev/null) == 27.0 ]] && row=macos-27-arm64 ;;
   Linux:x86_64|Linux:aarch64)
-    row=ubuntu-26.04-amd64
-    [[ $(uname -m) == aarch64 ]] && row=ubuntu-26.04-arm64
+    row=linux-amd64
+    [[ $(uname -m) == aarch64 ]] && row=linux-arm64
     ;;
 esac
 if [[ -z "$row" ]]; then
@@ -232,7 +232,7 @@ export row revision12
 # 0. Row selection: each supported row requests exactly its own asset. v2.0.0
 # publishes SHA256SUMS for all rows but no archive, so selection stops at the
 # missing asset with no effect. Linux rows accept any distribution.
-for selection in macos-27-arm64:Darwin:arm64 ubuntu-26.04-amd64:Linux:x86_64 ubuntu-26.04-arm64:Linux:aarch64; do
+for selection in macos-27-arm64:Darwin:arm64 linux-amd64:Linux:x86_64 linux-arm64:Linux:aarch64; do
   IFS=: read -r selected_row selected_system selected_machine <<<"$selection"
   shim="$temporary/row-tools-$selected_row"
   mkdir -p "$shim"

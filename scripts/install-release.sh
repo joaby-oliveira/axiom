@@ -44,10 +44,10 @@ host_matches_release_row() {
       command -v sw_vers >/dev/null 2>&1 || return 1
       [[ $(sw_vers -productVersion 2>/dev/null) == 27.0 ]]
       ;;
-    ubuntu-26.04:linux:amd64)
+    linux:linux:amd64)
       [[ "$host_system:$host_architecture" == Linux:x86_64 ]]
       ;;
-    ubuntu-26.04:linux:arm64)
+    linux:linux:arm64)
       [[ "$host_system:$host_architecture" == Linux:aarch64 ]]
       ;;
     *) return 1 ;;

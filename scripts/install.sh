@@ -125,10 +125,10 @@ case "$system:$machine" in
     fi
     ;;
   Linux:x86_64|Linux:aarch64)
-    # Any Linux distribution runs the static ubuntu-26.04 build.
+    # Any Linux distribution runs the static linux build.
     case "$machine" in
-      x86_64) row=ubuntu-26.04-amd64 ;;
-      aarch64) row=ubuntu-26.04-arm64 ;;
+      x86_64) row=linux-amd64 ;;
+      aarch64) row=linux-arm64 ;;
     esac
     ;;
 esac

@@ -70,8 +70,8 @@ done <"$temporary/release/SHA256SUMS"
 host_bundle=
 case "$(uname -s):$(uname -m)" in
   Darwin:arm64) host_bundle=macos-27-arm64 ;;
-  Linux:x86_64) host_bundle=ubuntu-26.04-amd64 ;;
-  Linux:aarch64) host_bundle=ubuntu-26.04-arm64 ;;
+  Linux:x86_64) host_bundle=linux-amd64 ;;
+  Linux:aarch64) host_bundle=linux-arm64 ;;
 esac
 if [[ -n "$host_bundle" ]]; then
   git clone -q --no-hardlinks "$repository_root" "$temporary/clean-source"
@@ -92,11 +92,11 @@ case "$(uname -s):$(uname -m)" in
     [[ $(sw_vers -productVersion 2>/dev/null) == 27.0 ]] && native=$host_candidate
     ;;
   Linux:x86_64)
-    host_candidate="$temporary/release/axiom-0.0.0-s2-test-ubuntu-26.04-amd64.tar.gz"
+    host_candidate="$temporary/release/axiom-0.0.0-s2-test-linux-amd64.tar.gz"
     native=$host_candidate
     ;;
   Linux:aarch64)
-    host_candidate="$temporary/release/axiom-0.0.0-s2-test-ubuntu-26.04-arm64.tar.gz"
+    host_candidate="$temporary/release/axiom-0.0.0-s2-test-linux-arm64.tar.gz"
     native=$host_candidate
     ;;
 esac

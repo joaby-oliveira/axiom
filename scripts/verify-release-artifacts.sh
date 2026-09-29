@@ -40,7 +40,7 @@ digest() {
   fi
 }
 
-rows='macos-27:darwin:arm64 ubuntu-26.04:linux:amd64 ubuntu-26.04:linux:arm64'
+rows='macos-27:darwin:arm64 linux:linux:amd64 linux:linux:arm64'
 skill_names='axiom-project-configure axiom-project-show axiom-work-item-create axiom-work-item-run axiom-work-item-status'
 temporary=$(mktemp -d)
 trap 'rm -rf -- "$temporary"' EXIT

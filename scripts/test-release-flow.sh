@@ -362,7 +362,7 @@ make_set() {
   : >"$dir/sums"
   {
     printf 'evidenceVersion=1\nproduct=Axiom\nversion=%s\nrevision=%s\n' "$version" "$rev"
-    for row in macos-27-arm64 ubuntu-26.04-amd64 ubuntu-26.04-arm64; do
+    for row in macos-27-arm64 linux-amd64 linux-arm64; do
       printf '%s %s %s\n' "$version" "$row" "$salt" >"$dir/artifacts/axiom-$version-$row.tar.gz"
       printf '%s  %s\n' "$(digest "$dir/artifacts/axiom-$version-$row.tar.gz")" "axiom-$version-$row.tar.gz" >>"$dir/sums"
     done
@@ -482,7 +482,7 @@ expect_failure 'invalid tag before any effect' 'release_tag_error' publish "$tem
 # Local set: incomplete, checksum and revision mismatches fail before GitHub.
 reset_github
 make_set "$temporary/bad" 0.1.0-rc.2 "$c2" x
-rm "$temporary/bad/artifacts/axiom-0.1.0-rc.2-ubuntu-26.04-arm64.tar.gz"
+rm "$temporary/bad/artifacts/axiom-0.1.0-rc.2-linux-arm64.tar.gz"
 expect_failure 'incomplete artifact set' 'not exactly the verified set' publish "$temporary/bad" --tag v0.1.0-rc.2 --revision "$c2" --make-latest false
 make_set "$temporary/bad" 0.1.0-rc.2 "$c2" x
 printf 'x\n' >>"$temporary/bad/artifacts/axiom-0.1.0-rc.2-macos-27-arm64.tar.gz"
@@ -539,7 +539,7 @@ expect_failure 'authority for another label state is stale' 'preview changed; re
   publish_raw "$temporary/stable" --tag v0.1.0 --revision "$c3" --make-latest true --authorized-digest "$pr_digest"
 check 'divergent Release PR state made no GitHub effect' test "$(mutations)" == 0
 mv "$temporary/pulls.saved" "$state/pulls.json"
-FAKE_GH_FAIL_ON='assets?name=axiom-0.1.0-ubuntu-26.04-amd64' expect_failure 'interrupted upload' 'draft left for a rerun' \
+FAKE_GH_FAIL_ON='assets?name=axiom-0.1.0-linux-arm64' expect_failure 'interrupted upload' 'draft left for a rerun' \
   publish "$temporary/stable" --tag v0.1.0 --revision "$c3" --make-latest true
 check 'partial state is an unpublished draft without tag' bash -c "[[ \$(jq -s '.[0].draft' $state/releases/*.json) == true && ! -s '$state/tags' && ! -s '$state/latest' ]]"
 "$fixture/scripts/publish-release.sh" --check --repo rgomids/axiom --tag v0.1.0 --revision "$c3" --make-latest true >"$temporary/check"
@@ -549,7 +549,7 @@ check 'the partial draft is a new preview' test "$interrupted_digest" != "$(enve
 expect_failure 'authority of the interrupted run is stale' 'preview changed' \
   publish_raw "$temporary/stable" --tag v0.1.0 --revision "$c3" --make-latest true --authorized-digest "$interrupted_digest"
 make_set "$temporary/stable-rebuild" 0.1.0 "$c3" rebuilt
-cp "$temporary/stable/artifacts/axiom-0.1.0-macos-27-arm64.tar.gz" "$temporary/stable-rebuild/artifacts/"
+cp "$temporary/stable/artifacts/axiom-0.1.0-linux-amd64.tar.gz" "$temporary/stable-rebuild/artifacts/"
 ( cd "$temporary/stable-rebuild/artifacts" && for f in axiom-*.tar.gz; do printf '%s  %s\n' "$(digest "$f")" "$f"; done ) >"$temporary/stable-rebuild/sums"
 cp "$temporary/stable-rebuild/sums" "$temporary/stable-rebuild/artifacts/SHA256SUMS"
 {
@@ -560,7 +560,7 @@ cp "$temporary/stable-rebuild/sums" "$temporary/stable-rebuild/artifacts/SHA256S
 } >"$temporary/stable-rebuild/evidence.txt"
 : >"$state/ledger"
 FAKE_GH_IMMUTABLE=1 publish "$temporary/stable-rebuild" --tag v0.1.0 --revision "$c3" --make-latest true >"$temporary/pub"
-check 'rerun keeps identical draft assets' grep -Fxq 'draft_asset_kept=axiom-0.1.0-macos-27-arm64.tar.gz' "$temporary/pub"
+check 'rerun keeps identical draft assets' grep -Fxq 'draft_asset_kept=axiom-0.1.0-linux-amd64.tar.gz' "$temporary/pub"
 check 'rerun replaces mismatched draft assets' grep -Fq 'effect=draft_asset_deleted name=SHA256SUMS' "$temporary/pub"
 check 'stable published once, not prerelease, latest' bash -c "grep -Fxq publication=published '$temporary/pub' && grep -Fxq latest=v0.1.0 '$temporary/pub' && [[ \$(jq -s 'length == 1 and (.[0] | .draft == false and .prerelease == false)' $state/releases/*.json) == true ]]"
 expected_digests=$(for f in "$temporary/stable-rebuild/artifacts"/*; do printf 'sha256:%s\n' "$(digest "$f")"; done | LC_ALL=C sort | paste -sd, -)
@@ -645,7 +645,7 @@ stage_prepared_run 6161 v0.1.0-rc.1 "$c4" first .github/workflows/other.yml
 release status --tag v0.1.0-rc.1 --prepared-run 6161 >"$temporary/status"
 check 'a set from another workflow is refused' bash -c "grep -Fxq next_action=blocked '$temporary/status' && grep -Fq 'not a successful release-artifacts.yml' '$temporary/status'"
 stage_prepared_run 7171 v0.1.0-rc.1 "$c4" first
-printf 'x\n' >>"$state/runs/7171/axiom-release-v0.1.0-rc.1/artifacts/axiom-0.1.0-rc.1-ubuntu-26.04-amd64.tar.gz"
+printf 'x\n' >>"$state/runs/7171/axiom-release-v0.1.0-rc.1/artifacts/axiom-0.1.0-rc.1-linux-amd64.tar.gz"
 release status --tag v0.1.0-rc.1 --prepared-run 7171 >"$temporary/status"
 check 'a tampered prepared set is refused' bash -c "grep -Fxq next_action=blocked '$temporary/status' && grep -Fq 'checksum mismatch' '$temporary/status'"
 stage_prepared_run 8181 v0.1.0-rc.1 "$c4" first

@@ -344,8 +344,8 @@ archive (which shipped `lingo`) is not recognized as owned and is preserved;
 no migration from such an installation is performed.
 
 Supported archive rows are macOS 27.0/arm64 and Linux amd64/arm64. The Linux
-archives (named `ubuntu-26.04-*`, their native Evidence baseline) are static
-builds installed on any Linux distribution and version. Other macOS versions,
+archives (`linux-amd64`, `linux-arm64`) are static builds installed on any
+Linux distribution and version. Other macOS versions,
 operating systems, and architectures fail closed. Install the
 archive matching the current host into explicit user-owned destinations:
 
@@ -418,7 +418,7 @@ Selection:
 - `--channel` and `--version` are mutually exclusive and fail before any effect.
 
 The bootstrap detects the supported row (macOS 27.0/arm64, or any Linux on
-x86_64/aarch64 mapped to the `ubuntu-26.04-amd64`/`-arm64` archive) before any
+x86_64/aarch64 mapped to the `linux-amd64`/`linux-arm64` archive) before any
 download, fetches the release
 `SHA256SUMS` and the row's archive over HTTPS only, and verifies the digest
 before reading the archive. It then requires the bundle's `install.sh` and
