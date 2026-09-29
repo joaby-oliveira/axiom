@@ -1,0 +1,119 @@
+{
+  "alpha_histogram": {
+    "opaque": 1252708,
+    "partial": 7102,
+    "transparent": 312706
+  },
+  "checks": {
+    "composite_over_white_matches_source_max_delta_le_2": true,
+    "dimensions_equal_source": true,
+    "every_opaque_pixel_equals_source": true,
+    "has_transparent_exterior_and_opaque_icon": true,
+    "interior_samples_opaque_and_unchanged": true,
+    "outer_corners_transparent": true,
+    "png_valid_crc_and_decode": true,
+    "rgba_colour_type_6": true
+  },
+  "corner_alpha": {
+    "bottom_left": 0,
+    "bottom_right": 0,
+    "inner_bottom_right_8px": 0,
+    "inner_top_left_8px": 0,
+    "top_left": 0,
+    "top_right": 0
+  },
+  "interior_samples": {
+    "300,300": {
+      "result": [
+        17,
+        28,
+        38,
+        255
+      ],
+      "source": [
+        17,
+        28,
+        38
+      ]
+    },
+    "627,300": {
+      "result": [
+        252,
+        250,
+        247,
+        255
+      ],
+      "source": [
+        252,
+        250,
+        247
+      ]
+    },
+    "627,460": {
+      "result": [
+        238,
+        181,
+        75,
+        255
+      ],
+      "source": [
+        238,
+        181,
+        75
+      ]
+    },
+    "627,627": {
+      "result": [
+        17,
+        27,
+        38,
+        255
+      ],
+      "source": [
+        17,
+        27,
+        38
+      ]
+    },
+    "954,954": {
+      "result": [
+        18,
+        27,
+        38,
+        255
+      ],
+      "source": [
+        18,
+        27,
+        38
+      ]
+    }
+  },
+  "max_composite_over_white_delta": 1,
+  "opaque_pixels_changed": 0,
+  "result": {
+    "bytes": 937923,
+    "chunks": [
+      "IHDR",
+      "IDAT",
+      "IEND"
+    ],
+    "colour_type": 6,
+    "sha256": "5d4a07d5344bf41ecafde4c88680324b6c099ae6eb44aaf5b1632c1747a0d8a4",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  "result_status": "pass",
+  "schema": "axiom-s9-dogfood-logo-validation/v1",
+  "source": {
+    "bytes": 1036266,
+    "colour_type": 2,
+    "sha256": "23ccdef4e2c64f7a0014bee45e176a14af2dc1b6a8ae623a8cfa099b30b90836",
+    "size": [
+      1254,
+      1254
+    ]
+  }
+}
