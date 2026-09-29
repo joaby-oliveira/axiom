@@ -173,3 +173,53 @@ PR creation, including the unchanged pre-existing T23 publication record. It
 does not authorize the proposed installation envelope, Runtime/Provider runs,
 release promotion or human acceptance. Earlier no-commit/no-PR statements record
 the collection snapshot above; T24/T25 remain blocked.
+
+
+## Real dogfood, defect correction, and corrected-RC path — 2026-09-29
+
+A real S9 dogfood activity was executed against the published
+`v0.1.2-rc.1` using Claude only. The Work Item was
+[Issue #117](https://github.com/rgomids/axiom/issues/117), created through the
+Axiom GitHub Provider, and the implementation activity was delivered by
+[PR #118](https://github.com/rgomids/axiom/pull/118).
+
+PR #118 passed CI and technical review and was squash-merged as
+`d5f78228cf656989998b5e25c7799fb8fea32df7`. After integration, Issue #117
+received a final completion comment and was closed as `completed`. That closure
+records only completion of the bounded dogfood Work Item; it does **not**
+represent T24, T25, RC or human acceptance.
+
+The `v0.1.2-rc.1` dogfood exposed two product-level Major findings:
+
+1. workflow Executions were attributed to `RuntimeID: "codex"` even when the
+   real driving Runtime was Claude;
+2. projection of a newly created Axiom GitHub Work Item could not bootstrap from
+   zero `axiom:stage:*` markers and returned `recovery_required`.
+
+Both findings were corrected in
+[PR #120](https://github.com/rgomids/axiom/pull/120). The associated contract
+reconciliation was explicitly approved by the human reviewer: the Runtime is
+selected explicitly at workflow start and remains persisted Execution truth;
+zero stage markers before the first established projection are bootstrap, while
+loss of an established marker remains drift/recovery. PR #120 was then
+squash-merged as `7045388d8d95e40b593185c528383f26564cca9e`.
+
+The corrected-RC closure path is therefore:
+
+```text
+v0.1.2-rc.1 dogfood
+-> bounded Work Item completed and closed
+-> two Major defects recorded
+-> defects + contract reconciliation corrected in PR #120
+-> publish a distinguishable corrected RC
+-> rerun end-to-end dogfood against that exact RC
+-> collect and reconcile remaining T24 Evidence
+-> complete T25 audits and Evidence reconciliation
+-> stop at RC ready for human review
+-> explicit human acceptance
+```
+
+The dogfood proves the `rc.1` defects and their delivery context; it does not
+retroactively make `rc.1` acceptable. T24 remains **BLOCKED** and T25 remains
+**BLOCKED** until a corrected RC is published and the remaining required
+acceptance Evidence is collected. Human acceptance remains **PENDING**.
