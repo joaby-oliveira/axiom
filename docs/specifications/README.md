@@ -136,8 +136,8 @@ inferred. S6 T26–T29 were explicitly authorized and their technical delivery i
 recorded in [S6 Evidence](004-mvp-v1-baseline/evidence-s6.md). S7 T16–T22 were
 explicitly authorized on 2026-09-25 and are technically complete, including the
 T18 Evidence retirement record (HD-S7-T18) and macOS 27.0 native T22 Evidence;
-see [S7 Evidence](004-mvp-v1-baseline/evidence-s7.md). By HD-S7-T22 the Ubuntu
-26.04 native rows were not executed and are deferred to the T24
+see [S7 Evidence](004-mvp-v1-baseline/evidence-s7.md). By HD-S7-T22 the Linux
+native rows were not executed and are deferred to the T24
 clean-environment RC acceptance matrix, where they remain mandatory.
 
 Issue [#97](https://github.com/rgomids/axiom/issues/97) records the product-scope
@@ -225,7 +225,7 @@ delivery is recorded in [S7 Evidence](004-mvp-v1-baseline/evidence-s7.md). The
 current T30–T35 delivery is recorded in
 [S8 Evidence](004-mvp-v1-baseline/evidence-s8.md), including the real T36 journey.
 The corrected candidate is ready for human review, not human-accepted. The
-Ubuntu 26.04 native Evidence deferred to T24, now S9,
+Linux native Evidence deferred to T24, now S9,
 Provider mutation outside an exact authorized run, prerelease/release publication,
 and final MVP acceptance remain separately gated. Accepted operational Slice
 trackers are #75–#79 for S1–S5, #94 for S6, and #80 for S7. Issue #97 is the

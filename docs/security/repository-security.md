@@ -95,7 +95,16 @@ desejado versionado fica em [`.github/rulesets/`](../../.github/rulesets) e em
 alteradas por um administrador com autorização explícita; agentes não aplicam
 os comandos abaixo por conta própria.
 
-### Estado observado (leitura, 2026-09-28)
+### Snapshot histórico observado (leitura, 2026-09-28)
+
+A leitura posterior ao merge do PR #114 está registrada no
+[gate T23](../specifications/004-mvp-v1-baseline/evidence-s9-t23.md).
+Environment `release`, CODEOWNERS e permissão de criação de PR por Actions
+já existem; a tabela abaixo preserva a observação anterior. Na primeira revalidação, required checks, squash-only, SHA pinning, releases
+imutáveis e `release-tags` divergiam do estado desejado. Em 2026-09-29,
+autoridade humana explícita permitiu aplicar exatamente os cinco envelopes;
+read-back confirmou os controles, incluindo `release-tags` id `24154141`.
+Payloads, hashes e ledger estão naquele Evidence.
 
 | Controle | Observado | Desejado |
 |---|---|---|

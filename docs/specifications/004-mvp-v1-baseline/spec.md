@@ -1,12 +1,26 @@
 # Specification 004 — Usable MVP v1 Baseline
 
+## Platform reconciliation — 2026-09-28
+
+The human T23 instruction names supported operating systems generically as
+**macOS** and **Linux**. The current versioned release build at
+`fd97fc7d39810a2ffad9a104e4be8779c726f9ee` targets macOS/arm64,
+Linux/amd64 and Linux/arm64; Linux archives use `linux` metadata and no
+Ubuntu/version filter. This reconciles the already implemented Linux contract,
+without changing architecture, filesystem/security invariants or native Evidence
+obligations. Earlier Ubuntu-specific support wording is superseded; dated
+observations and research remain historical, not current product requirements.
+The macOS installer still requires 27.0/arm64 and archive metadata `macos-27`;
+generic OS naming does not remove that executable compatibility constraint.
+T24, Runtime execution and human acceptance remain separately gated.
+
 ## Status and authority
 
 **Approved — human approval recorded on 2026-09-20.**
 
 **Issue #94 amendment: Approved, and S6 T26–T29 implementation explicitly authorized on 2026-09-24. Technical implementation is recorded at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not inferred.**
 
-**S7 (T16–T22): explicitly authorized on 2026-09-25. Technical implementation is recorded at `11f2b7decbe4ddef428d4cb3b7e962680100e1db` and `408a2b51f20e797744f9f6ba6eaa00e0061582f9` with [S7 Evidence](evidence-s7.md); T22 Ubuntu native rows remain unexecuted; human acceptance is not inferred.**
+**S7 (T16–T22): explicitly authorized on 2026-09-25. Technical implementation is recorded at `11f2b7decbe4ddef428d4cb3b7e962680100e1db` and `408a2b51f20e797744f9f6ba6eaa00e0061582f9` with [S7 Evidence](evidence-s7.md); T22 Linux native rows remain unexecuted; human acceptance is not inferred.**
 
 **Issue #97 S8 amendment: Approved by explicit human decision on 2026-09-26. It
 adds multi-runtime Agent Planning and parent/child Execution Graph behavior before

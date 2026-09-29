@@ -1,5 +1,13 @@
 # Plan — Specification 004: Usable MVP v1 Baseline
 
+## Platform reconciliation — 2026-09-28
+
+[Specification platform reconciliation](spec.md#platform-reconciliation--2026-09-28)
+supersedes Ubuntu-specific support wording with Linux. Architecture,
+filesystem/security invariants and native Evidence obligations remain unchanged;
+macOS retains the current executable 27.0/arm64 constraint. Dated historical
+observations remain historical. T24 and human acceptance stay separately gated.
+
 ## 1. Status, authority and source baseline
 
 **Plan: Approved — human approval recorded on 2026-09-20.**
@@ -16,7 +24,7 @@ any successor Slice.
 
 **Issue #94 amendment: Approved, and S6 implementation explicitly authorized on 2026-09-24. Technical implementation is recorded at `56beb4fc310894ff8de128f52c6a96d22711bec8`; human acceptance is not inferred.**
 
-**S7 (T16–T22): explicitly authorized on 2026-09-25. Technical implementation is recorded at `11f2b7decbe4ddef428d4cb3b7e962680100e1db` and `408a2b51f20e797744f9f6ba6eaa00e0061582f9` with [S7 Evidence](evidence-s7.md); T22 Ubuntu native rows remain unexecuted; human acceptance is not inferred.**
+**S7 (T16–T22): explicitly authorized on 2026-09-25. Technical implementation is recorded at `11f2b7decbe4ddef428d4cb3b7e962680100e1db` and `408a2b51f20e797744f9f6ba6eaa00e0061582f9` with [S7 Evidence](evidence-s7.md); T22 Linux native rows remain unexecuted; human acceptance is not inferred.**
 
 ### Issue #97 S8 amendment approval — 2026-09-26
 
@@ -708,7 +716,8 @@ observation, and verification context.
 
 ### Supported release matrix and assumptions
 
-Versioned support research was refreshed on 2026-09-20 from official sources:
+Historical support research (2026-09-20; preserved as a dated snapshot,
+not the current distribution/version support contract):
 
 - Apple lists [macOS 27 Golden Gate 27.0 as the latest macOS](https://support.apple.com/en-ie/109033)
   and its [compatibility list](https://support.apple.com/en-us/127455) supports
@@ -725,32 +734,27 @@ Versioned support research was refreshed on 2026-09-20 from official sources:
   requires source/target on the same mounted filesystem and records
   filesystem-specific no-replace support.
 
-The v1 supported release target and reproducible initial acceptance baseline are
-exactly:
+The supported product OS names are macOS and Linux. The release build and
+initial native acceptance rows are:
 
-| Supported release / acceptance baseline | Product architecture | Supported local filesystem for acceptance | Rationale |
+| Supported OS | Product architecture | Supported local filesystem for acceptance | Executable release constraint |
 |---|---|---|---|
-| macOS 27 / macOS 27.0 | `arm64` | local APFS, default case-insensitive format | Latest stable macOS major and current 27.0 release; Apple supports only Apple silicon, so no `amd64` binary is claimed |
-| Ubuntu 26.04 LTS / Ubuntu 26.04 LTS | `amd64` | local ext4 | Latest Ubuntu LTS; primary x86-64 Linux binary target selected by HD-1 |
-| Ubuntu 26.04 LTS / Ubuntu 26.04 LTS | `arm64` | local ext4 | Latest Ubuntu LTS; ARM64 Linux target selected by HD-1 and required to avoid architecture-by-cross-compile claims |
+| macOS | `arm64` | local APFS, default case-insensitive format | Current installer requires macOS 27.0; archive metadata `macos-27` |
+| Linux | `amd64` | local ext4 | Static Linux build; distribution/version is not an installer filter |
+| Linux | `arm64` | local ext4 | Static Linux build; distribution/version is not an installer filter |
 
-Every Evidence record includes the exact OS point version, build/kernel, image,
-architecture, and filesystem observation. A later macOS 27 maintenance release or
-Ubuntu 26.04 point release requires the applicable native compatibility rerun before
-the release claim expands; `27` or `26.04 LTS` is not a floating unrecorded runner.
+Every Evidence record includes exact OS/distribution/version, build/kernel,
+image, architecture and filesystem observations. Every native acceptance row
+requires execution Evidence; cross-compilation alone is insufficient. A native
+run on one Linux distribution does not establish universal filesystem behavior.
 
-Every row requires native execution Evidence; cross-compilation alone is
-insufficient. Evidence phasing (HD-S7-T22, human decision of 2026-09-26): S7/T22
-requires the native row that is operated and dogfooded now, macOS 27/arm64/APFS.
-The Ubuntu 26.04/amd64/ext4 and Ubuntu 26.04/arm64/ext4 native rows remain
-supported targets and remain mandatory, but their native filesystem/install/
-upgrade Evidence obligation moves to the clean-environment RC acceptance matrix
-(T24) and must pass before any RC acceptance or release claim for those targets.
-No Ubuntu behavior is claimed by S7, and `ubuntu-24.04` CI is never Ubuntu 26.04
-Evidence. Other distributions, OS versions, architectures, case-sensitive APFS,
-network mounts, FUSE, overlay/union filesystems, removable media, and
-cross-filesystem publication are unsupported for v1 unless later added with
-equivalent Evidence.
+Evidence phasing (HD-S7-T22, human decision of 2026-09-26) is preserved:
+S7/T22 has the operated macOS 27.0/arm64/APFS native row. Linux/amd64/ext4 and
+Linux/arm64/ext4 native filesystem/install/upgrade Evidence remains mandatory
+under T24 before RC acceptance or release claims for those targets. No Linux
+native pass is inferred from S7 or CI. Case-sensitive APFS, network mounts,
+FUSE, overlay/union filesystems, removable media and cross-filesystem publication
+remain unsupported for v1 without equivalent Evidence.
 
 Relevant filesystem restrictions become acceptance preconditions, not broader
 guarantees: staging and canonical targets share one mounted local filesystem;
@@ -761,7 +765,8 @@ support is probed or established for the target; and Ubuntu 26.04's documented
 means implementation cannot rely on inherited ACLs and must explicitly set and
 revalidate final ownership/mode/ACL state.
 
-Supported product targets remain separate from currently automated CI:
+Historical runner availability snapshot (2026-09-20; not revalidated by
+T23, and not a required Linux distribution):
 
 | Target | Current GitHub-hosted availability on 2026-09-20 | Evidence consequence |
 |---|---|---|
@@ -771,8 +776,8 @@ Supported product targets remain separate from currently automated CI:
 
 GitHub documents that `-latest` can lag the vendor's latest OS and lists current
 [runner labels and architectures](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/choose-the-runner-for-a-job).
-The repository's current `macos-15`/`ubuntu-24.04` workflow remains historical POC
-verification only and cannot claim MVP matrix Evidence. No workflow is changed by
+The `macos-15`/`ubuntu-24.04` runner labels identify CI environments;
+CI does not replace native clean-environment RC acceptance Evidence. No workflow is changed by
 this Plan. Future exact-target runs may use the preview labels above, explicit
 self-hosted/native environments, or later GA labels; missing exact target Evidence
 remains an explicit release blocker rather than a reason to weaken product support.
@@ -946,7 +951,7 @@ four bounded units:
    Internal Lingo package/domain naming may remain; user shell aliases are not the
    primary product contract.
 2. **Release artifact automation:** from one clean exact revision, build the
-   declared macOS 27/arm64, Ubuntu 26.04/amd64 and Ubuntu 26.04/arm64 artifacts
+   declared macOS/arm64, Linux/amd64 and Linux/arm64 artifacts
    plus closed manifests/checksums and truthful version/revision provenance.
    Preparation is deterministic; publication remains authority-bearing.
 3. **Stable remote bootstrap:** keep the canonical bootstrap implementation at

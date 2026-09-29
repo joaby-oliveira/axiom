@@ -1,5 +1,17 @@
 # S9 acceptance preflight — 2026-09-28
 
+## Reconciliation — 2026-09-28 T23 revalidation
+
+This preflight body is a historical observation at its stated source revision.
+PR #114 merged at `fd97fc7d39810a2ffad9a104e4be8779c726f9ee`; the fixture
+remediation is integrated. The human T23 instruction supersedes Ubuntu-specific
+normative wording with Linux. Current release targets are macOS/arm64,
+Linux/amd64 and Linux/arm64, as reconciled in Plan §10. Historical Ubuntu
+observations below are retained, not required distribution/version contracts.
+Native Linux Evidence remains required under T24; none is supplied by this
+reconciliation. No preparation or publication is implied by the historical
+proposed envelopes. See [T23 gate Evidence](evidence-s9-t23.md) for revalidation.
+
 ## Scope and authority
 
 This is a pre-T23 checkpoint, not a T24 acceptance result or T25 closure.
