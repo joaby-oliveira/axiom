@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -282,6 +283,7 @@ func TestExecutableProjectConfigureRepeatableRepository(t *testing.T) {
 }
 
 func TestExecutableMinimalLifecycleAndFailurePaths(t *testing.T) {
+	testfs.POSIXShell(t)
 	binary := filepath.Join(t.TempDir(), testExecutableName("lingo"))
 	build := exec.Command("go", "build", "-o", binary, ".")
 	if output, err := build.CombinedOutput(); err != nil {

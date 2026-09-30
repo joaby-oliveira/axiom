@@ -21,9 +21,12 @@ staging, commit, and recovery behavior. Windows support is limited to local NTFS
 user storage on Windows 10 (1809+) and Windows 11 amd64 until native Evidence
 expands that matrix.
 
-Private objects require the current user's SID as owner and reject access by
+Private objects require the current token's ownership identity and reject access by
 other untrusted principals; SYSTEM, Administrators and TrustedInstaller remain
-trusted like root on POSIX. Ancestors can allow traversal/create access, but not
+trusted like root on POSIX. Normally the owner is the user's SID; an elevated
+token's Administrators default-owner SID is also accepted, only when it is that
+token's actual default owner. This supports native elevated/CI tokens without
+adopting objects owned by another ordinary account. Ancestors can allow traversal/create access, but not
 replacement of existing children. Reparse points and multi-link files fail closed.
 
 Directory operations are serialized with a global kernel object named by user

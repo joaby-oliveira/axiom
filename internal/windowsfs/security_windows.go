@@ -21,7 +21,31 @@ func privileged(sid *windows.SID) bool {
 	return sid.IsWellKnown(windows.WinLocalSystemSid) || sid.IsWellKnown(windows.WinBuiltinAdministratorsSid) || sid.String() == "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464"
 }
 
-// Check requires a current-user owner for private objects. Administrators and
+// Elevated Windows tokens can create objects owned by Administrators rather
+// than TokenUser. Accept that trusted SID only when it is this token's default
+// owner; never treat another ordinary account as the current owner.
+func currentOwner(owner, user *windows.SID) bool {
+	if owner.Equals(user) {
+		return true
+	}
+	if !owner.IsWellKnown(windows.WinBuiltinAdministratorsSid) {
+		return false
+	}
+	token := windows.GetCurrentProcessToken()
+	var size uint32
+	err := windows.GetTokenInformation(token, windows.TokenOwner, nil, 0, &size)
+	if !errors.Is(err, windows.ERROR_INSUFFICIENT_BUFFER) || size < uint32(unsafe.Sizeof(uintptr(0))) || size > 65536 {
+		return false
+	}
+	buffer := make([]byte, size)
+	if windows.GetTokenInformation(token, windows.TokenOwner, &buffer[0], size, &size) != nil {
+		return false
+	}
+	defaultOwner := *(**windows.SID)(unsafe.Pointer(&buffer[0]))
+	return defaultOwner != nil && defaultOwner.IsValid() && owner.Equals(defaultOwner)
+}
+
+// Check requires the current token's ownership identity for private objects. Administrators and
 // SYSTEM remain trusted, like root on POSIX. Unknown ACE types fail closed.
 // Ancestors may grant read/create access, but never replacement of children.
 func Check(file *os.File, private bool) error {
@@ -45,7 +69,7 @@ func Check(file *os.File, private bool) error {
 		return err
 	}
 	owner, _, err := sd.Owner()
-	if err != nil || owner == nil || (!owner.Equals(user.User.Sid) && (private || !privileged(owner))) {
+	if err != nil || owner == nil || (!currentOwner(owner, user.User.Sid) && (private || !privileged(owner))) {
 		return ErrUnsafe
 	}
 	acl, _, err := sd.DACL()

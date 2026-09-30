@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -593,7 +594,7 @@ type pocWorkflowStepDTO struct {
 
 var pocGates = []string{"specification", "clarification", "plan", "tasks", "implementation", "review", "evidence", "reconciliation", "completion"}
 
-// validPOCWorkflow reproduces the historical decoder and validator exactly;
+// validPOCWorkflow reproduces the historical POSIX decoder and validator;
 // a record that the POC itself would reject is not a positive signature.
 func validPOCWorkflow(wire []byte) bool {
 	decoder := json.NewDecoder(io.LimitReader(bytes.NewReader(wire), MaxRecordBytes+1))
@@ -605,7 +606,7 @@ func validPOCWorkflow(wire []byte) bool {
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) || dto.FormatVersion != 1 {
 		return false
 	}
-	if !validUUID(dto.ProjectID) || !project.ValidSlug(dto.RepositoryKey) || dto.WorkItem <= 0 || !filepath.IsAbs(dto.RepositoryPath) {
+	if !validUUID(dto.ProjectID) || !project.ValidSlug(dto.RepositoryKey) || dto.WorkItem <= 0 || !path.IsAbs(dto.RepositoryPath) {
 		return false
 	}
 	if len(dto.Steps) != len(pocGates) || dto.Current < 0 || dto.Current > len(dto.Steps) {

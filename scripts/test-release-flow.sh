@@ -484,7 +484,7 @@ publish "$temporary/rc-rebuild" --tag v0.1.0-rc.1 --revision "$c2" --make-latest
 check 'rerun after publication converges without effects' bash -c "grep -Fxq publication=already_published '$temporary/pub' && [[ $(mutations) == $before ]]"
 check 'no duplicate release after rerun' bash -c "[[ \$(jq -s '[.[] | select(.tag_name == \"v0.1.0-rc.1\")] | length' $state/releases/*.json) == 1 ]]"
 
-asset=$(release_json v0.1.0-rc.1 | jq -r '.assets[] | select(.name | endswith("amd64.tar.gz")) | .id')
+asset=$(release_json v0.1.0-rc.1 | jq -r '.assets[] | select(.name | endswith("linux-amd64.tar.gz")) | .id')
 printf 'tampered\n' >>"$state/assets/$asset"
 f=$(grep -l '"v0.1.0-rc.1"' "$state"/releases/*.json)
 jq --argjson id "$asset" '(.assets[] | select(.id == $id) | .digest) = null' "$f" >"$f.new" && mv "$f.new" "$f"

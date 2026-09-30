@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -107,7 +108,12 @@ func runtimeProfileSnapshot(t *testing.T, root string) map[string]string {
 		if err != nil {
 			return err
 		}
-		value := info.Mode().String() + info.ModTime().String()
+		value := info.Mode().String()
+		// NTFS can finish updating directory timestamps after a handle closes.
+		// Compare every entry and its contents; retain timestamp assertions for files.
+		if runtime.GOOS != "windows" || !entry.IsDir() {
+			value += info.ModTime().String()
+		}
 		if !entry.IsDir() {
 			wire, err := os.ReadFile(path)
 			if err != nil {

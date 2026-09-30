@@ -456,7 +456,7 @@ func assertPrivateTree(t *testing.T, root string, files int) {
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() && info.Mode().Perm() != 0o700 || !entry.IsDir() && info.Mode().Perm() != 0o600 || info.Mode()&os.ModeSymlink != 0 {
+		if entry.IsDir() && !testfs.PrivateMode(path, 0o700) || !entry.IsDir() && !testfs.PrivateMode(path, 0o600) || info.Mode()&os.ModeSymlink != 0 {
 			t.Fatalf("unsafe transfer mode %s for %s", info.Mode(), path)
 		}
 		if !entry.IsDir() {
@@ -511,7 +511,7 @@ func removeAll(t *testing.T, path string) {
 
 func chmod(t *testing.T, path string, mode os.FileMode) {
 	t.Helper()
-	if err := os.Chmod(path, mode); err != nil {
+	if err := testfs.SharedMode(path, mode); err != nil {
 		t.Fatal(err)
 	}
 }
