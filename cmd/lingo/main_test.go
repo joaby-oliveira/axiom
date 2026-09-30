@@ -169,7 +169,8 @@ func TestConfigurePublishesPortableKeysAndLocalPathsThenResolves(t *testing.T) {
 		t.Fatalf("records = %v, %v", records, err)
 	}
 	recordBytes, err := os.ReadFile(records[0])
-	if err != nil || !bytes.Contains(recordBytes, []byte(repository)) {
+	repositoryJSON, _ := json.Marshal(repository)
+	if err != nil || !bytes.Contains(recordBytes, repositoryJSON) {
 		t.Fatalf("local repository binding absent: %s, %v", recordBytes, err)
 	}
 }
@@ -253,7 +254,9 @@ func TestConfigurePreviewIsReadOnlyAndAuthorityBindsExactDigest(t *testing.T) {
 		t.Fatalf("local records = %v, %v", records, err)
 	}
 	recordBytes, err := os.ReadFile(records[0])
-	if err != nil || !bytes.Contains(recordBytes, []byte(api)) || !bytes.Contains(recordBytes, []byte(web)) {
+	apiJSON, _ := json.Marshal(api)
+	webJSON, _ := json.Marshal(web)
+	if err != nil || !bytes.Contains(recordBytes, apiJSON) || !bytes.Contains(recordBytes, webJSON) {
 		t.Fatalf("independent bindings missing: %v, %s", err, recordBytes)
 	}
 	old, err := os.Getwd()

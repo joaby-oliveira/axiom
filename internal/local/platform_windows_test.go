@@ -16,6 +16,11 @@ func TestWindowsPrivatePublicationAndLock(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer root.Close()
+	for _, name := range []string{"file:stream", "trailing.", "CON", "COM¹", "CONOUT$"} {
+		if safeEntryName(name) {
+			t.Fatalf("unsafe entry accepted: %q", name)
+		}
+	}
 	lock, err := lockDirectory(root, true)
 	if err != nil {
 		t.Fatal(err)

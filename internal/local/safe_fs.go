@@ -319,7 +319,7 @@ func (d AnchoredDirectory) StillAtPath() error { return d.anchor.verify(d.root) 
 func (d AnchoredDirectory) Close() error { return d.root.Close() }
 
 func safeEntryName(name string) bool {
-	return name != "" && name != "." && name != ".." && !strings.ContainsAny(name, `/\`)
+	return name != "" && name != "." && name != ".." && !strings.ContainsAny(name, `/\`) && platformEntryName(name)
 }
 
 // ReadFile reads one bounded, owner-only regular file directly inside this
@@ -564,6 +564,10 @@ func readPrivateFileBounded(root *os.Root, name string, limit int) ([]byte, erro
 	defer file.Close()
 	info, err := file.Stat()
 	if err != nil || !info.Mode().IsRegular() || !ownedByUser(info) || forbiddenPermissions(info, 0o077) {
+		return nil, ErrUnsafe
+	}
+	visible, err := root.Lstat(name)
+	if err != nil || !visible.Mode().IsRegular() || !os.SameFile(info, visible) {
 		return nil, ErrUnsafe
 	}
 	if !singleLink(file, info) {

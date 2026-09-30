@@ -108,6 +108,19 @@ func Check(file *os.File, private bool) error {
 	return nil
 }
 
+// ValidComponent rejects alternate streams and ambiguous Win32 entry names.
+func ValidComponent(part string) bool {
+	if part == "" || part == "." || part == ".." || strings.ContainsAny(part, ":<>\"|?*\x00/\\") || strings.TrimRight(part, " .") != part {
+		return false
+	}
+	base := strings.ToUpper(strings.SplitN(part, ".", 2)[0])
+	switch base {
+	case "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$", "COM¹", "COM²", "COM³", "LPT¹", "LPT²", "LPT³":
+		return false
+	}
+	return !(len(base) == 4 && (strings.HasPrefix(base, "COM") || strings.HasPrefix(base, "LPT")) && base[3] >= '1' && base[3] <= '9')
+}
+
 // Canonical rejects namespaces, UNC/network paths, alternate streams, ambiguous
 // Win32 names and all reparse points, including junctions and mount points.
 func Canonical(path string) (string, error) {
@@ -135,11 +148,7 @@ func Canonical(path string) (string, error) {
 		if part == "" {
 			continue
 		}
-		if strings.ContainsAny(part, ":<>\"|?*\x00") || strings.TrimRight(part, " .") != part {
-			return "", ErrUnsafe
-		}
-		base := strings.ToUpper(strings.SplitN(part, ".", 2)[0])
-		if base == "CON" || base == "PRN" || base == "AUX" || base == "NUL" || (len(base) == 4 && (strings.HasPrefix(base, "COM") || strings.HasPrefix(base, "LPT")) && base[3] >= '1' && base[3] <= '9') {
+		if !ValidComponent(part) {
 			return "", ErrUnsafe
 		}
 		current = filepath.Join(current, part)

@@ -13,6 +13,8 @@ import (
 
 const noFollow = unix.O_NOFOLLOW
 
+func platformEntryName(string) bool { return true }
+
 func volumeRoot(string) string { return string(filepath.Separator) }
 func forbiddenPermissions(info os.FileInfo, mask os.FileMode) bool {
 	return info.Mode().Perm()&mask != 0

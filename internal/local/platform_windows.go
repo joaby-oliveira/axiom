@@ -14,10 +14,18 @@ import (
 // ownership, DACL, reparse-point absence, and a single link for regular files.
 const noFollow = 0
 
+func platformEntryName(name string) bool { return windowsfs.ValidComponent(name) }
+
 func forbiddenPermissions(os.FileInfo, os.FileMode) bool { return false }
 func ownedByUser(info os.FileInfo) bool                  { return info != nil && info.Mode()&os.ModeSymlink == 0 }
 func volumeRoot(path string) string                      { return filepath.VolumeName(path) + string(filepath.Separator) }
-func trustedCanonical(path string) (string, error)       { return windowsfs.Canonical(path) }
+func trustedCanonical(path string) (string, error) {
+	canonical, err := windowsfs.Canonical(path)
+	if errors.Is(err, windowsfs.ErrUnsafe) {
+		return "", ErrUnsafe
+	}
+	return canonical, err
+}
 func checkPrivateACL(file *os.File) error {
 	if windowsfs.Check(file, true) != nil {
 		return ErrUnsafe
