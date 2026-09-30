@@ -42,6 +42,8 @@ see [Developing Axiom](#developing-axiom).
 
 ### 1. Install
 
+On **Linux or macOS**:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh | sh
 ```
@@ -51,7 +53,7 @@ your host, verifies its SHA-256 checksum before extracting anything, and
 installs `axiom` into `$HOME/.local/bin`. It never uses `sudo`, edits shell
 profiles, installs Runtimes, or touches credentials.
 
-Supported hosts: macOS 27.0 on arm64 and Ubuntu 26.04 on amd64 or arm64. Other
+Supported POSIX hosts: macOS 27.0 on arm64 and Linux on amd64 or arm64. Other
 hosts are refused before any download. The installer needs `curl`, `tar`,
 `bash`, `awk`, `grep`, `mktemp`, and `sha256sum` or `shasum`.
 
@@ -66,6 +68,32 @@ To install an exact release instead, pass `--version`:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh | sh -s -- --version v0.1.0
 ```
+
+On **Windows 10 (1809+) or Windows 11, amd64**, use 64-bit PowerShell 5.1 or
+later. No WSL, Bash, Go toolchain, or administrator privileges are required:
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.ps1 -OutFile install-axiom.ps1
+.\install-axiom.ps1
+$env:PATH = "$env:LOCALAPPDATA\Axiom\bin;$env:PATH"
+```
+
+The PowerShell installer verifies the Windows release checksum and installs
+`axiom.exe` into `%LOCALAPPDATA%\Axiom\bin`, with its receipt in
+`%LOCALAPPDATA%\Axiom\install`. The `PATH` command above affects only the current
+terminal; the installer never edits your profile or persistent `PATH`.
+Use `-Version` with an exact published tag to pin a release, or `-BinDir` and
+`-ReceiptDir` to choose absolute local directories. Re-running upgrades an
+Axiom-owned installation; foreign or modified binaries are preserved. Close
+running Axiom processes before upgrading. Older releases without a Windows
+asset cannot be installed on Windows.
+
+Windows storage must be local NTFS. Network paths, junctions/reparse points and
+directories accessible to other untrusted accounts are refused. State defaults
+to `%LOCALAPPDATA%\Axiom\state`; Runtime skills stay in the user-global roots
+listed below. Organization application-control and PowerShell policies still
+apply; the installer does not bypass them. See the
+[Windows installation reference](docs/commands.md#windows-native-installation).
 
 ### 2. Verify
 
@@ -279,6 +307,18 @@ never edits shell profiles. Use the
 [development Getting Started guide](docs/development/getting-started.md) for
 setup and the [command reference](docs/commands.md) for validation, build,
 archive, and dogfooding workflows.
+
+On Windows, build and run directly from PowerShell with Git and Go 1.26+:
+
+```powershell
+go build -o .\bin\axiom.exe ./cmd/lingo
+.\bin\axiom.exe version
+go test ./...
+.\scripts\test-windows-install.ps1
+```
+
+The Bash repository/release maintenance scripts run in the Linux/macOS CI jobs;
+the Windows CI job exercises native Go tests and the PowerShell installer.
 
 ## Repository structure
 

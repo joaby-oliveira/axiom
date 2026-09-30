@@ -1,12 +1,15 @@
 package executiongraph
 
-import "testing"
+import (
+	"github.com/rgomids/axiom/internal/testfs"
+	"testing"
+)
 
 func TestPrepareRunEnvelopeBindsExactGraphProfilesCommandsAndCleanup(t *testing.T) {
 	graph := mustGraph(t)
 	envelope := RunEnvelope{FormatVersion: 1, Activity: "Add runtime profile validation command and documentation", BaseRevision: "8a9ca19fd260bc19f5bb288b449e8dc6df618194", ParentID: graph.Parent.ExecutionID, GraphRevision: graph.Parent.GraphRevision, ConfigurationRef: "runtime-profile-config:t36", ConfigurationDigest: digestOf("config"), Validators: []string{"go-test", "repository-validator"}, ExpectedEvidence: []string{"concurrency-trace", "integration-result", "coordination-records"}, CleanupDisposition: "preserve_pending_human_review"}
 	for _, child := range graph.Children {
-		envelope.Children = append(envelope.Children, ChildRunPlan{ChildID: child.ExecutionID, RuntimeID: child.Envelope.Resolution.RuntimeID, ModelProfileID: child.Envelope.Resolution.ModelProfileID, Repository: "/Users/example/axiom", Workspace: child.Envelope.Workspace, Scope: child.Envelope.Scope, Dependencies: child.Envelope.Dependencies, Effects: child.Envelope.AllowedEffects, Argv: []string{"/opt/bin/codex", "exec", "--model", "local-profile"}, Timeout: child.Envelope.Controls.Timeout.String(), MaximumAttempts: child.Envelope.Controls.MaximumAttempts})
+		envelope.Children = append(envelope.Children, ChildRunPlan{ChildID: child.ExecutionID, RuntimeID: child.Envelope.Resolution.RuntimeID, ModelProfileID: child.Envelope.Resolution.ModelProfileID, Repository: testfs.Path("/Users/example/axiom"), Workspace: child.Envelope.Workspace, Scope: child.Envelope.Scope, Dependencies: child.Envelope.Dependencies, Effects: child.Envelope.AllowedEffects, Argv: []string{testfs.Path("/opt/bin/codex"), "exec", "--model", "local-profile"}, Timeout: child.Envelope.Controls.Timeout.String(), MaximumAttempts: child.Envelope.Controls.MaximumAttempts})
 	}
 	prepared, err := PrepareRunEnvelope(graph, envelope)
 	if err != nil || prepared.Digest == "" {

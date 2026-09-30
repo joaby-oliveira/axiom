@@ -14,7 +14,7 @@ import (
 )
 
 func TestExecutableGuidedProjectConfiguration(t *testing.T) {
-	binary := filepath.Join(t.TempDir(), "lingo")
+	binary := filepath.Join(t.TempDir(), testExecutableName("lingo"))
 	build := exec.Command("go", "build", "-o", binary, ".")
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build executable: %v: %s", err, output)
@@ -44,7 +44,7 @@ func TestExecutableGuidedProjectConfiguration(t *testing.T) {
 }
 
 func TestExecutableVersionHumanJSONAndBuildProvenance(t *testing.T) {
-	releaseBinary := filepath.Join(t.TempDir(), "lingo-release")
+	releaseBinary := filepath.Join(t.TempDir(), testExecutableName("lingo-release"))
 	build := exec.Command("go", "build", "-ldflags", "-X main.buildVersion=1.2.3 -X main.buildRevision=abc123def456 -X main.buildSourceState=clean -X main.buildRelease=true", "-o", releaseBinary, ".")
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build release executable: %v: %s", err, output)
@@ -70,7 +70,7 @@ func TestExecutableVersionHumanJSONAndBuildProvenance(t *testing.T) {
 		t.Fatalf("release provenance = %+v", release)
 	}
 
-	dirtyBinary := filepath.Join(t.TempDir(), "lingo-dirty")
+	dirtyBinary := filepath.Join(t.TempDir(), testExecutableName("lingo-dirty"))
 	build = exec.Command("go", "build", "-ldflags", "-X main.buildVersion=development -X main.buildRevision=def456abc123 -X main.buildSourceState=dirty -X main.buildRelease=false", "-o", dirtyBinary, ".")
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build dirty executable: %v: %s", err, output)
@@ -140,7 +140,7 @@ type canonicalEvent struct {
 }
 
 func TestExecutableRejectsSingleHyphenSelectorFlagsBeforeEffects(t *testing.T) {
-	binary := filepath.Join(t.TempDir(), "lingo")
+	binary := filepath.Join(t.TempDir(), testExecutableName("lingo"))
 	build := exec.Command("go", "build", "-o", binary, ".")
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build executable: %v: %s", err, output)
@@ -247,7 +247,7 @@ func TestExecutableRejectsSingleHyphenSelectorFlagsBeforeEffects(t *testing.T) {
 
 func TestExecutableProjectConfigureRepeatableRepository(t *testing.T) {
 	root := t.TempDir()
-	binary := filepath.Join(root, "lingo")
+	binary := filepath.Join(root, testExecutableName("lingo"))
 	if output, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
 		t.Fatalf("build: %v: %s", err, output)
 	}
@@ -282,7 +282,7 @@ func TestExecutableProjectConfigureRepeatableRepository(t *testing.T) {
 }
 
 func TestExecutableMinimalLifecycleAndFailurePaths(t *testing.T) {
-	binary := filepath.Join(t.TempDir(), "lingo")
+	binary := filepath.Join(t.TempDir(), testExecutableName("lingo"))
 	build := exec.Command("go", "build", "-o", binary, ".")
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build executable: %v: %s", err, output)

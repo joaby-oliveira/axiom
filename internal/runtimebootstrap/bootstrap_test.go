@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,7 +39,7 @@ func newMachine(t *testing.T, executables ...string) *machine {
 func (m *machine) lookPath(name string) (string, error) {
 	m.lookups = append(m.lookups, name)
 	if m.executables[name] {
-		return filepath.Join("/opt/runtimes/bin", name), nil
+		return filepath.Join(testfs.Path("/opt/runtimes/bin"), name), nil
 	}
 	return "", exec.ErrNotFound
 }
@@ -79,7 +80,7 @@ func tree(t *testing.T, root string) string {
 		if err != nil {
 			return nil
 		}
-		line := strings.TrimPrefix(path, root) + " " + info.Mode().String()
+		line := filepath.ToSlash(strings.TrimPrefix(path, root)) + " " + info.Mode().String()
 		if info.Mode().IsRegular() {
 			content, _ := os.ReadFile(path)
 			sum := sha256.Sum256(content)
@@ -235,7 +236,7 @@ func TestExecutableWithoutConfigurationDirectoryIsPresent(t *testing.T) {
 		}
 	}
 	info, err := os.Stat(filepath.Join(m.claudeRoot, "skills"))
-	if err != nil || info.Mode().Perm() != 0o700 {
+	if err != nil || !testfs.PrivateMode(filepath.Join(m.claudeRoot, "skills"), 0o700) {
 		t.Fatalf("Claude skill root = %v, %v", info, err)
 	}
 }
@@ -343,21 +344,21 @@ func TestRelativePathResolutionIsAbsence(t *testing.T) {
 
 func TestClaudeConfigurationRootResolution(t *testing.T) {
 	none := func(string) string { return "" }
-	if root, err := ClaudeSkillsRoot(none, "/home/u"); err != nil || root != "/home/u/.claude/skills" {
+	if root, err := ClaudeSkillsRoot(none, testfs.Path("/home/u")); err != nil || root != testfs.Path("/home/u/.claude/skills") {
 		t.Fatalf("default = %q, %v", root, err)
 	}
 	override := func(key string) string {
 		if key == "CLAUDE_CONFIG_DIR" {
-			return "/srv/claude-work/"
+			return testfs.Path("/srv/claude-work/")
 		}
 		return ""
 	}
-	if root, err := ClaudeSkillsRoot(override, "/home/u"); err != nil || root != "/srv/claude-work/skills" {
+	if root, err := ClaudeSkillsRoot(override, testfs.Path("/home/u")); err != nil || root != testfs.Path("/srv/claude-work/skills") {
 		t.Fatalf("override = %q, %v", root, err)
 	}
 	for _, value := range []string{"relative/claude", "/", "/tmp/a\nb"} {
 		bad := func(string) string { return value }
-		if _, err := ClaudeSkillsRoot(bad, "/home/u"); !errors.Is(err, ErrUnsafeConfigurationRoot) {
+		if _, err := ClaudeSkillsRoot(bad, testfs.Path("/home/u")); !errors.Is(err, ErrUnsafeConfigurationRoot) {
 			t.Fatalf("%q accepted", value)
 		}
 	}

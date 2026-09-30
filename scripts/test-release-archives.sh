@@ -46,21 +46,23 @@ done
 
 "$repository_root/scripts/build-release-archives.sh" --version 0.0.0-s2-test --output "$temporary/release" --development >/dev/null
 
-[[ $(find "$temporary/release" -name '*.tar.gz' -type f | wc -l | tr -d ' ') == 3 ]]
-[[ $(wc -l <"$temporary/release/SHA256SUMS" | tr -d ' ') == 3 ]]
+[[ $(find "$temporary/release" -name '*.tar.gz' -type f | wc -l | tr -d ' ') == 4 ]]
+[[ $(wc -l <"$temporary/release/SHA256SUMS" | tr -d ' ') == 4 ]]
 while read -r hash archive; do
   [[ "$hash" =~ ^[0-9a-f]{64}$ ]]
   [[ -f "$temporary/release/$archive" ]]
   actual=$(shasum -a 256 "$temporary/release/$archive" | awk '{print $1}')
   [[ "$actual" == "$hash" ]]
   listing=$(tar -tzf "$temporary/release/$archive")
-  for expected in /axiom /LICENSE /install.sh /release-metadata.txt /skills-manifest.txt /MANIFEST.sha256; do
+  executable=axiom installer=install.sh
+  if [[ "$archive" == *-windows-amd64.tar.gz ]]; then executable=axiom.exe installer=install.ps1; fi
+  for expected in /"$executable" /LICENSE /"$installer" /release-metadata.txt /skills-manifest.txt /MANIFEST.sha256; do
     grep -Fq "$expected" <<<"$listing"
   done
   # T37: the canonical public executable is axiom; no lingo entry is shipped.
   if grep -Eq '/lingo$' <<<"$listing"; then exit 1; fi
-  [[ $(tar -tvzf "$temporary/release/$archive" | awk '$NF ~ /\/axiom$/ {print substr($1,1,4)}') == -rwx ]]
-  grep -Eq '^[0-9a-f]{64}  axiom$' <(tar -xOzf "$temporary/release/$archive" "${archive%.tar.gz}/MANIFEST.sha256")
+  [[ $(tar -tvzf "$temporary/release/$archive" | awk -v exe="/$executable" 'substr($NF,length($NF)-length(exe)+1)==exe {print substr($1,1,4)}') == -rwx ]]
+  grep -Eq "^[0-9a-f]{64}  ${executable//./\\.}$" <(tar -xOzf "$temporary/release/$archive" "${archive%.tar.gz}/MANIFEST.sha256")
   [[ $(grep -c '/skills/.*/SKILL.md' <<<"$listing") == 5 ]]
 done <"$temporary/release/SHA256SUMS"
 

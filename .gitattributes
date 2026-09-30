@@ -1,0 +1,8 @@
+# Release manifests, embedded skills and historical fixtures are byte contracts.
+# Keep their bytes identical on Windows and POSIX, independent of core.autocrlf.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gz binary
+*.zip binary
+*.exe binary

@@ -12,8 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-
-	"golang.org/x/sys/unix"
 )
 
 // privateRoot creates and opens one owner-only directory without following
@@ -47,7 +45,7 @@ func privateRootAnchored(path string) (*os.Root, anchor, error) {
 	if err != nil || !ownedByUser(info) {
 		return fail(ErrUnsafe)
 	}
-	if info.Mode().Perm()&0o077 != 0 {
+	if forbiddenPermissions(info, 0o077) {
 		directory, err := root.Open(".")
 		if err != nil {
 			return fail(ErrUnsafe)
@@ -79,7 +77,7 @@ func privateRootAnchored(path string) (*os.Root, anchor, error) {
 // the identity of every component it opened, in order, so a later
 // anchor.verify can prove the same objects are still the ones visible there.
 func anchoredRoot(canonical string, create bool) (*os.Root, []os.FileInfo, error) {
-	root, err := os.OpenRoot(string(filepath.Separator))
+	root, err := os.OpenRoot(volumeRoot(canonical))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -90,12 +88,12 @@ func anchoredRoot(canonical string, create bool) (*os.Root, []os.FileInfo, error
 	}
 	var identity []os.FileInfo
 	for _, part := range pathComponents(canonical) {
-		if !ancestorSafe(container) {
+		if !safeAncestor(root, container) {
 			root.Close()
 			return nil, nil, ErrUnsafe
 		}
 		if create {
-			if err := root.Mkdir(part, 0o700); err != nil && !os.IsExist(err) {
+			if err := mkdirPrivate(root, part); err != nil && !os.IsExist(err) {
 				root.Close()
 				return nil, nil, err
 			}
@@ -124,7 +122,7 @@ func anchoredRoot(canonical string, create bool) (*os.Root, []os.FileInfo, error
 
 func pathComponents(canonical string) []string {
 	var parts []string
-	for _, part := range strings.Split(strings.TrimPrefix(canonical, string(filepath.Separator)), string(filepath.Separator)) {
+	for _, part := range strings.Split(strings.TrimPrefix(canonical, volumeRoot(canonical)), string(filepath.Separator)) {
 		if part != "" {
 			parts = append(parts, part)
 		}
@@ -154,7 +152,7 @@ func (a anchor) verify(root *os.Root) error {
 	if len(parts) == 0 || len(parts) != len(a.chain) {
 		return ErrReplaced
 	}
-	walk, err := os.OpenRoot(string(filepath.Separator))
+	walk, err := os.OpenRoot(volumeRoot(a.path))
 	if err != nil {
 		return ErrReplaced
 	}
@@ -194,19 +192,6 @@ func (a anchor) verify(root *os.Root) error {
 // or not, since its owner already has unilateral control over what it
 // contains. Read or execute access by others is not evaluated here; only
 // write/replace matters (ADR-0005 property 3).
-func ancestorSafe(info os.FileInfo) bool {
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
-		return false
-	}
-	if stat.Uid != 0 && int(stat.Uid) != os.Geteuid() {
-		return false
-	}
-	if info.Mode().Perm()&0o022 != 0 && info.Mode()&os.ModeSticky == 0 {
-		return false
-	}
-	return true
-}
 
 // existingPublicationRoot opens an existing directory that Axiom publishes
 // an owned file into but does not own, such as a user bin directory. Only
@@ -222,7 +207,7 @@ func existingPublicationRoot(path string) (*os.Root, anchor, error) {
 	if os.IsNotExist(err) {
 		return nil, anchor{}, ErrNotFound
 	}
-	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0o022 != 0 || !ownedByUser(info) {
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || forbiddenPermissions(info, 0o022) || !ownedByUser(info) {
 		return nil, anchor{}, ErrUnsafe
 	}
 	canonical, err := trustedCanonical(path)
@@ -238,7 +223,7 @@ func existingPublicationRoot(path string) (*os.Root, anchor, error) {
 		return nil, anchor{}, err
 	}
 	opened, err := root.Stat(".")
-	if err != nil || !os.SameFile(info, opened) || !ownedByUser(opened) || opened.Mode().Perm()&0o022 != 0 {
+	if err != nil || !os.SameFile(info, opened) || !ownedByUser(opened) || forbiddenPermissions(opened, 0o022) {
 		return fail(ErrUnsafe)
 	}
 	directory, err := root.Open(".")
@@ -263,7 +248,7 @@ func existingPrivateRootAnchored(path string) (*os.Root, anchor, error) {
 	if os.IsNotExist(err) {
 		return nil, anchor{}, ErrNotFound
 	}
-	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0o077 != 0 || !ownedByUser(info) {
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || forbiddenPermissions(info, 0o077) || !ownedByUser(info) {
 		return nil, anchor{}, ErrUnsafe
 	}
 	return privateRootAnchored(path)
@@ -334,7 +319,7 @@ func (d AnchoredDirectory) StillAtPath() error { return d.anchor.verify(d.root) 
 func (d AnchoredDirectory) Close() error { return d.root.Close() }
 
 func safeEntryName(name string) bool {
-	return name != "" && name != "." && name != ".." && !strings.ContainsRune(name, filepath.Separator)
+	return name != "" && name != "." && name != ".." && !strings.ContainsAny(name, `/\`)
 }
 
 // ReadFile reads one bounded, owner-only regular file directly inside this
@@ -377,11 +362,7 @@ func (d AnchoredDirectory) AvailableBytes() (uint64, error) {
 		return 0, err
 	}
 	defer directory.Close()
-	var stat unix.Statfs_t
-	if err := unix.Fstatfs(int(directory.Fd()), &stat); err != nil {
-		return 0, err
-	}
-	return uint64(stat.Bavail) * uint64(stat.Bsize), nil
+	return availableBytes(directory)
 }
 
 // CreateExclusive creates name inside this anchored directory in place (no
@@ -395,7 +376,7 @@ func (d AnchoredDirectory) CreateExclusive(name string, content []byte, mode os.
 	if err := d.StillAtPath(); err != nil {
 		return err
 	}
-	file, err := d.root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW, mode)
+	file, err := d.root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL|noFollow, mode)
 	if err != nil {
 		return err
 	}
@@ -418,7 +399,7 @@ func (d AnchoredDirectory) Mkdir(name string) error {
 	if err := d.StillAtPath(); err != nil {
 		return err
 	}
-	return d.root.Mkdir(name, 0o700)
+	return mkdirPrivate(d.root, name)
 }
 
 // Stage creates a private regular file with a random name under prefix
@@ -433,7 +414,7 @@ func (d AnchoredDirectory) Stage(prefix string, content []byte, mode os.FileMode
 	if err != nil {
 		return "", err
 	}
-	file, err := d.root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW, mode)
+	file, err := d.root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL|noFollow, mode)
 	if err != nil {
 		return "", err
 	}
@@ -500,51 +481,6 @@ func pathWithin(parent, child string) bool {
 	return err == nil && (relative == "." || relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)))
 }
 
-func trustedCanonical(path string) (string, error) {
-	clean := filepath.Clean(path)
-	current := string(filepath.Separator)
-	for _, part := range strings.Split(strings.TrimPrefix(clean, current), current) {
-		current = filepath.Join(current, part)
-		info, err := os.Lstat(current)
-		if os.IsNotExist(err) {
-			continue
-		}
-		if err != nil {
-			return "", ErrUnsafe
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			stat, ok := info.Sys().(*syscall.Stat_t)
-			if !ok || stat.Uid != 0 {
-				return "", ErrUnsafe
-			}
-		}
-	}
-	probe := clean
-	var suffix []string
-	for {
-		if _, err := os.Lstat(probe); err == nil {
-			break
-		} else if !os.IsNotExist(err) {
-			return "", ErrUnsafe
-		}
-		suffix = append(suffix, filepath.Base(probe))
-		probe = filepath.Dir(probe)
-	}
-	resolved, err := filepath.EvalSymlinks(probe)
-	if err != nil {
-		return "", ErrUnsafe
-	}
-	for i := len(suffix) - 1; i >= 0; i-- {
-		resolved = filepath.Join(resolved, suffix[i])
-	}
-	return resolved, nil
-}
-
-func ownedByUser(info os.FileInfo) bool {
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	return ok && int(stat.Uid) == os.Geteuid()
-}
-
 func stillAtPath(root *os.Root, path string) error {
 	visible, err := os.Lstat(path)
 	if err != nil || visible.Mode()&os.ModeSymlink != 0 {
@@ -558,11 +494,11 @@ func stillAtPath(root *os.Root, path string) error {
 }
 
 func privateChild(parent *os.Root, name string) (*os.Root, error) {
-	if err := parent.Mkdir(name, 0o700); err != nil && !os.IsExist(err) {
+	if err := mkdirPrivate(parent, name); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 	info, err := parent.Lstat(name)
-	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0o077 != 0 || !ownedByUser(info) {
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || forbiddenPermissions(info, 0o077) || !ownedByUser(info) {
 		return nil, ErrUnsafe
 	}
 	return existingPrivateChild(parent, name)
@@ -573,7 +509,7 @@ func existingPrivateChild(parent *os.Root, name string) (*os.Root, error) {
 	if os.IsNotExist(err) {
 		return nil, ErrNotFound
 	}
-	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0o077 != 0 || !ownedByUser(info) {
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || forbiddenPermissions(info, 0o077) || !ownedByUser(info) {
 		return nil, ErrUnsafe
 	}
 	child, err := parent.OpenRoot(name)
@@ -618,7 +554,7 @@ func readPrivateFileBounded(root *os.Root, name string, limit int) ([]byte, erro
 	if info, err := root.Lstat(name); err == nil && info.Mode()&os.ModeSymlink != 0 {
 		return nil, ErrUnsafe
 	}
-	file, err := root.OpenFile(name, os.O_RDONLY|unix.O_NOFOLLOW, 0)
+	file, err := root.OpenFile(name, os.O_RDONLY|noFollow, 0)
 	if err != nil {
 		if errors.Is(err, syscall.ELOOP) {
 			return nil, ErrUnsafe
@@ -627,11 +563,10 @@ func readPrivateFileBounded(root *os.Root, name string, limit int) ([]byte, erro
 	}
 	defer file.Close()
 	info, err := file.Stat()
-	if err != nil || !info.Mode().IsRegular() || !ownedByUser(info) || info.Mode().Perm()&0o077 != 0 {
+	if err != nil || !info.Mode().IsRegular() || !ownedByUser(info) || forbiddenPermissions(info, 0o077) {
 		return nil, ErrUnsafe
 	}
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || stat.Nlink != 1 {
+	if !singleLink(file, info) {
 		return nil, ErrUnsafe
 	}
 	if err := checkPrivateACL(file); err != nil {
@@ -656,7 +591,7 @@ func verifyPreparedFile(root *os.Root, name string, expected []byte) error {
 }
 
 func writePrivateFile(root *os.Root, name string, content []byte) error {
-	file, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW, 0o600)
+	file, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL|noFollow, 0o600)
 	if err != nil {
 		return err
 	}
@@ -687,15 +622,6 @@ func writeComplete(writer io.Writer, content []byte) error {
 		content = content[written:]
 	}
 	return nil
-}
-
-func syncRoot(root *os.Root) error {
-	file, err := root.Open(".")
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	return file.Sync()
 }
 
 const (
@@ -788,25 +714,6 @@ func markAttempt(root *os.Root, prefix string) (string, error) {
 
 func clearAttempt(root *os.Root, name string) error {
 	return removeProtocolState(root, name, publicationHooks{})
-}
-
-func lockDirectory(root *os.Root, exclusive bool) (*os.File, error) {
-	file, err := root.Open(".")
-	if err != nil {
-		return nil, err
-	}
-	mode := syscall.LOCK_SH | syscall.LOCK_NB
-	if exclusive {
-		mode = syscall.LOCK_EX | syscall.LOCK_NB
-	}
-	if err := syscall.Flock(int(file.Fd()), mode); err != nil {
-		file.Close()
-		if errors.Is(err, syscall.EWOULDBLOCK) {
-			return nil, ErrConflict
-		}
-		return nil, err
-	}
-	return file, nil
 }
 
 func lockRoots(exclusive bool, roots ...*os.Root) ([]*os.File, error) {

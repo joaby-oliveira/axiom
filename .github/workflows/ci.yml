@@ -34,6 +34,8 @@ jobs:
             runner: ubuntu-24.04
           - platform: macos
             runner: macos-15
+          - platform: windows
+            runner: windows-2022
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     steps:
@@ -45,16 +47,27 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Unit, integration and black-box tests
+        if: matrix.platform != 'windows'
         run: go test -race ./...
+      - name: Native Windows unit, integration and black-box tests
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: go test ./... -timeout 10m
       - name: Static and build checks
         run: |
           go vet ./...
           go build ./...
           go mod verify
       - name: Repository checks
+        if: matrix.platform != 'windows'
         run: ./scripts/validate-repository.sh .
       - name: Bounded dogfooding smoke test
+        if: matrix.platform != 'windows'
         run: ./scripts/dogfood-poc.sh
+      - name: Native Windows installer contract
+        if: matrix.platform == 'windows'
+        shell: powershell
+        run: ./scripts/test-windows-install.ps1
 
   release-contract:
     name: release-contract

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,7 +30,7 @@ func TestExecutionStoreRoundTripsClosedPrivateState(t *testing.T) {
 	}
 	record := filepath.Join(root, "executions", "v1", state.ProjectID, executionName(state.RepositoryKey, state.WorkItem))
 	info, err := os.Stat(record)
-	if err != nil || info.Mode().Perm() != 0o600 {
+	if err != nil || !testfs.PrivateMode(record, 0o600) {
 		t.Fatalf("record mode = %v, %v", info, err)
 	}
 }

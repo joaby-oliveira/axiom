@@ -20,6 +20,10 @@ var hostRow = func() string {
 	case "linux/amd64", "linux/arm64":
 		// Any Linux distribution runs the static linux build.
 		return "linux:linux:" + runtime.GOARCH
+	case "windows/amd64":
+		if supportedWindowsHost() {
+			return "windows:windows:amd64"
+		}
 	}
 	return ""
 }

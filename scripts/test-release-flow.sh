@@ -379,7 +379,7 @@ make_set() {
   : >"$dir/sums"
   {
     printf 'evidenceVersion=1\nproduct=Axiom\nversion=%s\nrevision=%s\n' "$version" "$rev"
-    for row in macos-27-arm64 linux-amd64 linux-arm64; do
+    for row in macos-27-arm64 linux-amd64 linux-arm64 windows-amd64; do
       printf '%s %s %s\n' "$version" "$row" "$salt" >"$dir/artifacts/axiom-$version-$row.tar.gz"
       printf '%s  %s\n' "$(digest "$dir/artifacts/axiom-$version-$row.tar.gz")" "axiom-$version-$row.tar.gz" >>"$dir/sums"
     done
@@ -430,7 +430,7 @@ done
 for f in "$temporary/env-a/artifacts"/axiom-*; do
   check "envelope states $(basename "$f") and its SHA-256" grep -Fxq "artifact.$(basename "$f")=$(digest "$f")" "$temporary/env"
 done
-check 'envelope lists exactly three artifacts' test "$(grep -c '^artifact\.' "$temporary/env")" == 3
+check 'envelope lists exactly four artifacts' test "$(grep -c '^artifact\.' "$temporary/env")" == 4
 grep -v '^preview_digest=' "$temporary/env" >"$temporary/env-body"
 check 'preview_digest is the SHA-256 of the envelope' grep -Fxq "preview_digest=$(digest "$temporary/env-body")" "$temporary/env"
 digest_a=$(envelope_digest "$temporary/env-a" --tag v0.1.0-rc.1 --revision "$c2" --make-latest false)
@@ -475,7 +475,7 @@ check 'RC publishes as prerelease' bash -c "grep -Fxq publication=published '$te
 check 'RC is not latest' bash -c "[[ ! -s '$state/latest' ]] && grep -Fxq latest=none '$temporary/pub'"
 check 'tag created only at publication, at the revision' grep -Fxq "v0.1.0-rc.1 $c2" "$state/tags"
 check 'draft created before any upload, published last' bash -c "head -n 1 '$state/ledger' | grep -q '^POST release v0.1.0-rc.1 draft=true prerelease=true' && grep -E '^(PATCH|UPLOAD)' '$state/ledger' | tail -n 1 | grep -q '\"draft\":false'"
-check 'exactly four assets uploaded' bash -c "[[ \$(grep -c '^UPLOAD' '$state/ledger') == 4 ]]"
+check 'exactly five assets uploaded' bash -c "[[ \$(grep -c '^UPLOAD' '$state/ledger') == 5 ]]"
 check 'RC does not touch Release PR labels' bash -c "grep -Fxq release_pr=not_applicable '$temporary/pub' && ! grep -q '^LABEL' '$state/ledger'"
 
 before=$(mutations)
@@ -670,7 +670,7 @@ for attempt in 1 2; do
   fi
 done
 check 'incident: check classifies the orphan, never absent' bash -c "grep -Fxq publication_state=orphan_conflict '$temporary/check-1' && ! grep -Fxq publication_state=absent '$temporary/check-1' && grep -Fxq release_id=399339376 '$temporary/check-1' && grep -Fxq orphan_tag_name=untagged-898fac51a51187009dea '$temporary/check-1' && grep -Fxq result=conflict '$temporary/check-1'"
-check 'incident: orphan Evidence names its revision, flags and four asset digests' bash -c "grep -Fxq orphan_target=$c2 '$temporary/check-1' && grep -Fxq orphan_draft=false '$temporary/check-1' && grep -Fxq orphan_immutable=true '$temporary/check-1' && [[ \$(grep -c '^orphan_asset\\.' '$temporary/check-1') == 4 ]] && grep -Fxq 'orphan_asset.SHA256SUMS=$(digest "$temporary/id/artifacts/SHA256SUMS")' '$temporary/check-1'"
+check 'incident: orphan Evidence names its revision, flags and five asset digests' bash -c "grep -Fxq orphan_target=$c2 '$temporary/check-1' && grep -Fxq orphan_draft=false '$temporary/check-1' && grep -Fxq orphan_immutable=true '$temporary/check-1' && [[ \$(grep -c '^orphan_asset\\.' '$temporary/check-1') == 5 ]] && grep -Fxq 'orphan_asset.SHA256SUMS=$(digest "$temporary/id/artifacts/SHA256SUMS")' '$temporary/check-1'"
 check 'incident: orphan classification is deterministic' cmp -s "$temporary/check-1" "$temporary/check-2"
 expect_failure 'incident: no envelope while the orphan exists' 'orphan_conflict: release 399339376' envelope "$temporary/id" "${rc2[@]}"
 expect_failure 'incident: no publication while the orphan exists' 'orphan_conflict: release 399339376' \
@@ -765,7 +765,7 @@ check 'prepare stops at the authority boundary' bash -c "grep -Fxq next_action=a
 for key in tag=v0.1.0-rc.1 "revision=$c4" channel=rc prerelease=true make_latest=false prepared_run=5151 publication_state=absent; do
   check "prepared envelope states $key" grep -Fxq "preview.$key" "$temporary/prepare"
 done
-check 'prepared envelope states notes, SHA256SUMS and every artifact digest' bash -c "grep -Eq '^preview\\.release_notes_sha256=[0-9a-f]{64}$' '$temporary/prepare' && grep -Eq '^preview\\.sha256sums_sha256=[0-9a-f]{64}$' '$temporary/prepare' && [[ \$(grep -Ec '^preview\\.artifact\\.axiom-0\\.1\\.0-rc\\.1-[a-z0-9.-]+\\.tar\\.gz=[0-9a-f]{64}$' '$temporary/prepare') == 3 ]]"
+check 'prepared envelope states notes, SHA256SUMS and every artifact digest' bash -c "grep -Eq '^preview\\.release_notes_sha256=[0-9a-f]{64}$' '$temporary/prepare' && grep -Eq '^preview\\.sha256sums_sha256=[0-9a-f]{64}$' '$temporary/prepare' && [[ \$(grep -Ec '^preview\\.artifact\\.axiom-0\\.1\\.0-rc\\.1-[a-z0-9.-]+\\.tar\\.gz=[0-9a-f]{64}$' '$temporary/prepare') == 4 ]]"
 digest_value=$(awk -F= '$1 == "preview_digest" {print $2}' "$temporary/prepare")
 release status --tag v0.1.0-rc.1 --prepared-run 5151 >"$temporary/status"
 check 'the envelope of a prepared run is deterministic' grep -Fxq "preview_digest=$digest_value" "$temporary/status"

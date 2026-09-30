@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -45,7 +46,7 @@ func newFirstRunMachine(t *testing.T, binary string, executables ...string) *fir
 	m := &firstRunMachine{t: t, binary: binary, home: t.TempDir(), bin: t.TempDir(), executed: filepath.Join(t.TempDir(), "executed")}
 	for _, name := range executables {
 		// Discovery only resolves the executable; running it would leave a mark.
-		if err := os.WriteFile(filepath.Join(m.bin, name), []byte("#!/bin/sh\ntouch "+m.executed+"\n"), 0o700); err != nil {
+		if err := os.WriteFile(filepath.Join(m.bin, testRuntimeName(name)), testRuntimeScript(m.executed), 0o700); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -56,7 +57,7 @@ func (m *firstRunMachine) run(wantCode int, args ...string) (firstRunEvent, stri
 	m.t.Helper()
 	command := exec.Command(m.binary, args...)
 	command.Dir = m.t.TempDir()
-	command.Env = append([]string{"HOME=" + m.home, "PATH=" + m.bin, "CLAUDE_CONFIG_DIR="}, m.extra...)
+	command.Env = append([]string{"HOME=" + m.home, "USERPROFILE=" + m.home, "LOCALAPPDATA=" + filepath.Join(m.home, "AppData", "Local"), "PATH=" + m.bin, "CLAUDE_CONFIG_DIR="}, m.extra...)
 	command.Env = append(command.Env, "LINGO_PROJECTS_ROOT="+filepath.Join(m.home, "projects"), "LINGO_STATE_ROOT="+filepath.Join(m.home, "state"))
 	output, err := command.CombinedOutput()
 	code := 0
@@ -95,7 +96,7 @@ func (m *firstRunMachine) files() []string {
 	var paths []string
 	_ = filepath.Walk(m.home, func(path string, info os.FileInfo, err error) error {
 		if err == nil && path != m.home {
-			paths = append(paths, strings.TrimPrefix(path, m.home))
+			paths = append(paths, filepath.ToSlash(strings.TrimPrefix(path, m.home)))
 		}
 		return nil
 	})
@@ -127,7 +128,7 @@ func (m *firstRunMachine) assertOnlySkillRoots(allowed ...string) {
 
 func buildFirstRunBinary(t *testing.T) string {
 	t.Helper()
-	binary := filepath.Join(t.TempDir(), "axiom")
+	binary := filepath.Join(t.TempDir(), testExecutableName("axiom"))
 	if output, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
 		t.Fatalf("build: %v: %s", err, output)
 	}
@@ -250,6 +251,7 @@ func TestExecutableFirstRunRuntimeMatrix(t *testing.T) {
 	})
 
 	t.Run("Runtime-created 0755 skill roots are configured", func(t *testing.T) {
+		testfs.POSIXModes(t)
 		m := newFirstRunMachine(t, binary, "codex", "claude")
 		userSkill := filepath.Join(m.home, ".claude", "skills", "my-skill", "SKILL.md")
 		for _, directory := range []string{".claude", ".claude/skills", ".claude/skills/my-skill", ".agents", ".agents/skills"} {
@@ -296,7 +298,7 @@ func TestExecutableFirstRunRuntimeMatrix(t *testing.T) {
 		if err := os.MkdirAll(root, 0o700); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Chmod(root, 0o775); err != nil {
+		if err := testfs.SharedMode(root, 0o775); err != nil {
 			t.Fatal(err)
 		}
 		event, _ := m.run(1, "--json", "first-run")

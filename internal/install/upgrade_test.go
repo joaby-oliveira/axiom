@@ -7,11 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 	"testing"
 
 	"github.com/rgomids/axiom/internal/codexruntime"
@@ -361,16 +361,16 @@ func TestUpgradeSkillConflictsHaveZeroEffects(t *testing.T) {
 			writeFile(t, filepath.Join(root, skillNames[0], "notes.md"), []byte("x\n"), 0o600)
 		},
 		"permissive skill file": func(t *testing.T, root string) {
-			if err := os.Chmod(filepath.Join(root, skillNames[2], "SKILL.md"), 0o644); err != nil {
+			if err := testfs.SharedMode(filepath.Join(root, skillNames[2], "SKILL.md"), 0o644); err != nil {
 				t.Fatal(err)
 			}
 		},
 		"symlinked skill directory": func(t *testing.T, root string) {
 			outside := t.TempDir()
-			if err := os.Rename(filepath.Join(root, skillNames[3]), filepath.Join(outside, "moved")); err != nil {
+			if err := testfs.RenameOrSkipPinned(t, filepath.Join(root, skillNames[3]), filepath.Join(outside, "moved")); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.Symlink(filepath.Join(outside, "moved"), filepath.Join(root, skillNames[3])); err != nil {
+			if err := testfs.Symlink(t, filepath.Join(outside, "moved"), filepath.Join(root, skillNames[3])); err != nil {
 				t.Fatal(err)
 			}
 		},
@@ -420,10 +420,10 @@ func TestUpgradeSkillStaleAuthorityAndConcurrentInstallHaveZeroEffects(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := syscall.Flock(int(holder.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	before := snapshot(t, filepath.Dir(installed.target.BinaryDir))
+	if err := holdSkillLock(holder); err != nil {
 		t.Fatal(err)
 	}
-	before := snapshot(t, filepath.Dir(installed.target.BinaryDir))
 	if result, err := service.Apply(context.Background(), preview, authority); category(err) != "skill_set_busy_or_interrupted" || len(result.Ledger) != 0 {
 		t.Fatalf("concurrent install result=%+v err=%v", result, err)
 	}
@@ -656,7 +656,7 @@ func TestUpgradeRefusalsHaveZeroEffects(t *testing.T) {
 			if err := os.Remove(path); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.Symlink(outside, path); err != nil {
+			if err := testfs.Symlink(t, outside, path); err != nil {
 				t.Fatal(err)
 			}
 			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
@@ -678,20 +678,20 @@ func TestUpgradeRefusalsHaveZeroEffects(t *testing.T) {
 			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
 		}, "receipt_invalid"},
 		{"shared receipt directory", func(t *testing.T, i *installation) Candidate {
-			if err := os.Chmod(i.target.ReceiptDir, 0o755); err != nil {
+			if err := testfs.SharedMode(i.target.ReceiptDir, 0o755); err != nil {
 				t.Fatal(err)
 			}
 			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
 		}, "unsafe_target"},
 		{"symlinked binary directory", func(t *testing.T, i *installation) Candidate {
 			real := privateDirectory(t, filepath.Dir(i.target.BinaryDir), "real-bin")
-			if err := os.Rename(filepath.Join(i.target.BinaryDir, binaryName), filepath.Join(real, binaryName)); err != nil {
+			if err := testfs.RenameOrSkipPinned(t, filepath.Join(i.target.BinaryDir, binaryName), filepath.Join(real, binaryName)); err != nil {
 				t.Fatal(err)
 			}
 			if err := os.Remove(i.target.BinaryDir); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.Symlink(real, i.target.BinaryDir); err != nil {
+			if err := testfs.Symlink(t, real, i.target.BinaryDir); err != nil {
 				t.Fatal(err)
 			}
 			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
@@ -706,7 +706,7 @@ func TestUpgradeRefusalsHaveZeroEffects(t *testing.T) {
 			mutate func(*testing.T, *installation) Candidate
 			want   string
 		}{fmt.Sprintf("binary directory %04o", mode), func(t *testing.T, i *installation) Candidate {
-			if err := os.Chmod(i.target.BinaryDir, mode); err != nil {
+			if err := testfs.SharedMode(i.target.BinaryDir, mode); err != nil {
 				t.Fatal(err)
 			}
 			return i.candidate(t, newBundle("1.1.0", []byte("new\n")))
@@ -862,7 +862,7 @@ func read(t *testing.T, path string) string {
 func assertMode(t *testing.T, path string, mode os.FileMode) {
 	t.Helper()
 	info, err := os.Stat(path)
-	if err != nil || info.Mode().Perm() != mode {
+	if err != nil || !testfs.PrivateMode(path, mode) {
 		t.Fatalf("mode of %s = %v want %v (%v)", path, info.Mode(), mode, err)
 	}
 }

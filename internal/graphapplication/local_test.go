@@ -230,7 +230,7 @@ func overlap(left, right executiongraph.DispatchRecord) bool {
 
 func buildGraph(t *testing.T, workspaceRoot string) executiongraph.Graph {
 	t.Helper()
-	controls := executiongraph.ExecutionControls{Timeout: 5 * time.Second, MaximumAttempts: 2}
+	controls := executiongraph.ExecutionControls{Timeout: 30 * time.Second, MaximumAttempts: 2}
 	plan := executiongraph.ApprovedPlan{Approved: true, PlanRevision: "plan-1", PlanDigest: digest("plan"), MaximumNodes: 3, Work: []executiongraph.WorkUnit{
 		{Key: "a", Capability: capability("implementation"), Inputs: []string{"plan"}, Outputs: []string{"a-result"}, Scope: scope("a.txt"), Effects: []executiongraph.Effect{{Kind: "repository-write", Target: "a.txt"}}, Controls: controls},
 		{Key: "b", Capability: capability("documentation"), Inputs: []string{"plan"}, Outputs: []string{"b-result"}, Scope: scope("b.txt"), Effects: []executiongraph.Effect{{Kind: "repository-write", Target: "b.txt"}}, Controls: controls},

@@ -12,11 +12,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 
 	"github.com/rgomids/axiom/internal/local"
 	"github.com/rgomids/axiom/internal/manifest"
-	"golang.org/x/sys/unix"
 )
 
 type TransferKind string
@@ -89,13 +87,7 @@ type TransferResult struct {
 // Deterministic seams for tests: a write fault and observed free space.
 var (
 	beforeTransferWrite func(int) error
-	availableSpace      = func(path string) (uint64, error) {
-		var filesystem unix.Statfs_t
-		if err := unix.Statfs(path, &filesystem); err != nil {
-			return 0, err
-		}
-		return uint64(filesystem.Bavail) * uint64(filesystem.Bsize), nil
-	}
+	availableSpace      = nativeAvailableSpace
 )
 
 // PreviewTransfer is read-only. Backup and export produce distinct digests,
@@ -180,7 +172,7 @@ func ApplyTransfer(ctx context.Context, preview TransferPreview, authority Trans
 		return TransferResult{Status: "denied_authority"}, ErrTransferStale
 	}
 	result := TransferResult{Status: "failure", Written: []TransferEffect{}}
-	if err := os.Mkdir(preview.Target, 0o700); err != nil {
+	if err := makeTransferRoot(preview.Target); err != nil {
 		return result, ErrTransferTarget
 	}
 	root, err := os.OpenRoot(preview.Target)
@@ -190,7 +182,7 @@ func ApplyTransfer(ctx context.Context, preview TransferPreview, authority Trans
 	defer root.Close()
 	visible, err := os.Lstat(preview.Target)
 	opened, openErr := root.Stat(".")
-	if err != nil || openErr != nil || !os.SameFile(visible, opened) || opened.Mode().Perm() != 0o700 {
+	if err != nil || openErr != nil || !os.SameFile(visible, opened) || !transferPrivate(root, ".", opened) {
 		return result, ErrTransferTarget
 	}
 	for index, effect := range preview.Effects {
@@ -262,15 +254,15 @@ func writeTransferFile(root *os.Root, relative string, wire []byte) error {
 	directory := ""
 	for _, part := range parts[:len(parts)-1] {
 		directory = filepath.Join(directory, part)
-		if err := root.Mkdir(directory, 0o700); err != nil && !os.IsExist(err) {
+		if err := makeTransferDirectory(root, directory); err != nil && !os.IsExist(err) {
 			return err
 		}
 		info, err := root.Lstat(directory)
-		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != 0o700 {
+		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || !transferPrivate(root, directory, info) {
 			return ErrTransferTarget
 		}
 	}
-	file, err := root.OpenFile(clean, os.O_WRONLY|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW, 0o600)
+	file, err := root.OpenFile(clean, os.O_WRONLY|os.O_CREATE|os.O_EXCL|noFollow, 0o600)
 	if err != nil {
 		return err
 	}
@@ -285,7 +277,7 @@ func writeTransferFile(root *os.Root, relative string, wire []byte) error {
 		return err
 	}
 	defer parent.Close()
-	return parent.Sync()
+	return syncTransferDirectory(parent)
 }
 
 // completeTransfer reports whether the target already holds exactly the
@@ -332,13 +324,13 @@ func completeTransfer(target string, preview TransferPreview) (bool, error) {
 }
 
 func readAnchored(root *os.Root, relative string, limit int64) ([]byte, error) {
-	file, err := root.OpenFile(filepath.FromSlash(relative), os.O_RDONLY|unix.O_NOFOLLOW, 0)
+	file, err := root.OpenFile(filepath.FromSlash(relative), os.O_RDONLY|noFollow, 0)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 	info, err := file.Stat()
-	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0o077 != 0 {
+	if err != nil || !info.Mode().IsRegular() || !transferPrivate(root, filepath.FromSlash(relative), info) {
 		return nil, ErrTransferTarget
 	}
 	wire, err := io.ReadAll(io.LimitReader(file, limit+1))
@@ -350,42 +342,6 @@ func readAnchored(root *os.Root, relative string, limit int64) ([]byte, error) {
 
 // canonicalTransferTarget resolves the existing parent, rejects root and
 // relative targets, and rejects any overlap with a source root.
-func canonicalTransferTarget(target string, roots Roots) (string, error) {
-	if !filepath.IsAbs(target) {
-		return "", ErrTransferTarget
-	}
-	clean := filepath.Clean(target)
-	base := filepath.Base(clean)
-	if clean == string(filepath.Separator) || base == "." || base == ".." || strings.HasPrefix(base, ".") {
-		return "", ErrTransferTarget
-	}
-	parent, err := filepath.EvalSymlinks(filepath.Dir(clean))
-	if err != nil {
-		return "", ErrTransferTarget
-	}
-	info, err := os.Lstat(parent)
-	if err != nil || !info.IsDir() {
-		return "", ErrTransferTarget
-	}
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || int(stat.Uid) != os.Geteuid() {
-		return "", ErrTransferTarget
-	}
-	canonical := filepath.Join(parent, base)
-	for _, source := range []string{roots.Projects, roots.State, roots.Skills} {
-		if source == "" {
-			continue
-		}
-		resolved := filepath.Clean(source)
-		if evaluated, err := filepath.EvalSymlinks(resolved); err == nil {
-			resolved = evaluated
-		}
-		if within(resolved, canonical) || within(canonical, resolved) {
-			return "", ErrTransferTarget
-		}
-	}
-	return canonical, nil
-}
 
 func within(parent, child string) bool {
 	relative, err := filepath.Rel(parent, child)
@@ -394,32 +350,3 @@ func within(parent, child string) bool {
 
 // checkTransferFilesystem requires the target parent to share a filesystem
 // with every present source root and reports observed free space.
-func checkTransferFilesystem(target string, roots Roots) (uint64, error) {
-	parent := filepath.Dir(target)
-	parentInfo, err := os.Stat(parent)
-	if err != nil {
-		return 0, ErrTransferTarget
-	}
-	parentStat, ok := parentInfo.Sys().(*syscall.Stat_t)
-	if !ok {
-		return 0, ErrTransferTarget
-	}
-	for _, source := range []string{roots.Projects, roots.State, roots.Skills} {
-		if source == "" {
-			continue
-		}
-		info, err := os.Stat(source)
-		if os.IsNotExist(err) {
-			continue
-		}
-		stat, ok := info.Sys().(*syscall.Stat_t)
-		if err != nil || !ok || stat.Dev != parentStat.Dev {
-			return 0, ErrTransferTarget
-		}
-	}
-	available, err := availableSpace(parent)
-	if err != nil {
-		return 0, ErrTransferTarget
-	}
-	return available, nil
-}

@@ -29,7 +29,7 @@ type maintenanceHarness struct {
 
 func newMaintenanceHarness(t *testing.T) maintenanceHarness {
 	t.Helper()
-	binary := filepath.Join(t.TempDir(), "lingo")
+	binary := filepath.Join(t.TempDir(), testExecutableName("lingo"))
 	if output, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
 		t.Fatalf("build executable: %v: %s", err, output)
 	}

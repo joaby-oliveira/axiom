@@ -3,6 +3,7 @@ package executiongraph
 import (
 	"context"
 	"fmt"
+	"github.com/rgomids/axiom/internal/testfs"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -13,9 +14,9 @@ import (
 type invocationFake struct{ invalid bool }
 
 func (f invocationFake) ResolveInvocation(_ context.Context, child ChildExecution) (Invocation, error) {
-	executable := "/usr/bin/true"
+	executable := testfs.Path("/usr/bin/true")
 	if f.invalid {
-		executable = "/bin/sh"
+		executable = testfs.Path("/bin/sh")
 	}
 	return Invocation{RuntimeID: child.Envelope.Resolution.RuntimeID, Argv: []string{executable, "literal;not-shell"}, CWD: child.Envelope.Workspace, Env: []string{"PATH=/usr/bin"}, OutputMax: 1024}, nil
 }

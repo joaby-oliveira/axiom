@@ -2,10 +2,10 @@
 
 ## Status
 
-**Proposed.** A maintainer requested native Windows support on 2026-09-29. This
-Specification is the reviewable contract for that change; it does not claim that
-Windows is supported until its Plan, Tasks, implementation, and native Evidence
-are accepted.
+**Implementation authorized.** The requester explicitly approved the complete
+native port on 2026-09-30. This contract governs the implementation in PR #128;
+upstream acceptance and release publication remain separate decisions. Validation
+results and remaining limitations are recorded in `evidence.md`.
 
 ## Problem
 
@@ -17,7 +17,7 @@ potentially unsafe state-management path.
 
 ## Outcome
 
-Windows 10 or later on amd64 can install one checksummed native Axiom release,
+Windows 10 version 1809 or later on amd64 can install one checksummed native Axiom release,
 run `axiom.exe`, use `first-run`, and use the same local workflows as the
 supported POSIX rows without weakening the repository's fail-closed local-state
 contract.
@@ -66,7 +66,7 @@ drives, and changing Portable Project Manifest content.
 - **AC-W01:** A clean Windows 10 amd64 account installs the latest stable and an
   exact version via PowerShell; both report the expected `axiom.exe version`.
 - **AC-W02:** Tampered archives, missing/duplicate checksum entries, unsupported
-  architecture, HTTP redirects, malicious ZIP paths, and invalid release metadata
+  architecture, HTTPS-to-HTTP redirects, malicious archive paths, and invalid release metadata
   are refused before a target mutation.
 - **AC-W03:** The Windows DACL/reparse-point/object-identity/concurrent-writer
   matrix is deterministic and fail-closed.
@@ -83,5 +83,5 @@ drives, and changing Portable Project Manifest content.
 This change adds a public distribution and machine-local security boundary.
 It preserves explicit authority, least privilege, no credential provisioning,
 portable/local separation, deterministic validation, and separate human
-acceptance. ADR-0010 is required before implementation because Windows security
+acceptance. ADR-0010 records the implementation decision because Windows security
 identities and publication primitives are not interchangeable with POSIX modes.

@@ -2,6 +2,7 @@ package codexruntime
 
 import (
 	"context"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -36,7 +37,7 @@ func TestPublishUpgradeSkillRequiresExpectedRevision(t *testing.T) {
 		t.Fatalf("create absent skill: %v", err)
 	}
 	info, err := os.Stat(filepath.Join(root, name))
-	if err != nil || info.Mode().Perm() != 0o700 {
+	if err != nil || !testfs.PrivateMode(filepath.Join(root, name), 0o700) {
 		t.Fatalf("skill directory mode=%v err=%v", info.Mode(), err)
 	}
 	if err := session.PublishSkill(name, []byte("second\n"), digestOf([]byte("other\n"))); err != ErrUpgradeConflict {

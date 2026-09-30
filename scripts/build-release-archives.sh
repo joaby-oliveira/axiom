@@ -74,6 +74,12 @@ digest() {
 
 build_target() {
   local platform=$1 goos=$2 arch=$3
+  local executable=axiom installer=install.sh installer_source=install-release.sh
+  if [[ "$goos" == windows ]]; then
+    executable=axiom.exe
+    installer=install.ps1
+    installer_source=install-release.ps1
+  fi
   local bundle="axiom-${version}-${platform}-${arch}"
   local root="$work/$bundle"
   mkdir -p "$root/skills"
@@ -81,11 +87,11 @@ build_target() {
   # caller's working directory.
   (cd "$repository_root" && GOOS="$goos" GOARCH="$arch" CGO_ENABLED=0 go build -trimpath \
     -ldflags "-s -w -X main.buildVersion=$version -X main.buildRevision=${revision:0:12} -X main.buildSourceState=$source_state -X main.buildRelease=$release" \
-    -o "$root/axiom" ./cmd/lingo)
-  chmod 700 "$root/axiom"
+    -o "$root/$executable" ./cmd/lingo)
+  chmod 700 "$root/$executable"
   cp "$repository_root/LICENSE" "$root/LICENSE"
-  cp "$repository_root/scripts/install-release.sh" "$root/install.sh"
-  chmod 700 "$root/install.sh"
+  cp "$repository_root/scripts/$installer_source" "$root/$installer"
+  chmod 700 "$root/$installer"
   local skills_manifest="$root/skills-manifest.txt"
   {
     printf 'formatVersion=1\n'
@@ -112,9 +118,9 @@ build_target() {
     printf 'skillSetVersion=1\n'
   } >"$root/release-metadata.txt"
   {
-    printf '%s  axiom\n' "$(digest "$root/axiom")"
+    printf '%s  %s\n' "$(digest "$root/$executable")" "$executable"
     printf '%s  LICENSE\n' "$(digest "$root/LICENSE")"
-    printf '%s  install.sh\n' "$(digest "$root/install.sh")"
+    printf '%s  %s\n' "$(digest "$root/$installer")" "$installer"
     printf '%s  release-metadata.txt\n' "$(digest "$root/release-metadata.txt")"
     printf '%s  skills-manifest.txt\n' "$(digest "$skills_manifest")"
     while IFS= read -r file; do
@@ -132,5 +138,6 @@ build_target() {
 build_target macos-27 darwin arm64
 build_target linux linux amd64
 build_target linux linux arm64
+build_target windows windows amd64
 
 printf 'release_build_success: %s\n' "$output"

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/rgomids/axiom/internal/testfs"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -226,7 +227,7 @@ func TestUnsafeFilesystemFactsFailClosed(t *testing.T) {
 		mutate func(*testing.T, Roots)
 	}{
 		{"symlink entry", func(t *testing.T, roots Roots) {
-			if err := os.Symlink(t.TempDir(), filepath.Join(roots.State, "work-items", pocProjectID, "link.json")); err != nil {
+			if err := testfs.Symlink(t, t.TempDir(), filepath.Join(roots.State, "work-items", pocProjectID, "link.json")); err != nil {
 				t.Fatal(err)
 			}
 		}},
@@ -246,7 +247,7 @@ func TestUnsafeFilesystemFactsFailClosed(t *testing.T) {
 			writePrivate(t, filepath.Join(roots.State, "work-items", pocProjectID, "large.json"), make([]byte, local.MaxRecordBytes+1))
 		}},
 		{"non-regular entry", func(t *testing.T, roots Roots) {
-			if err := syscall.Mkfifo(filepath.Join(roots.State, "work-items", pocProjectID, "pipe.json"), 0o600); err != nil {
+			if err := makeFIFO(filepath.Join(roots.State, "work-items", pocProjectID, "pipe.json")); err != nil {
 				t.Skipf("fifo unavailable: %v", err)
 			}
 		}},

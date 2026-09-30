@@ -327,7 +327,7 @@ structured event, as with other `axiom` commands.
 ## Build and install exact-version S2 archives
 
 A release build requires a clean checkout, an exact semantic version, and an
-absolute output directory. It emits three checksummed archives plus
+absolute output directory. It emits four checksummed archives plus
 `SHA256SUMS`:
 
 ```bash
@@ -337,13 +337,14 @@ absolute output directory. It emits three checksummed archives plus
 ```
 
 Each archive holds one bundle directory with the canonical public executable
-`axiom`, `LICENSE`, the release installer `install.sh`, `release-metadata.txt`,
+`axiom` (`axiom.exe` on Windows), `LICENSE`, the release installer `install.sh`
+(`install.ps1` on Windows), `release-metadata.txt`,
 `skills-manifest.txt`, the five Codex skills, and a complete `MANIFEST.sha256`.
 The installer publishes `<bin-dir>/axiom`. A receipt or binary from a pre-`axiom`
 archive (which shipped `lingo`) is not recognized as owned and is preserved;
 no migration from such an installation is performed.
 
-Supported archive rows are macOS 27.0/arm64 and Linux amd64/arm64. The Linux
+Supported archive rows are macOS 27.0/arm64, Linux amd64/arm64, and Windows amd64. The Linux
 archives (`linux-amd64`, `linux-arm64`) are static builds installed on any
 Linux distribution and version. Other macOS versions,
 operating systems, and architectures fail closed. Install the
@@ -451,6 +452,60 @@ elsewhere. On Linux, `AXIOM_TEST_SYNTHETIC_UBUNTU_ROW=1` reruns the suite in a p
 namespace declaring Ubuntu 26.04 (needs root or unprivileged user namespaces);
 that is synthetic Evidence, not native acceptance.
 
+## Windows native installation
+
+Windows 10 version 1809 or later and Windows 11 are supported on amd64, with
+local NTFS storage and 64-bit PowerShell 5.1+. The native `tar.exe` supplied by
+Windows reads the same `.tar.gz` release format as the POSIX rows. No WSL,
+administrator session, Bash, or Go installation is needed by end users.
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.ps1 -OutFile install-axiom.ps1
+.\install-axiom.ps1
+$env:PATH = "$env:LOCALAPPDATA\Axiom\bin;$env:PATH"
+axiom version
+axiom first-run
+```
+
+`-Channel stable` is the default. `-Version` accepts an exact published
+`vMAJOR.MINOR.PATCH[-rc.N]` tag and cannot be combined with `-Channel`.
+Only releases containing `axiom-<version>-windows-amd64.tar.gz` can be selected.
+`-BinDir` and `-ReceiptDir` override `%LOCALAPPDATA%\Axiom\bin` and
+`%LOCALAPPDATA%\Axiom\install`. The installer never persists `PATH`, elevates,
+changes execution policy, or changes credentials. Machine-local state defaults
+to `%LOCALAPPDATA%\Axiom\state`; `LINGO_STATE_ROOT` remains an explicit override.
+Portable Project locations and Runtime skill roots retain their existing rules.
+
+For an offline installation, verify the downloaded archive against the release's
+`SHA256SUMS`, extract it into private local storage, and invoke the bundle's
+`install.ps1 -Archive <absolute-archive-path> -Checksums <absolute-checksums-path>`.
+The staged executable validates the complete bundle manifest, metadata and skill
+manifest before publishing the binary and receipt. Reinstall is a no-op; upgrades
+use the existing owned-install protocol and refuse downgrades, foreign/modified
+targets, unsafe ACLs and uncertain prior state. Close Axiom before upgrading:
+Windows can refuse replacement of a running or otherwise locked executable.
+
+The filesystem boundary rejects network/device paths, non-NTFS volumes, alternate
+data streams, ambiguous Win32 names, junctions and other reparse points, hardlinked
+state files, and unsafe owners/DACLs. SYSTEM and local Administrators remain
+trusted. Existing directories are not silently re-permissioned. Store private
+state outside shared or redirected folders that violate these checks.
+File contents are flushed before atomic publication; recovery covers process
+interruption, not a guarantee of directory-entry durability after power loss.
+An interrupted installation lock is preserved for operator review; never delete
+it while an installer is running or discard recovery evidence blindly.
+
+Runtime discovery accepts Windows `PATH` entries, including npm command shims.
+Execution Graph command profiles must point to native `codex.exe` or `claude.exe`
+executables; Axiom does not wrap arguments in `cmd.exe` or PowerShell.
+
+Native offline installer acceptance (requires Go for building its test fixtures):
+
+```powershell
+.\scripts\test-windows-install.ps1
+go test ./...
+```
+
 ## Prepare a release artifact set (S9/T38)
 
 Public release tags are `vMAJOR.MINOR.PATCH` (stable) or
@@ -468,7 +523,7 @@ The manually dispatched `Release artifacts` workflow
 (`.github/workflows/release-artifacts.yml`) is the PREPARE phase of the
 [Release flow](#release-flow). It takes `tag` and `revision` inputs, runs from
 `main`, checks out that exact revision, requires it to be clean and to pass
-`release-preflight.sh`, builds the three supported rows with
+`release-preflight.sh`, builds the four supported rows with
 `build-release-archives.sh`, verifies the complete set, renders the release
 notes, and retains `artifacts/`, `release-evidence.txt`, `release-notes.md`,
 `preflight.txt` and `prepare-metadata.txt` as the workflow artifact

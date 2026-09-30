@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -272,7 +273,7 @@ func TestCleanupRecordRetentionAndBatchBounds(t *testing.T) {
 		t.Fatal(err)
 	}
 	info, err := os.Stat(filepath.Join(fixture.state, "artifacts", "v1", "cleanup", result.RecordID))
-	if err != nil || info.Size() > detailartifact.MaxCleanupRecord || info.Mode().Perm() != 0o600 {
+	if err != nil || info.Size() > detailartifact.MaxCleanupRecord || !testfs.PrivateMode(filepath.Join(fixture.state, "artifacts", "v1", "cleanup", result.RecordID), 0o600) {
 		t.Fatalf("record info=%v err=%v", info, err)
 	}
 	for _, check := range []struct {
@@ -483,7 +484,7 @@ func TestGuidedRecoveryPreservesAmbiguousCorruptAndUnknownState(t *testing.T) {
 				if err := os.Remove(stages[0]); err != nil {
 					t.Fatal(err)
 				}
-				if err := os.Symlink(filepath.Join(t.TempDir(), "outside"), stages[0]); err != nil {
+				if err := testfs.Symlink(t, filepath.Join(t.TempDir(), "outside"), stages[0]); err != nil {
 					t.Fatal(err)
 				}
 			}

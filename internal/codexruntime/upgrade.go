@@ -11,8 +11,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-
-	"golang.org/x/sys/unix"
 )
 
 // UpgradeStagePrefix names private staging files that an authorized binary
@@ -140,7 +138,7 @@ func (s Service) LockForUpgrade() (*UpgradeSession, error) {
 		return nil, ErrUpgradeConflict
 	}
 	info, err := root.Stat(".")
-	if err != nil || info.Mode().Perm()&0o022 != 0 || !ownedByUser(info) {
+	if err != nil || forbiddenPermissions(info, 0o022) || !ownedByUser(info) {
 		root.Close()
 		return nil, ErrUpgradeConflict
 	}
@@ -182,11 +180,7 @@ func (u *UpgradeSession) AvailableBytes() (uint64, error) {
 		return 0, err
 	}
 	defer directory.Close()
-	var stat unix.Statfs_t
-	if err := unix.Fstatfs(int(directory.Fd()), &stat); err != nil {
-		return 0, err
-	}
-	return uint64(stat.Bavail) * uint64(stat.Bsize), nil
+	return availableBytes(directory)
 }
 
 // Inspect reads upgrade evidence from the session capability, never rootPath.

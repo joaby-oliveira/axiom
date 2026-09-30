@@ -19,11 +19,9 @@ import (
 	"github.com/rgomids/axiom/internal/codexruntime"
 	"github.com/rgomids/axiom/internal/compatibility"
 	"github.com/rgomids/axiom/internal/local"
-	"golang.org/x/sys/unix"
 )
 
 const (
-	binaryName      = "axiom"
 	receiptName     = "installation.receipt"
 	lockName        = ".axiom-install.lock"
 	markerName      = ".axiom-install-operation"
@@ -755,14 +753,6 @@ func syncDirectory(path string) {
 		_ = directory.Sync()
 		_ = directory.Close()
 	}
-}
-
-func statfsAvailable(path string) (uint64, error) {
-	var filesystem unix.Statfs_t
-	if err := unix.Statfs(path, &filesystem); err != nil {
-		return 0, err
-	}
-	return uint64(filesystem.Bavail) * uint64(filesystem.Bsize), nil
 }
 
 // compareSemver implements SemVer 2.0.0 precedence; build metadata is ignored.

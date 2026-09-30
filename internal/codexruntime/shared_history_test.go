@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"github.com/rgomids/axiom/internal/testfs"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -182,7 +183,7 @@ func TestModifiedClaudeRevisionNIsRefusedAfterUpgrade(t *testing.T) {
 			}
 		}},
 		{"unsafe mode", func(t *testing.T, root string) {
-			if err := os.Chmod(filepath.Join(root, "axiom-work-item-run", "SKILL.md"), 0o644); err != nil {
+			if err := testfs.SharedMode(filepath.Join(root, "axiom-work-item-run", "SKILL.md"), 0o644); err != nil {
 				t.Fatal(err)
 			}
 		}},
@@ -314,7 +315,7 @@ func TestClaudeReceiptMustBeAxiomEvidenceForThisRoot(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if err := os.Chmod(path, test.mode); err != nil {
+			if err := testfs.SharedMode(path, test.mode); err != nil {
 				t.Fatal(err)
 			}
 			before := skillTree(t, root)

@@ -2,6 +2,7 @@ package runtimeadapter
 
 import (
 	"context"
+	"github.com/rgomids/axiom/internal/testfs"
 	"reflect"
 	"testing"
 	"time"
@@ -35,15 +36,15 @@ func TestInventoryExposesOnlyObservedCodexAndClaude(t *testing.T) {
 func TestConcreteResolversProduceExplicitArgvAndResolveCredentialByReference(t *testing.T) {
 	credentials := &credentialFake{}
 	resolver, err := NewInvocationResolver([]CommandProfile{
-		{RuntimeID: "codex", ModelProfileID: "codex-high", Executable: "/opt/bin/codex", Model: "local-codex-model", Arguments: []string{"--json"}, Environment: []string{"PATH=/opt/bin"}, CredentialReference: "keychain:codex", OutputMax: 1024},
-		{RuntimeID: "claude", ModelProfileID: "claude-high", Executable: "/opt/bin/claude", Model: "local-claude-model", Arguments: []string{"--output-format", "json"}, Environment: []string{"PATH=/opt/bin"}, OutputMax: 1024},
+		{RuntimeID: "codex", ModelProfileID: "codex-high", Executable: testfs.Path("/opt/bin/codex"), Model: "local-codex-model", Arguments: []string{"--json"}, Environment: []string{"PATH=/opt/bin"}, CredentialReference: "keychain:codex", OutputMax: 1024},
+		{RuntimeID: "claude", ModelProfileID: "claude-high", Executable: testfs.Path("/opt/bin/claude"), Model: "local-claude-model", Arguments: []string{"--output-format", "json"}, Environment: []string{"PATH=/opt/bin"}, OutputMax: 1024},
 	}, credentials)
 	if err != nil {
 		t.Fatal(err)
 	}
 	codex := adapterChild("codex", "codex-high")
 	invocation, err := resolver.ResolveInvocation(context.Background(), codex)
-	if err != nil || !reflect.DeepEqual(invocation.Argv, []string{"/opt/bin/codex", "exec", "--model", "local-codex-model", "--json"}) || invocation.CWD != codex.Envelope.Workspace {
+	if err != nil || !reflect.DeepEqual(invocation.Argv, []string{testfs.Path("/opt/bin/codex"), "exec", "--model", "local-codex-model", "--json"}) || invocation.CWD != codex.Envelope.Workspace {
 		t.Fatalf("invocation=%+v err=%v", invocation, err)
 	}
 	if !reflect.DeepEqual(credentials.references, []string{"keychain:codex"}) {
@@ -51,7 +52,7 @@ func TestConcreteResolversProduceExplicitArgvAndResolveCredentialByReference(t *
 	}
 	claude := adapterChild("claude", "claude-high")
 	invocation, err = resolver.ResolveInvocation(context.Background(), claude)
-	if err != nil || !reflect.DeepEqual(invocation.Argv, []string{"/opt/bin/claude", "--print", "--model", "local-claude-model", "--output-format", "json"}) {
+	if err != nil || !reflect.DeepEqual(invocation.Argv, []string{testfs.Path("/opt/bin/claude"), "--print", "--model", "local-claude-model", "--output-format", "json"}) {
 		t.Fatalf("invocation=%+v err=%v", invocation, err)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -233,6 +234,7 @@ func TestRetirementCorruptStaleOrUnsafeRecordPreservesEvidence(t *testing.T) {
 			writeTestFile(t, path, next, 0o600)
 		}, "evidence_retirement_stale"},
 		"group-readable": {func(t *testing.T, path string, _ []byte) {
+			testfs.POSIXModes(t)
 			if err := os.Chmod(path, 0o644); err != nil {
 				t.Fatal(err)
 			}
@@ -243,7 +245,7 @@ func TestRetirementCorruptStaleOrUnsafeRecordPreservesEvidence(t *testing.T) {
 			if err := os.Remove(path); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.Symlink(target, path); err != nil {
+			if err := testfs.Symlink(t, target, path); err != nil {
 				t.Fatal(err)
 			}
 		}, "evidence_retirement_uncertain"},
@@ -291,10 +293,10 @@ func TestRetirementNamespaceFailsClosed(t *testing.T) {
 		t.Fatal(err)
 	}
 	moved := directory + "-real"
-	if err := os.Rename(directory, moved); err != nil {
+	if err := testfs.RenameOrSkipPinned(t, directory, moved); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(moved, directory); err != nil {
+	if err := testfs.Symlink(t, moved, directory); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := fixture.store.PreviewCleanup(context.Background(), cleanupClock); err == nil {

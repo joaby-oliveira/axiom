@@ -3,6 +3,7 @@ package local
 import (
 	"errors"
 	"fmt"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,6 +13,7 @@ import (
 // mutation by another principal: any group or other write is refused, read
 // and search access are not.
 func TestPublicationDirectoryModeMatrix(t *testing.T) {
+	testfs.POSIXModes(t)
 	for _, test := range []struct {
 		mode os.FileMode
 		safe bool
@@ -59,7 +61,7 @@ func TestPublicationDirectoryRefusesSymlinkForeignOwnerAndMissing(t *testing.T) 
 		t.Fatal(err)
 	}
 	link := filepath.Join(base, "bin")
-	if err := os.Symlink(real, link); err != nil {
+	if err := testfs.Symlink(t, real, link); err != nil {
 		t.Fatal(err)
 	}
 	if !errors.Is(CheckPublicationDirectory(link), ErrUnsafe) {
@@ -88,6 +90,7 @@ func TestPublicationDirectoryRefusesSymlinkForeignOwnerAndMissing(t *testing.T) 
 
 // Files inside a publication directory keep the owner-only file rule.
 func TestReadPublishedFileKeepsOwnerOnlyFileRule(t *testing.T) {
+	testfs.POSIXModes(t)
 	directory := filepath.Join(privateTestRoot(t), "bin")
 	if err := os.Mkdir(directory, 0o755); err != nil {
 		t.Fatal(err)
@@ -125,7 +128,7 @@ func TestReadPublishedFileKeepsOwnerOnlyFileRule(t *testing.T) {
 	if _, err := ReadPublishedFile(directory, "axiom", 64); !errors.Is(err, ErrUnsafe) {
 		t.Fatal("hard-linked binary accepted")
 	}
-	if err := os.Symlink(path, filepath.Join(directory, "link")); err != nil {
+	if err := testfs.Symlink(t, path, filepath.Join(directory, "link")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ReadPublishedFile(directory, "link", 64); !errors.Is(err, ErrUnsafe) {

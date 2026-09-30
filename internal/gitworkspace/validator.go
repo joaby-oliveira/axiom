@@ -79,7 +79,7 @@ func validValidationCommand(command ValidationCommand) bool {
 	if command.Reference == "" || len(command.Reference) > 512 || strings.ContainsAny(command.Reference, "\x00\r\n") || len(command.Argv) == 0 || len(command.Argv) > 64 || !filepath.IsAbs(command.Argv[0]) || command.OutputMax <= 0 || command.OutputMax > executiongraph.MaxCapturedOutputBytes || len(command.Env) > 64 {
 		return false
 	}
-	base := strings.ToLower(filepath.Base(command.Argv[0]))
+	base := strings.TrimSuffix(strings.ToLower(filepath.Base(command.Argv[0])), ".exe")
 	if base == "sh" || base == "bash" || base == "zsh" || base == "fish" || base == "cmd" || base == "powershell" || base == "pwsh" {
 		return false
 	}

@@ -282,7 +282,7 @@ func validInvocation(child ChildExecution, invocation Invocation) bool {
 	if invocation.RuntimeID != child.Envelope.Resolution.RuntimeID || len(invocation.Argv) == 0 || len(invocation.Argv) > 64 || invocation.CWD != child.Envelope.Workspace || !filepath.IsAbs(invocation.CWD) || invocation.OutputMax <= 0 || invocation.OutputMax > MaxCapturedOutputBytes || len(invocation.Env) > 64 {
 		return false
 	}
-	base := strings.ToLower(filepath.Base(invocation.Argv[0]))
+	base := strings.TrimSuffix(strings.ToLower(filepath.Base(invocation.Argv[0])), ".exe")
 	if !filepath.IsAbs(invocation.Argv[0]) || base == "sh" || base == "bash" || base == "zsh" || base == "fish" || base == "cmd" || base == "powershell" || base == "pwsh" {
 		return false
 	}

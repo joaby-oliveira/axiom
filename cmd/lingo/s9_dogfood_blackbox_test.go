@@ -140,7 +140,7 @@ func runFakeGitHub(path string, args []string, stdin io.Reader, stdout io.Writer
 // `workflow start` → first transition → `workflow reconcile` required
 // recovery because the new Issue carried no axiom:stage:* marker.
 func TestExecutableClaudeRuntimeAndFirstProjectionOfCreatedWorkItem(t *testing.T) {
-	binary := filepath.Join(t.TempDir(), "axiom")
+	binary := filepath.Join(t.TempDir(), testExecutableName("axiom"))
 	if output, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
 		t.Fatalf("build executable: %v: %s", err, output)
 	}

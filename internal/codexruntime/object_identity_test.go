@@ -3,6 +3,7 @@ package codexruntime
 import (
 	"context"
 	"errors"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -21,7 +22,7 @@ var replaceSkillRoot = []struct {
 	replace func(t *testing.T, root string) (original, replacement string)
 }{
 	{"root replaced by another directory", func(t *testing.T, root string) (string, string) {
-		if err := os.Rename(root, root+"-moved"); err != nil {
+		if err := testfs.RenameOrSkipPinned(t, root, root+"-moved"); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.Mkdir(root, 0o755); err != nil {
@@ -34,17 +35,17 @@ var replaceSkillRoot = []struct {
 		if err := os.Mkdir(foreign, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Rename(root, root+"-moved"); err != nil {
+		if err := testfs.RenameOrSkipPinned(t, root, root+"-moved"); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Symlink(foreign, root); err != nil {
+		if err := testfs.Symlink(t, foreign, root); err != nil {
 			t.Fatal(err)
 		}
 		return root + "-moved", foreign
 	}},
 	{"ancestor replaced", func(t *testing.T, root string) (string, string) {
 		parent := filepath.Dir(root)
-		if err := os.Rename(parent, parent+"-moved"); err != nil {
+		if err := testfs.RenameOrSkipPinned(t, parent, parent+"-moved"); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.MkdirAll(root, 0o755); err != nil {
@@ -123,7 +124,7 @@ func TestInstallRefusesRootReplacedBeforeAnyChange(t *testing.T) {
 	service.afterSkill = func(string) {
 		if !replaced {
 			replaced = true
-			if err := os.Rename(root, root+"-moved"); err != nil {
+			if err := testfs.RenameOrSkipPinned(t, root, root+"-moved"); err != nil {
 				t.Error(err)
 			}
 			if err := os.Mkdir(root, 0o755); err != nil {
@@ -154,7 +155,7 @@ func TestInstallIsPartialWhenRootReplacedAfterAChange(t *testing.T) {
 	service.afterSkill = func(string) {
 		if !replaced {
 			replaced = true
-			if err := os.Rename(root, root+"-moved"); err != nil {
+			if err := testfs.RenameOrSkipPinned(t, root, root+"-moved"); err != nil {
 				t.Error(err)
 			}
 			if err := os.Mkdir(root, 0o755); err != nil {
@@ -250,7 +251,7 @@ func TestPublishSkillRefusesSkillDirectoryReplacedBySymlink(t *testing.T) {
 	if err := os.RemoveAll(directory); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(foreign, directory); err != nil {
+	if err := testfs.Symlink(t, foreign, directory); err != nil {
 		t.Fatal(err)
 	}
 

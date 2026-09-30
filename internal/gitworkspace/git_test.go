@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -154,7 +155,7 @@ func TestManagerRejectsOutsideRootAndSymlinkEscape(t *testing.T) {
 			t.Fatal(err)
 		}
 		link := filepath.Join(workspaceRoot, "escape")
-		if err := os.Symlink(outside, link); err != nil {
+		if err := testfs.Symlink(t, outside, link); err != nil {
 			t.Fatal(err)
 		}
 		graph := buildGraph(t, workspaceRoot, graphOptions{workspaceOverride: map[string]string{"a": filepath.Join(link, "a")}})
@@ -180,7 +181,7 @@ func TestConcreteIntegrationAppliesTwoResultsValidatesAndLeavesSharedCheckoutUnt
 	if err != nil {
 		t.Fatal(err)
 	}
-	validator := fixture.validator(t, "/usr/bin/git", "diff", "--check")
+	validator := fixture.validator(t, nativeGit(t), "diff", "--check")
 	service := executiongraph.NewIntegrationService(fixture.manager, validator, fixture.store(), nil, nil)
 	preview, err := service.Preview(graph, observation, results)
 	if err != nil {
@@ -216,7 +217,7 @@ func TestConcreteIntegrationBlocksMissingStaleForeignConflictAndEffectMismatch(t
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := executiongraph.NewIntegrationService(fixture.manager, fixture.validator(t, "/usr/bin/git", "diff", "--check"), fixture.store(), nil, nil).Preview(graph, observation, results); !errors.Is(err, executiongraph.ErrIntegrationBlocked) {
+		if _, err := executiongraph.NewIntegrationService(fixture.manager, fixture.validator(t, nativeGit(t), "diff", "--check"), fixture.store(), nil, nil).Preview(graph, observation, results); !errors.Is(err, executiongraph.ErrIntegrationBlocked) {
 			t.Fatalf("err=%v", err)
 		}
 	})
@@ -269,7 +270,7 @@ func TestConcreteIntegrationWaiverAuthorityTamperAndValidationFailure(t *testing
 		fixture.prepare(t)
 		graph := fixture.succeed(t, "a")
 		writeFile(t, filepath.Join(fixture.childFrom(graph, "a").Envelope.Workspace, "a.txt"), "a\n")
-		service := executiongraph.NewIntegrationService(fixture.manager, fixture.validator(t, "/usr/bin/git", "diff", "--check"), fixture.store(), nil, nil)
+		service := executiongraph.NewIntegrationService(fixture.manager, fixture.validator(t, nativeGit(t), "diff", "--check"), fixture.store(), nil, nil)
 		observation, results, _, err := fixture.manager.ObserveIntegration(context.Background(), nil)
 		if err != nil {
 			t.Fatal(err)
@@ -303,11 +304,11 @@ func TestConcreteIntegrationWaiverAuthorityTamperAndValidationFailure(t *testing
 		if err != nil {
 			t.Fatal(err)
 		}
-		falsePath, err := exec.LookPath("false")
+		falsePath, err := exec.LookPath("git")
 		if err != nil {
 			t.Fatal(err)
 		}
-		service := executiongraph.NewIntegrationService(fixture.manager, fixture.validator(t, falsePath), fixture.store(), nil, nil)
+		service := executiongraph.NewIntegrationService(fixture.manager, fixture.validator(t, falsePath, "axiom-intentionally-invalid-command"), fixture.store(), nil, nil)
 		preview, err := service.Preview(graph, observation, results)
 		if err != nil {
 			t.Fatal(err)
@@ -577,4 +578,13 @@ func TestFixtureGraphStable(t *testing.T) {
 	if !executiongraph.ValidGraph(fixture.graph) || reflect.DeepEqual(fixture.child("a"), fixture.child("b")) {
 		t.Fatal("invalid fixture")
 	}
+}
+
+func nativeGit(t *testing.T) string {
+	t.Helper()
+	path, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return path
 }

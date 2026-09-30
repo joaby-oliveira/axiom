@@ -40,7 +40,7 @@ digest() {
   fi
 }
 
-rows='macos-27:darwin:arm64 linux:linux:amd64 linux:linux:arm64'
+rows='macos-27:darwin:arm64 linux:linux:amd64 linux:linux:arm64 windows:windows:amd64'
 skill_names='axiom-project-configure axiom-project-show axiom-work-item-create axiom-work-item-run axiom-work-item-status'
 temporary=$(mktemp -d)
 trap 'rm -rf -- "$temporary"' EXIT
@@ -60,7 +60,7 @@ while IFS= read -r name; do
 done <"$temporary/actual-files"
 
 checksums="$directory/SHA256SUMS"
-[[ $(wc -l <"$checksums" | tr -d ' ') == 3 ]] || fail 'SHA256SUMS must list exactly the three archives'
+[[ $(wc -l <"$checksums" | tr -d ' ') == 4 ]] || fail 'SHA256SUMS must list exactly the four archives'
 grep -v '^SHA256SUMS$' "$temporary/expected-files" >"$temporary/expected-archives"
 awk '{print $2}' "$checksums" | LC_ALL=C sort >"$temporary/listed-archives"
 cmp -s "$temporary/expected-archives" "$temporary/listed-archives" || fail 'SHA256SUMS names do not match the archive set'
@@ -77,12 +77,20 @@ printf 'sha256sums=%s\n' "$(digest "$checksums")"
 
 for row in $rows; do
   IFS=: read -r platform goos architecture <<<"$row"
+  executable=axiom
+  installer=install.sh
+  installer_source=install-release.sh
+  if [[ "$goos" == windows ]]; then
+    executable=axiom.exe
+    installer=install.ps1
+    installer_source=install-release.ps1
+  fi
   bundle="axiom-$version-$platform-$architecture"
   archive="$directory/$bundle.tar.gz"
 
   # Closed entry set with regular files and directories only.
   {
-    printf '%s\n' "$bundle" "$bundle/LICENSE" "$bundle/MANIFEST.sha256" "$bundle/axiom" "$bundle/install.sh" \
+    printf '%s\n' "$bundle" "$bundle/LICENSE" "$bundle/MANIFEST.sha256" "$bundle/$executable" "$bundle/$installer" \
       "$bundle/release-metadata.txt" "$bundle/skills" "$bundle/skills-manifest.txt"
     for name in $skill_names; do
       printf '%s\n' "$bundle/skills/$name" "$bundle/skills/$name/SKILL.md"
@@ -91,7 +99,7 @@ for row in $rows; do
   tar -tzf "$archive" | sed 's#/$##' | LC_ALL=C sort >"$temporary/actual-entries"
   cmp -s "$temporary/expected-entries" "$temporary/actual-entries" || fail "archive entries are not the closed bundle set: $bundle"
   tar -tvzf "$archive" | awk 'substr($1,1,1) != "-" && substr($1,1,1) != "d" {exit 1}' || fail "archive links or special files: $bundle"
-  [[ $(tar -tvzf "$archive" | awk -v path="$bundle/axiom" '$NF == path {print $1}') == -rwx------ ]] || fail "axiom executable mode is not 0700: $bundle"
+  [[ $(tar -tvzf "$archive" | awk -v path="$bundle/$executable" '$NF == path {print $1}') == -rwx------ ]] || fail "axiom executable mode is not 0700: $bundle"
 
   extracted="$temporary/extract-$platform-$architecture"
   mkdir "$extracted"
@@ -113,7 +121,7 @@ for row in $rows; do
   cmp -s "$temporary/expected-metadata" "$root/release-metadata.txt" || fail "release metadata does not match version/revision/row: $bundle"
 
   cmp -s "$repository_root/LICENSE" "$root/LICENSE" || fail "LICENSE differs from source: $bundle"
-  cmp -s "$repository_root/scripts/install-release.sh" "$root/install.sh" || fail "install.sh differs from scripts/install-release.sh: $bundle"
+  cmp -s "$repository_root/scripts/$installer_source" "$root/$installer" || fail "installer differs from source: $bundle"
   (
     printf 'formatVersion=1\nskillSetVersion=1\nbinaryCompatibility=1\n'
     for skill in "$repository_root"/internal/codexruntime/skills/*; do
@@ -125,33 +133,34 @@ for row in $rows; do
   cmp -s "$temporary/expected-skills" "$root/skills-manifest.txt" || fail "skills-manifest.txt differs from source: $bundle"
 
   # Executable format for the declared row, read from the file header.
-  header=$(od -An -tx1 -N20 "$root/axiom" | tr -d ' \n')
+  header=$(od -An -tx1 -N20 "$root/$executable" | tr -d ' \n')
   case "$goos:$architecture" in
     darwin:arm64) [[ "$header" == cffaedfe0c000001* ]] ;;
     linux:amd64) [[ "$header" == 7f454c46020101* && "${header:36:4}" == 3e00 ]] ;;
     linux:arm64) [[ "$header" == 7f454c46020101* && "${header:36:4}" == b700 ]] ;;
+    windows:amd64) [[ "$header" == 4d5a* ]] ;;
     *) false ;;
   esac || fail "axiom executable format does not match $goos/$architecture: $bundle"
 
   # Embedded Go build information binds the executable to this revision.
-  go version -m "$root/axiom" >"$temporary/buildinfo"
+  go version -m "$root/$executable" >"$temporary/buildinfo"
   tab=$'\t'
   for expected in "build${tab}GOOS=$goos" "build${tab}GOARCH=$architecture" "build${tab}CGO_ENABLED=0" "build${tab}-trimpath=true" "build${tab}vcs.revision=$revision" "build${tab}vcs.modified=false" "path${tab}github.com/rgomids/axiom/cmd/lingo"; do
     grep -Fxq -- "${tab}$expected" "$temporary/buildinfo" || fail "embedded build information lacks '$expected': $bundle"
   done
-  LC_ALL=C grep -aFq -- "$version" "$root/axiom" || fail "executable does not embed the release version: $bundle"
+  LC_ALL=C grep -aFq -- "$version" "$root/$executable" || fail "executable does not embed the release version: $bundle"
 
   # The executable for this host's row reports its exact provenance.
   smoke=not_host_architecture
   if [[ $(go env GOHOSTOS):$(go env GOHOSTARCH) == "$goos:$architecture" ]]; then
-    (cd / && "$root/axiom" --json version) >"$temporary/version.json" || fail "axiom version failed: $bundle"
+    (cd / && "$root/$executable" --json version) >"$temporary/version.json" || fail "axiom version failed: $bundle"
     grep -Fq '"status":"success","result":"Axiom build information","provenance":{"product":"Axiom","version":"'"$version"'","revision":"'"${revision:0:12}"'","sourceState":"clean"}' "$temporary/version.json" \
       || fail "axiom version provenance mismatch: $bundle"
     smoke=pass
   fi
 
   printf 'archive=%s sha256=%s axiom_sha256=%s manifest_sha256=%s version_smoke=%s\n' \
-    "$bundle.tar.gz" "$(digest "$archive")" "$(digest "$root/axiom")" "$(digest "$root/MANIFEST.sha256")" "$smoke"
+    "$bundle.tar.gz" "$(digest "$archive")" "$(digest "$root/$executable")" "$(digest "$root/MANIFEST.sha256")" "$smoke"
 done
 
 printf 'publication=none\n'

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -57,7 +58,7 @@ func TestWorkflowReferenceValidatorConfinesEvidenceToRepository(t *testing.T) {
 		t.Fatal(err)
 	}
 	link := filepath.Join(repository, "link.txt")
-	if err := os.Symlink(outside, link); err != nil {
+	if err := testfs.Symlink(t, outside, link); err != nil {
 		t.Fatal(err)
 	}
 	for _, id := range []string{"../outside.txt", "link.txt", "missing.txt"} {

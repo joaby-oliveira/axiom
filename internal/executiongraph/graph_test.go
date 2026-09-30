@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/rgomids/axiom/internal/testfs"
 	"testing"
 	"time"
 )
@@ -95,7 +96,7 @@ func TestGraphPublicationRejectsStructurallyValidReadbackTampering(t *testing.T)
 		}},
 		{"authority reference", func(graph *Graph) { graph.Children[0].Envelope.AuthorityReference = "authority:other" }},
 		{"runtime resolution", func(graph *Graph) { graph.Children[0].Envelope.Resolution.RuntimeID = "claude" }},
-		{"workspace", func(graph *Graph) { graph.Children[0].Envelope.Workspace = "/tmp/axiom-s8/other" }},
+		{"workspace", func(graph *Graph) { graph.Children[0].Envelope.Workspace = testfs.Path("/tmp/axiom-s8/other") }},
 		{"controls", func(graph *Graph) { graph.Children[0].Envelope.Controls.MaximumAttempts++ }},
 	}
 	for _, test := range tests {
@@ -130,7 +131,7 @@ func publicationRequest(proposal Proposal) PublicationRequest {
 		request.ParentAuthority = append(request.ParentAuthority, node.Effects...)
 		request.ChildAuthorities[node.Key] = append([]Effect(nil), node.Effects...)
 		request.AuthorityReferences[node.Key] = "authority:" + node.Key
-		request.Workspaces[node.Key] = "/tmp/axiom-s8/" + node.Key
+		request.Workspaces[node.Key] = testfs.Path("/tmp/axiom-s8/" + node.Key)
 		request.Resolutions[node.Key] = Resolution{RuntimeID: "codex", ModelProfileID: "profile-1", ConfigurationRevision: 7, ObservationRevision: 7}
 	}
 	return request

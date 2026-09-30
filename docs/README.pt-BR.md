@@ -42,6 +42,8 @@ Axiom, consulte [Desenvolvimento do Axiom](#desenvolvimento-do-axiom).
 
 ### 1. Instale
 
+No **Linux ou macOS**:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh | sh
 ```
@@ -51,7 +53,7 @@ host, verifica o checksum SHA-256 antes de extrair qualquer coisa e instala o
 `axiom` em `$HOME/.local/bin`. Ele nunca usa `sudo`, não edita perfis de shell,
 não instala Runtimes e não toca em credenciais.
 
-Hosts suportados: macOS 27.0 em arm64 e Ubuntu 26.04 em amd64 ou arm64. Outros
+Hosts POSIX suportados: macOS 27.0 em arm64 e Linux em amd64 ou arm64. Outros
 hosts são recusados antes de qualquer download. O instalador precisa de `curl`,
 `tar`, `bash`, `awk`, `grep`, `mktemp` e `sha256sum` ou `shasum`.
 
@@ -66,6 +68,31 @@ Para instalar uma release exata, use `--version`:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh | sh -s -- --version v0.1.0
 ```
+
+No **Windows 10 (1809+) ou Windows 11, amd64**, use PowerShell 5.1 ou superior
+de 64 bits. Não é necessário WSL, Bash, Go nem executar como administrador:
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.ps1 -OutFile install-axiom.ps1
+.\install-axiom.ps1
+$env:PATH = "$env:LOCALAPPDATA\Axiom\bin;$env:PATH"
+```
+
+O instalador verifica o checksum da release Windows e instala `axiom.exe` em
+`%LOCALAPPDATA%\Axiom\bin`, com recibo em `%LOCALAPPDATA%\Axiom\install`.
+O comando de `PATH` acima vale só para o terminal atual; o instalador não altera
+perfis nem o `PATH` persistente. Use `-Version` com uma tag publicada exata,
+ou `-BinDir` e `-ReceiptDir` para escolher diretórios locais absolutos.
+Executá-lo novamente atualiza uma instalação pertencente ao Axiom; binários
+desconhecidos ou modificados são preservados. Feche processos Axiom antes do
+upgrade. Releases antigas sem artefato Windows não podem ser instaladas nele.
+
+O armazenamento deve ser NTFS local. Caminhos de rede, junctions/reparse points
+e diretórios acessíveis a outras contas não confiáveis são recusados. O estado
+local fica em `%LOCALAPPDATA%\Axiom\state`; as skills dos Runtimes continuam nas
+raízes do usuário descritas abaixo. Políticas de execução do PowerShell e de
+controle de aplicativos da organização continuam valendo, sem bypass.
+Consulte a [referência de instalação Windows](commands.md#windows-native-installation).
 
 ### 2. Verifique
 

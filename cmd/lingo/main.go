@@ -32,6 +32,9 @@ var (
 )
 
 func main() {
+	if handled, code := installReleaseCommand(os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
 	source := currentProvenance()
 	if format, ok := versionFormat(os.Args[1:]); ok {
 		os.Exit(writeVersion(os.Stdout, format, source))
@@ -175,6 +178,9 @@ func stateRoot() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
+	}
+	if runtime.GOOS == "windows" {
+		return local.WindowsStateRoot(home, os.Getenv("LOCALAPPDATA"))
 	}
 	return local.NativeStateRoot(runtime.GOOS, home, os.Getenv("XDG_STATE_HOME"))
 }

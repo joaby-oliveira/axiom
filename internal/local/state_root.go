@@ -16,7 +16,21 @@ func NativeStateRoot(goos, home, xdgStateHome string) (string, error) {
 			return filepath.Join(xdgStateHome, "lingo"), nil
 		}
 		return filepath.Join(home, ".local", "state", "lingo"), nil
+	case "windows":
+		return filepath.Join(home, "AppData", "Local", "Axiom", "state"), nil
 	default:
 		return "", ErrUnsafe
 	}
+}
+
+// WindowsStateRoot honors redirected LocalAppData explicitly, without storing
+// machine paths in portable Project manifests.
+func WindowsStateRoot(home, localAppData string) (string, error) {
+	if localAppData != "" {
+		if !filepath.IsAbs(localAppData) {
+			return "", ErrUnsafe
+		}
+		return filepath.Join(localAppData, "Axiom", "state"), nil
+	}
+	return NativeStateRoot("windows", home, "")
 }

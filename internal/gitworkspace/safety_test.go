@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -176,7 +177,7 @@ func TestManagerRequiresPrivateWorkspaceRootAndControlPaths(t *testing.T) {
 		if err := os.Mkdir(name, mode); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Chmod(name, mode); err != nil {
+		if err := testfs.SharedMode(name, mode); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -216,7 +217,7 @@ func TestManagerRequiresPrivateWorkspaceRootAndControlPaths(t *testing.T) {
 		err := newManager(t, func(root, workspaceRoot string) {
 			target := filepath.Join(root, "target")
 			mkdir(t, target, 0o700)
-			if err := os.Symlink(target, workspaceRoot); err != nil {
+			if err := testfs.Symlink(t, target, workspaceRoot); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -230,7 +231,7 @@ func TestManagerRequiresPrivateWorkspaceRootAndControlPaths(t *testing.T) {
 			mkdir(t, workspaceRoot, 0o700)
 			target := filepath.Join(root, "owners-target")
 			mkdir(t, target, 0o700)
-			if err := os.Symlink(target, filepath.Join(workspaceRoot, ".axiom-workspace-owners")); err != nil {
+			if err := testfs.Symlink(t, target, filepath.Join(workspaceRoot, ".axiom-workspace-owners")); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -261,10 +262,10 @@ func TestManagerRejectsControlPathsWeakenedAfterPreparation(t *testing.T) {
 		{"symlinked owner record", func(t *testing.T, fixture *gitFixture) {
 			record := ownerRecord(fixture)
 			moved := filepath.Join(fixture.root, "moved-owner.json")
-			if err := os.Rename(record, moved); err != nil {
+			if err := testfs.RenameOrSkipPinned(t, record, moved); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.Symlink(moved, record); err != nil {
+			if err := testfs.Symlink(t, moved, record); err != nil {
 				t.Fatal(err)
 			}
 		}},
@@ -287,7 +288,7 @@ func TestManagerRejectsControlPathsWeakenedAfterPreparation(t *testing.T) {
 
 func chmod(t *testing.T, name string, mode os.FileMode) {
 	t.Helper()
-	if err := os.Chmod(name, mode); err != nil {
+	if err := testfs.SharedMode(name, mode); err != nil {
 		t.Fatal(err)
 	}
 }

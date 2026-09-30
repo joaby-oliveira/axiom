@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -127,13 +128,13 @@ func TestArtifactStoreCreateReadAndConfinement(t *testing.T) {
 	object := filepath.Join(state, "artifacts", "v1", "objects", "12", testArtifactID)
 	for _, path := range []string{state, filepath.Join(state, "artifacts"), filepath.Join(state, "artifacts", "v1"), filepath.Join(state, "artifacts", "v1", "objects"), filepath.Join(state, "artifacts", "v1", "objects", "12"), object} {
 		info, err := os.Stat(path)
-		if err != nil || info.Mode().Perm() != 0o700 {
+		if err != nil || !testfs.PrivateMode(path, 0o700) {
 			t.Fatalf("unsafe directory %s: %v %v", path, info, err)
 		}
 	}
 	for _, name := range []string{"metadata.json", "details.md"} {
 		info, err := os.Stat(filepath.Join(object, name))
-		if err != nil || info.Mode().Perm() != 0o600 {
+		if err != nil || !testfs.PrivateMode(filepath.Join(object, name), 0o600) {
 			t.Fatalf("unsafe file %s: %v %v", name, info, err)
 		}
 	}
@@ -330,12 +331,15 @@ func TestArtifactStoreRejectsDigestModeLinkAndTypeChanges(t *testing.T) {
 		{"digest", func(object string) error {
 			return os.WriteFile(filepath.Join(object, "details.md"), []byte("changed"), 0o600)
 		}},
-		{"mode", func(object string) error { return os.Chmod(filepath.Join(object, "details.md"), 0o644) }},
+		{"mode", func(object string) error {
+			testfs.POSIXModes(t)
+			return os.Chmod(filepath.Join(object, "details.md"), 0o644)
+		}},
 		{"symlink", func(object string) error {
 			if err := os.Remove(filepath.Join(object, "details.md")); err != nil {
 				return err
 			}
-			return os.Symlink("metadata.json", filepath.Join(object, "details.md"))
+			return testfs.Symlink(t, "metadata.json", filepath.Join(object, "details.md"))
 		}},
 		{"hardlink", func(object string) error {
 			return os.Link(filepath.Join(object, "details.md"), filepath.Join(object, "copy.md"))

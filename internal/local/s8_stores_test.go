@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -238,6 +239,7 @@ func TestCoordinationServiceBootstrapsMissingStoreHierarchy(t *testing.T) {
 }
 
 func TestCoordinationLatestRejectsUnsafeHierarchy(t *testing.T) {
+	testfs.POSIXModes(t)
 	root := filepath.Join(t.TempDir(), "state")
 	if err := os.Mkdir(root, 0o755); err != nil {
 		t.Fatal(err)

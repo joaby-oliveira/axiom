@@ -12,9 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
-
-	"golang.org/x/sys/unix"
 )
 
 //go:embed skills/*/SKILL.md
@@ -377,10 +374,10 @@ func matchesPrivateFile(path string, expected []byte) bool {
 
 func privateRegularFile(path string) bool {
 	info, err := os.Lstat(path)
-	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0o077 != 0 {
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || forbiddenPermissions(info, 0o077) {
 		return false
 	}
-	file, err := os.OpenFile(path, os.O_RDONLY|unix.O_NOFOLLOW, 0)
+	file, err := os.OpenFile(path, os.O_RDONLY|noFollow, 0)
 	if err != nil {
 		return false
 	}
@@ -403,10 +400,10 @@ func matchesPrivateFileIn(root *os.Root, name string, expected []byte) bool {
 
 func privateRegularFileIn(root *os.Root, name string) ([]byte, bool) {
 	info, err := root.Lstat(name)
-	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0o077 != 0 {
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || forbiddenPermissions(info, 0o077) {
 		return nil, false
 	}
-	file, err := root.OpenFile(name, os.O_RDONLY|unix.O_NOFOLLOW, 0)
+	file, err := root.OpenFile(name, os.O_RDONLY|noFollow, 0)
 	if err != nil {
 		return nil, false
 	}
@@ -454,7 +451,7 @@ func directoryWithoutPermissions(path string, forbidden os.FileMode) bool {
 	}
 	defer root.Close()
 	info, err := root.Stat(".")
-	if err != nil || info.Mode().Perm()&forbidden != 0 || !ownedByUser(info) {
+	if err != nil || forbiddenPermissions(info, forbidden) || !ownedByUser(info) {
 		return false
 	}
 	directory, err := root.Open(".")
@@ -469,45 +466,6 @@ func directoryWithoutPermissions(path string, forbidden os.FileMode) bool {
 // trusting only a symlink owned by root (the standard system aliases such as
 // macOS's /var -> /private/var), and reattaches any not-yet-existing suffix
 // literally so a missing final component can still be created.
-func trustedCanonical(path string) (string, error) {
-	clean := filepath.Clean(path)
-	current := string(filepath.Separator)
-	for _, part := range strings.Split(strings.TrimPrefix(clean, current), current) {
-		current = filepath.Join(current, part)
-		info, err := os.Lstat(current)
-		if os.IsNotExist(err) {
-			continue
-		}
-		if err != nil {
-			return "", errors.New("unsafe path")
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			stat, ok := info.Sys().(*syscall.Stat_t)
-			if !ok || stat.Uid != 0 {
-				return "", errors.New("unsafe path")
-			}
-		}
-	}
-	probe := clean
-	var suffix []string
-	for {
-		if _, err := os.Lstat(probe); err == nil {
-			break
-		} else if !os.IsNotExist(err) {
-			return "", errors.New("unsafe path")
-		}
-		suffix = append(suffix, filepath.Base(probe))
-		probe = filepath.Dir(probe)
-	}
-	resolved, err := filepath.EvalSymlinks(probe)
-	if err != nil {
-		return "", errors.New("unsafe path")
-	}
-	for i := len(suffix) - 1; i >= 0; i-- {
-		resolved = filepath.Join(resolved, suffix[i])
-	}
-	return resolved, nil
-}
 
 // anchoredRoot canonicalizes path (trusting only root-owned symlinks in its
 // existing ancestry, such as macOS's /var -> /private/var) and then opens it
@@ -525,7 +483,7 @@ func anchoredRoot(path string, create bool) (*os.Root, anchor, error) {
 	if err != nil {
 		return nil, anchor{}, err
 	}
-	root, err := os.OpenRoot(string(filepath.Separator))
+	root, err := os.OpenRoot(volumeRoot(canonical))
 	if err != nil {
 		return nil, anchor{}, err
 	}
@@ -536,12 +494,12 @@ func anchoredRoot(path string, create bool) (*os.Root, anchor, error) {
 	}
 	identity := anchor{path: canonical}
 	for _, part := range pathComponents(canonical) {
-		if !ancestorSafe(container) {
+		if !safeAncestor(root, container) {
 			root.Close()
 			return nil, anchor{}, errors.New("unsafe ancestor")
 		}
 		if create {
-			if err := root.Mkdir(part, 0o700); err != nil && !os.IsExist(err) {
+			if err := mkdirPrivate(root, part); err != nil && !os.IsExist(err) {
 				root.Close()
 				return nil, anchor{}, err
 			}
@@ -569,7 +527,7 @@ func anchoredRoot(path string, create bool) (*os.Root, anchor, error) {
 
 func pathComponents(canonical string) []string {
 	var parts []string
-	for _, part := range strings.Split(strings.TrimPrefix(canonical, string(filepath.Separator)), string(filepath.Separator)) {
+	for _, part := range strings.Split(strings.TrimPrefix(canonical, volumeRoot(canonical)), string(filepath.Separator)) {
 		if part != "" {
 			parts = append(parts, part)
 		}
@@ -606,7 +564,7 @@ func (a anchor) verify(root *os.Root) error {
 	if len(parts) == 0 || len(parts) != len(a.chain) {
 		return ErrTargetReplaced
 	}
-	walk, err := os.OpenRoot(string(filepath.Separator))
+	walk, err := os.OpenRoot(volumeRoot(a.path))
 	if err != nil {
 		return ErrTargetReplaced
 	}
@@ -657,19 +615,6 @@ func childStillAt(parent, child *os.Root, name string) error {
 // An ancestor owned by neither is never trusted, sticky or not, since its
 // owner already has unilateral control over what it contains. This mirrors
 // internal/local's ancestorSafe (ADR-0005 property 3).
-func ancestorSafe(info os.FileInfo) bool {
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
-		return false
-	}
-	if stat.Uid != 0 && stat.Uid != uint32(os.Getuid()) {
-		return false
-	}
-	if info.Mode().Perm()&0o022 != 0 && info.Mode()&os.ModeSticky == 0 {
-		return false
-	}
-	return true
-}
 
 // privateChild opens name inside parent as a private, owner-only Axiom
 // subdirectory (mode 0700, no ACL, no symlink), verifying its identity
@@ -677,7 +622,7 @@ func ancestorSafe(info os.FileInfo) bool {
 // on to read or mutate it does so through this same anchored object.
 func privateChild(parent *os.Root, name string) (*os.Root, error) {
 	info, err := parent.Lstat(name)
-	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0o077 != 0 || !ownedByUser(info) {
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || forbiddenPermissions(info, 0o077) || !ownedByUser(info) {
 		return nil, errors.New("unsafe skill directory")
 	}
 	child, err := parent.OpenRoot(name)
@@ -713,7 +658,7 @@ func ensureRoot(root string) (*os.Root, anchor, error) {
 		return nil, anchor{}, errors.New("invalid root")
 	}
 	info, err := opened.Stat(".")
-	if err != nil || info.Mode().Perm()&0o022 != 0 || !ownedByUser(info) {
+	if err != nil || forbiddenPermissions(info, 0o022) || !ownedByUser(info) {
 		opened.Close()
 		return nil, anchor{}, errors.New("invalid root")
 	}
@@ -739,9 +684,9 @@ func acquireInstallLock(directory *os.Root) (*os.File, string) {
 	if err != nil {
 		return nil, "recovery_required"
 	}
-	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if err := lockFile(file); err != nil {
 		file.Close()
-		if errors.Is(err, syscall.EWOULDBLOCK) {
+		if lockContended(err) {
 			return nil, "skill_install_concurrent"
 		}
 		return nil, "recovery_required"
@@ -770,14 +715,14 @@ func acquireInstallLock(directory *os.Root) (*os.File, string) {
 }
 
 func openInstallLock(root *os.Root) (*os.File, bool, error) {
-	file, err := root.OpenFile(installLockName, os.O_RDWR|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW, 0o600)
+	file, err := root.OpenFile(installLockName, os.O_RDWR|os.O_CREATE|os.O_EXCL|noFollow, 0o600)
 	if err == nil {
 		return file, true, nil
 	}
 	if !os.IsExist(err) {
 		return nil, false, err
 	}
-	file, err = root.OpenFile(installLockName, os.O_RDWR|unix.O_NOFOLLOW, 0)
+	file, err = root.OpenFile(installLockName, os.O_RDWR|noFollow, 0)
 	return file, false, err
 }
 
@@ -793,19 +738,6 @@ func lockStillAtPath(root *os.Root, file *os.File) bool {
 func privateOpenRegular(file *os.File) bool {
 	info, err := file.Stat()
 	return err == nil && privateRegularInfo(info) && checkPrivateACL(file) == nil
-}
-
-func privateRegularInfo(info os.FileInfo) bool {
-	if !info.Mode().IsRegular() || info.Mode().Perm()&0o077 != 0 {
-		return false
-	}
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	return ok && stat.Nlink == 1 && stat.Uid == uint32(os.Getuid())
-}
-
-func ownedByUser(info os.FileInfo) bool {
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	return ok && stat.Uid == uint32(os.Getuid())
 }
 
 // installOne installs or replaces name inside the anchored skill root
@@ -857,7 +789,7 @@ func (i integration) installOne(parent *os.Root, name string, content []byte, ve
 	if err := verify(); err != nil {
 		return false, false, err
 	}
-	if err := parent.Mkdir(name, 0o700); err != nil {
+	if err := mkdirPrivate(parent, name); err != nil {
 		return false, false, err
 	}
 	child, err := parent.OpenRoot(name)

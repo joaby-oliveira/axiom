@@ -116,7 +116,7 @@ func validCommandProfile(profile CommandProfile) bool {
 	if profile.RuntimeID != "codex" && profile.RuntimeID != "claude" || profile.ModelProfileID == "" || profile.Model == "" || !filepath.IsAbs(profile.Executable) || profile.OutputMax <= 0 || profile.OutputMax > executiongraph.MaxCapturedOutputBytes || len(profile.Arguments) > 32 || len(profile.Environment) > 32 {
 		return false
 	}
-	if strings.ToLower(filepath.Base(profile.Executable)) != profile.RuntimeID {
+	if strings.TrimSuffix(strings.ToLower(filepath.Base(profile.Executable)), ".exe") != profile.RuntimeID {
 		return false
 	}
 	for _, argument := range profile.Arguments {

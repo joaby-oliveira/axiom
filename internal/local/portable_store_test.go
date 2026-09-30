@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/rgomids/axiom/internal/testfs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,7 +29,7 @@ func TestPortableStoreRejectsSymlinkProjectDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	outside := t.TempDir()
-	if err := os.Symlink(outside, filepath.Join(root, "sample")); err != nil {
+	if err := testfs.Symlink(t, outside, filepath.Join(root, "sample")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.Read(context.Background(), "sample"); !errors.Is(err, ErrUnsafe) {
@@ -63,7 +64,7 @@ func TestPortableStoreRejectsExtraArtifactsBeforeUpdate(t *testing.T) {
 func TestPortableStoreRejectsUserSymlinkAncestor(t *testing.T) {
 	outside := t.TempDir()
 	link := filepath.Join(t.TempDir(), "redirect")
-	if err := os.Symlink(outside, link); err != nil {
+	if err := testfs.Symlink(t, outside, link); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := NewPortableStore(filepath.Join(link, "projects")); !errors.Is(err, ErrUnsafe) {
@@ -134,6 +135,7 @@ func TestPortableStoreReportsInterruptedCreate(t *testing.T) {
 }
 
 func TestPortableUpdatePermissionFailurePreservesOldBytes(t *testing.T) {
+	testfs.POSIXModes(t)
 	if os.Geteuid() == 0 {
 		t.Skip("permission denial requires an unprivileged account")
 	}
@@ -252,10 +254,10 @@ func TestPortableCreateRejectsAncestorReplacementBeforePublication(t *testing.T)
 		t.Fatal(err)
 	}
 	store.beforeCreatePublication = func() {
-		if err := os.Rename(root, filepath.Join(parent, "moved")); err != nil {
+		if err := testfs.RenameOrSkipPinned(t, root, filepath.Join(parent, "moved")); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Symlink(outside, root); err != nil {
+		if err := testfs.Symlink(t, outside, root); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -278,10 +280,10 @@ func TestPortableUpdateRejectsProjectRenameBeforePublication(t *testing.T) {
 	}
 	outside := privateTestRoot(t)
 	store.beforeUpdatePublication = func() {
-		if err := os.Rename(filepath.Join(root, "sample"), filepath.Join(root, "moved")); err != nil {
+		if err := testfs.RenameOrSkipPinned(t, filepath.Join(root, "sample"), filepath.Join(root, "moved")); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Symlink(outside, filepath.Join(root, "sample")); err != nil {
+		if err := testfs.Symlink(t, outside, filepath.Join(root, "sample")); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -530,7 +532,7 @@ func TestPortableManualRecoveryPreservesEvidenceAndReopens(t *testing.T) {
 				} else if err != nil {
 					t.Fatal(err)
 				}
-				if err := os.Rename(source, filepath.Join(quarantine, name)); err != nil {
+				if err := testfs.RenameOrSkipPinned(t, source, filepath.Join(quarantine, name)); err != nil {
 					t.Fatal(err)
 				}
 			}

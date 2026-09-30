@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/url"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -38,7 +39,7 @@ func New(ghBinary string) (Adapter, error) {
 			return Adapter{}, err
 		}
 	}
-	if !strings.HasPrefix(ghBinary, "/") {
+	if !filepath.IsAbs(ghBinary) {
 		return Adapter{}, errors.New("provider binary must be absolute")
 	}
 	return Adapter{gh: ghBinary, timeout: 15 * time.Second}, nil
