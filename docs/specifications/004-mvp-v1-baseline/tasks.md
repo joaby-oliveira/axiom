@@ -12,6 +12,11 @@ observations remain historical. T24 and human acceptance stay separately gated.
 
 **Tasks: Approved — human approval recorded on 2026-09-20.**
 
+**Issue #132 Tasks amendment (`I132-T01`–`I132-T03`): Approved — human approval
+recorded on 2026-09-30. The same explicit human instruction authorizes starting
+`I132-T01` implementation only. `I132-T02`/`I132-T03` remain separately gated.
+These issue-scoped IDs do not extend or rewrite the historical S1–S9/T01–T40 DAG.**
+
 **Issue #94 Tasks amendment (T26–T29 / S6 placement): Approved — human approval recorded on 2026-09-24.**
 
 **S1 Implementation: Delivered on `main` through PR #83. This is technical delivery, not an inferred human MVP acceptance.**
@@ -1490,3 +1495,262 @@ T23–T25, publication and acceptance are not authorized or started.**
 PUBLISHED AND VERIFIED at `859969a07f3807822580431a05b6c78b07691fb1`; T24 and
 T25 complete ([rc.2 record](evidence-s9-rc2/README.md)); human acceptance
 ACCEPTED.)
+
+## Issue #132 follow-up Tasks — create/edit Project configuration
+
+### Status, authority, and boundary
+
+**Issue #132 Tasks amendment: Approved — human approval recorded on 2026-09-30.**
+
+Authority chain:
+
+```text
+Issue #132 + approved owner Clarification + CREATE collision addendum
+-> approved Issue #132 Plan amendment
+-> approved issue-scoped Tasks
+-> explicit human authority for I132-T01
+-> I132-T01 implementation and reproducible Evidence
+-> separate authority for I132-T02 / I132-T03
+-> separate human acceptance / Issue closure
+```
+
+This amendment decomposes only the approved create/edit behavior. It adds no
+production code, implementation Evidence, migration, dependency, CI workflow,
+Provider/Runtime effect, release action, or human acceptance. Historical
+Specification 004 Tasks and statuses remain unchanged.
+
+### Dependency DAG
+
+| Task | Outcome | Dependencies |
+|---|---|---|
+| `I132-T01` | Executable zero-write EDIT CLI candidate and preview | None |
+| `I132-T02` | Stale-safe authorized EDIT publication | `I132-T01` |
+| `I132-T03` | Runtime parity, full black-box acceptance, and documentation | `I132-T01`, `I132-T02` |
+
+```mermaid
+flowchart LR
+    I132T01[I132-T01 executable zero-write edit preview]
+    I132T02[I132-T02 authorized edit publication]
+    I132T03[I132-T03 CLI Runtime parity and acceptance]
+    I132T01 --> I132T02
+    I132T01 --> I132T03
+    I132T02 --> I132T03
+```
+
+### `I132-T01` — Executable zero-write EDIT CLI candidate and preview
+
+- **Objective:** Accept explicit EDIT partial intent, resolve and load one
+  existing Project, deterministically materialize the complete portable/local
+  result, validate it, and expose the safe zero-write preview through the CLI.
+- **Scope:**
+  - add the minimum CLI contract required to invoke EDIT preview:
+    `--project <selector>`, optional `--name`, optional
+    `--work-item-provider`, `--remove-work-item-provider`, repeatable
+    `--repository <key>=<path>`, and repeatable
+    `--remove-repository <key>`;
+  - add presence-aware configure intent for CREATE/EDIT, selector, scalar
+    set/remove, and Repository upserts/removals;
+  - add strict parsing/presence capture and presentation validation for
+    duplicates/conflicting operations without moving merge/domain rules into CLI;
+  - after EDIT mode is explicit, make guided EDIT ask only about ambiguous field
+    intent and never prompt to rebuild omitted values that application semantics
+    preserve;
+  - render the safe EDIT preview through existing JSON/human completion surfaces
+    and update CLI help for the preview flags without changing canonical
+    completion ownership;
+  - resolve exact UUID/slug with explicit unknown/ambiguous outcomes, then load
+    coherent protected portable/local snapshots;
+  - separate safe selection/source loading from availability checks so a broken
+    binding can be removed or replaced without weakening source confinement;
+  - preserve omitted name/provider/Repository data and all unrelated
+    portable/local fields;
+  - merge Repository operations by key, reject unknown removal and overlapping
+    upsert/removal, preserve existing portable Repository fields, and sort the
+    resulting collections deterministically;
+  - reuse `Project.Propose` for complete-state invariant/reference validation;
+  - retain the complete normalized local candidate internally for validation,
+    digest/authority, and later CAS while projecting only mutation-relevant safe
+    machine-local facts to the user-visible preview;
+  - expose full portable result, Repository binding changes, exact observations,
+    separately scoped ordered effects, and the complete-envelope digest;
+  - reconcile CREATE so an initiating request against an existing slug fails
+    explicitly with zero mutation, while exact authorized replay remains a
+    separate later concern for `I132-T02`.
+- **Repository impact:** expected focused changes in `internal/cli`,
+  `internal/projectapp`, Project/local resolver/load seams, `cmd/lingo`, and their
+  unit/integration tests. No persistence mutation path is enabled by this Task.
+- **Completion/Evidence:**
+  - domain/application unit matrix proves scalar preserve/set/remove, provider
+    set/remove conflict, Repository add/update/remove, unknown removal,
+    overlapping operations, deterministic order, and preservation of unrelated
+    fields;
+  - resolver/service integration proves EDIT by slug and UUID plus explicit
+    unknown and representable ambiguous selector failures;
+  - strict-parser and CLI integration tests prove every EDIT preview flag,
+    repeatable collections, conflict rejection, guided omission preservation,
+    canonical rendering, and zero writes;
+  - preview tests prove the full portable result, minimized safe local projection,
+    portable/local separation, distinct removal effects, stable complete-envelope
+    digest, exclusion of unrelated credential/Runtime/attempt metadata, and zero
+    writes;
+  - CREATE tests prove an initiating existing-slug collision fails with zero
+    mutation and never falls back to EDIT or state/identity reuse.
+- **Exclusions:** authorized writes, local record replacement, Runtime skill
+  changes, slug rename, Project ID mutation, replace-all/clear, local-only unbind,
+  listing issue #129, Provider/network/Git effects.
+
+### `I132-T02` — Stale-safe authorized EDIT publication
+
+- **Objective:** Publish an exactly reviewed complete EDIT candidate using
+  portable and local CAS boundaries while preserving truthful partial outcomes.
+- **Dependencies:** `I132-T01` complete and reviewed.
+- **Scope:**
+  - extend the explicit Project update path to publish the complete portable
+    candidate against exact observed portable bytes/revision;
+  - add bounded complete local-record replacement against exact observed
+    wire/revision, preserving unrelated local metadata;
+  - bind replay authority to mode, immutable Project ID, complete portable/local
+    candidates, destinations, revisions, and ordered effects;
+  - re-resolve selector and verify replay `--project-id` before mutation;
+  - reject stale portable/local observations, selector/identity drift, changed
+    candidate/effects, missing authority, and digest mismatch before unauthorized
+    overwrite;
+  - distinguish initiating CREATE collision from exact authorized CREATE replay;
+    only replay bound to returned ID, mode, candidate, observations, effects, and
+    digest may converge idempotently;
+  - reuse ADR-0007's existing shared logical publication/recovery protocol,
+    deterministic coordination order, commit truth, fail-closed reader behavior,
+    and bounded versioned recovery state where required for the portable/local
+    multi-object operation; make that state observably established before portable
+    CAS can create an intermediate cross-store state, and do not introduce a
+    Project-specific recovery protocol;
+  - preserve portable-first publication ordering and report portable-confirmed /
+    local-failed as `partial` without rollback claims while also leaving the
+    operation deterministically classifiable as prior, committed, or ambiguous;
+  - block ordinary reads and new EDIT preview with `recovery_required` for
+    recognized intermediate/uncertain state, preserve contradictory/unknown state
+    for review, and recover or clean up only complete generations/protocol objects
+    positively identified by owned recovery state under fresh exact recovery
+    authority before returning to normal preview/edit flow; never infer rollback
+    from absence or reverse a confirmed portable commit; for portable-confirmed /
+    local-failed, reconcile/finalize local state against the confirmed portable
+    generation or preserve ambiguity for operator review, while prior restoration
+    remains limited to a positively classified pre-commit branch;
+  - preserve CREATE as an independent create-only mode; never use replay
+    idempotency to accept a fresh request against an existing slug.
+- **Repository impact:** expected focused changes in `internal/projectapp`
+  lifecycle/authority ports, portable/local adapters, `cmd/lingo` orchestration,
+  and deterministic store/service tests. No schema migration.
+- **Completion/Evidence:**
+  - application-port tests prove the complete candidate, expected revisions, and
+    denied-write behavior reach adapters without patch persistence;
+  - adapter integration proves portable update/no-op/conflict and local
+    replace/no-op/conflict under exact CAS;
+  - deterministic concurrency tests prove one winner and stale-writer refusal for
+    both stores;
+  - stale preview matrix covers portable drift, local drift, selector/ID drift,
+    candidate/effect drift, and authority mismatch;
+  - CREATE replay tests prove exact replay idempotency and fresh/incomplete
+    existing-slug CREATE refusal with zero writes;
+  - injected local conflict/failure after confirmed portable commit proves
+    canonical truthful `partial`, confirmed-effect reporting, versioned recovery
+    classification, intermediate/incoherent-state detection, fail-closed normal
+    read/`recovery_required`, and preservation of contradictory/unknown state;
+  - deterministic recovery Evidence proves it selects/restores/finalizes and cleans
+    up only complete generations/protocol objects positively identified by owned
+    recovery state under fresh exact authority, never reverses the confirmed
+    portable commit, reconciles/finalizes local state against it or preserves
+    ambiguity, returns the operation to a coherent state across a new-process
+    reopen, and permits a fresh normal EDIT preview only after recovery completes;
+  - Repository removal is observed in both portable association and local binding.
+- **Exclusions:** transaction/rollback across roots, new recovery protocol,
+  migration, Git/Provider mutation, Runtime invocation, release/publication.
+
+### `I132-T03` — Runtime parity, acceptance Evidence, and documentation
+
+- **Objective:** Prove the `I132-T01`/`I132-T02` CLI behavior end to end, expose
+  equivalent intent through the `axiom-project-configure` Runtime skill, and
+  reconcile documentation and acceptance Evidence.
+- **Dependencies:** `I132-T01` and `I132-T02` complete and reviewed.
+- **Scope:**
+  - update the versioned Runtime skill to clarify ambiguous create/edit intent,
+    translate explicit intent into CLI arguments, replay the exact preview, and
+    never read/merge/validate Project state itself;
+  - require an ambiguous CREATE/EDIT user request to remain unresolved until the
+    skill obtains explicit intent; before that clarification it translates no
+    configure argv, infers/replays no authority, invokes no mutation, and produces
+    zero writes;
+  - reconcile owned-skill compatibility/receipt expectations using existing
+    runtime installation and upgrade rules;
+  - update command/user documentation only after behavior exists;
+  - capture deterministic and bounded real Runtime Evidence without inferring
+    authority or acceptance from the skill.
+- **Repository impact:** expected focused changes in `cmd/lingo` executable
+  acceptance tests, `internal/codexruntime/skills/axiom-project-configure`,
+  runtime skill ownership/compatibility fixtures as required, `docs/commands.md`,
+  affected user docs, and an issue-scoped Evidence artifact. CLI flag
+  implementation, help, rendering, and preview parsing remain owned by
+  `I132-T01`.
+- **Completion/Evidence:**
+  - executable black-box tests prove corrected CREATE collision/replay behavior;
+    EDIT by slug/UUID; unknown and ambiguous selector; scalar
+    preserve/set/remove; Repository upsert/removal;
+    unknown removal; upsert/remove conflict; unspecified-value preservation;
+    minimized safe preview; stale authority; exact CREATE replay versus initiating
+    collision; and portable/local separation;
+  - Runtime black-box Evidence proves ambiguous CREATE/EDIT user intent is not
+    silently reinterpreted, triggers clarification, causes no CLI replay or
+    inferred authorization/mutation and zero writes, with zero CLI invocations and
+    byte-identical portable/local roots, then maps explicit CREATE only to argv
+    without `--project` or explicit EDIT only to argv with the supplied
+    `--project <uuid-or-slug>`; this is a separate case from UUID/slug selector
+    ambiguity, which remains an EDIT resolver failure without mode fallback;
+  - shared CLI/Runtime fixtures prove equivalent normalized candidate, effect set,
+    digest semantics, persisted result, and canonical completion for equivalent
+    intent;
+  - Runtime package tests prove the skill remains a thin entrypoint, setup payload
+    isolation remains intact, and owned/foreign skill upgrade behavior is safe;
+  - a bounded real supported-Runtime observation uses isolated roots and records
+    exact binary/skill revisions, command/argv, result, limitations, and zero
+    unapproved external effects. If unavailable, acceptance remains explicitly
+    unverified rather than simulated;
+  - repository, Go test/race/vet/build, native filesystem, sensitive-file,
+    secret-scan, and diff checks pass as applicable and are reported by exact
+    command.
+- **Exclusions:** skill-side state or merge rules, automatic user approval,
+  Provider/Git effects, listing dependency, broader Project edit UX, release,
+  stable publication, Issue closure, or human acceptance.
+
+### Acceptance traceability
+
+| Issue #132 acceptance / required case | Responsible Task(s) |
+|---|---|
+| Initiating CREATE without `--project`; existing slug fails with zero mutation and no CREATE-to-EDIT fallback | `I132-T01`, `I132-T03` |
+| Exact authorized CREATE replay is separate from a fresh CREATE request | `I132-T02`, `I132-T03` |
+| EDIT with `--project`; no EDIT-to-CREATE fallback | `I132-T01`, `I132-T03` |
+| EDIT by slug and UUID | `I132-T01`, `I132-T03` |
+| Unknown selector | `I132-T01`, `I132-T03` |
+| Representable ambiguous selector | `I132-T01`, `I132-T03` |
+| Ambiguous CREATE/EDIT user intent requires Runtime clarification, with no authority replay or mutation and zero writes until resolved | `I132-T03` |
+| Immutable ID; replay-only `--project-id`; no slug rename | `I132-T01`–`I132-T03` |
+| Scalar omission preserve and name/provider set | `I132-T01`, `I132-T03` |
+| Explicit provider removal; set/remove conflict | `I132-T01`, `I132-T03` |
+| Repository add/update by stable key | `I132-T01`, `I132-T03` |
+| Repository removal from portable and local state | `I132-T01`–`I132-T03` |
+| Unknown Repository removal | `I132-T01`, `I132-T03` |
+| Repository upsert plus removal conflict | `I132-T01`, `I132-T03` |
+| Preservation of all unspecified portable/local values | `I132-T01`, `I132-T02` |
+| Complete portable preview, minimized safe local projection, and complete internal-candidate digest | `I132-T01`, `I132-T03` |
+| Unrelated credential/Runtime/attempt/local metadata excluded from user-visible preview | `I132-T01`, `I132-T03` |
+| Stale preview/authority/concurrency rejection | `I132-T02`, `I132-T03` |
+| Portable/local boundary and separately visible effects | `I132-T01`–`I132-T03` |
+| Confirmed portable commit plus local failure/conflict yields truthful `partial`, ADR-0007 fail-closed `recovery_required`, exact recovery from positively identified generations, coherent reopen, then a new normal preview | `I132-T02`, `I132-T03` |
+| CLI and Runtime skill semantic parity | `I132-T03` |
+
+### Tasks review gate
+
+Plan/Tasks approval was recorded by explicit human decision on 2026-09-30. The
+same human instruction explicitly authorizes starting `I132-T01` implementation.
+That authority does not extend to `I132-T02`/`I132-T03`, real Runtime execution,
+push/merge of future implementation, external effects, Issue closure, release, or
+human acceptance; those remain separately gated by their applicable authority.
