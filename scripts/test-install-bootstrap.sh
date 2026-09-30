@@ -5,28 +5,13 @@
 # GitHub content is read. Release archives are built from a clean clone of the
 # committed HEAD. Selector, host and network refusals run on any host; install,
 # reinstall, upgrade and recovery cases need a supported release row and exit
-# 78 (blocked) elsewhere. On Linux, AXIOM_TEST_SYNTHETIC_UBUNTU_ROW=1 re-runs
-# the suite in a private mount namespace whose /etc/os-release declares Ubuntu
-# 26.04; that Evidence is synthetic and never native target acceptance.
+# 78 (blocked) elsewhere. Any Linux x86_64/aarch64 host qualifies for the
+# supported-row cases, regardless of distribution or version.
 set -euo pipefail
 
 umask 077
 
 repository_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
-
-if [[ "${AXIOM_TEST_SYNTHETIC_UBUNTU_ROW:-}" == 1 && -z "${AXIOM_TEST_SYNTHETIC_ACTIVE:-}" ]]; then
-  [[ $(uname -s) == Linux ]] || { printf 'synthetic Ubuntu row requires Linux\n' >&2; exit 1; }
-  synthetic=$(mktemp)
-  printf 'PRETTY_NAME="Ubuntu 26.04 (synthetic test row)"\nNAME="Ubuntu"\nID=ubuntu\nVERSION_ID="26.04"\n' >"$synthetic"
-  chmod 644 "$synthetic"
-  namespace=(unshare -m)
-  [[ $(id -u) == 0 ]] || namespace=(unshare -r -m)
-  status=0
-  "${namespace[@]}" env AXIOM_TEST_SYNTHETIC_ACTIVE=1 SYNTHETIC_OS_RELEASE="$synthetic" \
-    bash -eo pipefail -c 'mount --bind "$SYNTHETIC_OS_RELEASE" /etc/os-release && exec bash "$0"' "${BASH_SOURCE[0]}" || status=$?
-  rm -f -- "$synthetic"
-  exit "$status"
-fi
 
 temporary=$(mktemp -d)
 temporary=$(cd "$temporary" && pwd -P)
@@ -191,7 +176,7 @@ if [[ -z "$row" ]]; then
   ((failures == 0)) || exit 1
   exit 78
 fi
-printf 'host_row=%s%s\n' "$row" "$([[ -n "${AXIOM_TEST_SYNTHETIC_ACTIVE:-}" ]] && printf ' (synthetic os-release)')"
+printf 'host_row=%s\n' "$row"
 
 # Release fixtures: clean release builds of the committed HEAD.
 source="$temporary/source"

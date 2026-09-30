@@ -447,9 +447,7 @@ Test the matrix with a fake `curl` and local release fixtures (no live GitHub):
 Selector, host and input refusals run on any host. Install, reinstall, upgrade,
 downgrade, foreign/modified/unsafe state, concurrency, interruption and network
 cases need a supported row (any Linux x86_64/aarch64 qualifies) and exit `78`
-elsewhere. On Linux, `AXIOM_TEST_SYNTHETIC_UBUNTU_ROW=1` reruns the suite in a private mount
-namespace declaring Ubuntu 26.04 (needs root or unprivileged user namespaces);
-that is synthetic Evidence, not native acceptance.
+elsewhere. Linux distribution and version are not installer filters.
 
 ## Prepare a release artifact set (S9/T38)
 
