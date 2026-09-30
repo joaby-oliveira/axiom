@@ -19,7 +19,8 @@ completed:
 - C: real Claude.
 - D: S8 Codex + Claude graph, run 03.
 - E: GitHub dogfood, Issue [#125](https://github.com/rgomids/axiom/issues/125)
-  and PR [#127](https://github.com/rgomids/axiom/pull/127).
+  and PR [#127](https://github.com/rgomids/axiom/pull/127) (both completed
+  2026-09-30; see [Execution log](#execution-log)).
 - F: recovery and failure.
 
 Earlier attempts are preserved and classified as harness, vendor or external
@@ -315,7 +316,14 @@ Diagnostic: one minimal read-only `codex exec` ("Reply with exactly: OK") was
 run to identify the failure; it returned the usage-limit error and had no other
 effect.
 
-Final external state: Issue #125 open at `axiom:stage:reviewing` with three
-Axiom projection comments; PR #127 open for human review; workflow Execution at
-revision 12 (`review`, active). Merging #127 and completing #125 remain human
-review actions, as the E envelope specified. Lab worktrees/state are preserved.
+External state at the time of capture: Issue #125 open at
+`axiom:stage:reviewing` with three Axiom projection comments; PR #127 open for
+human review; workflow Execution at revision 12 (`review`, active). Merging #127
+and completing #125 were human review actions, as the E envelope specified. Lab
+worktrees/state are preserved.
+
+Subsequently completed (2026-09-30): PR [#127](https://github.com/rgomids/axiom/pull/127)
+merged as `f1a18a471767c2936e8d2fe2a6b97ed28f11ed38`; Issue
+[#125](https://github.com/rgomids/axiom/issues/125) closed as completed at
+`axiom:stage:accepted`; workflow Execution `428b87fb-2130-4a97-9d11-acc0318b1863`
+at revision 17, status `completed`, reconciliation converged.

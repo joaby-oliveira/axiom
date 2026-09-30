@@ -36,7 +36,7 @@ Evidence kinds:
 | AC-18 | D, P | Compatibility/POC classification and transfer tests; S7 Evidence |
 | AC-19 | R | A: reinstall `unchanged` with identical inventory, owned upgrade rc.1→rc.2, foreign/modified/unsafe refused without effect, downgrade refused |
 | AC-20 | D | Confirmed-effect-then-local-failure `partial` black-box tests |
-| AC-21 | R, D | Install → first run → Project (Codex, Claude, CLI) → Work Item #125 → workflow (Runtime `claude`) → graph Evidence → review, all against the RC. Completion of #125 follows the human review/merge of dogfood PR [#127](https://github.com/rgomids/axiom/pull/127); the completion gate is covered by the black-box full-lifecycle test |
+| AC-21 | R, D | Install → first run → Project (Codex, Claude, CLI) → Work Item #125 → workflow (Runtime `claude`) → graph Evidence → review, all against the RC. Completion of #125 followed the human review/merge of dogfood PR [#127](https://github.com/rgomids/axiom/pull/127) (both completed 2026-09-30); the completion gate is covered by the black-box full-lifecycle test |
 | AC-22 | R, D | Validation (E3, A refusals), authority denial (F3), interruption/resume (F3), recovery-required drift (F2), supported upgrade (A); retryable external failure: black-box tests |
 | AC-23 | R | This record: candidate, environment, argv/exit/timeout/attempt ledgers, digests, exclusions, limitations; no raw chat or secrets |
 | AC-24 | H | Human acceptance given on 2026-09-29, conditional on A–F completing without a product defect; effective at the end of this execution. No automation filled it |
@@ -70,6 +70,8 @@ Limitations:
 
 - Linux rows are human-attested, not observed here.
 - C used byte-identical host copies of two skills.
-- #125/#127 completion is pending human review.
+- At the time of capture, #125/#127 completion was pending human review;
+  both were subsequently completed on 2026-09-30 (PR #127 merged as
+  `f1a18a4`, Issue #125 closed at `axiom:stage:accepted`).
 - Usage/cost is unavailable.
 - No product defect was found.
