@@ -1,0 +1,51 @@
+[
+  {
+    "Repository": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source",
+    "CommonDirectory": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source/.git",
+    "ParentID": "bb87cc22-00ce-4bf0-9f67-ab51551a3329",
+    "ChildID": "f8dd54d6-0ac5-4e00-976e-4a7ce600bcc1",
+    "GraphRevision": 1,
+    "EnvelopeDigest": "c4106187ca6974132a9948ac4f8dfa3b8f7821afe8ab6ed21287fd4fb2e06876",
+    "Workspace": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run03/integration",
+    "BaseRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+    "HeadRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+    "HeadTree": "6a27615f9617ea078a68f0dfe80bbebd14e27e4a",
+    "ResultTree": "",
+    "ChangedPaths": [],
+    "Clean": true
+  },
+  {
+    "Repository": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source",
+    "CommonDirectory": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source/.git",
+    "ParentID": "bb87cc22-00ce-4bf0-9f67-ab51551a3329",
+    "ChildID": "aaeaefdd-8abf-45f5-b7da-b9409819e454",
+    "GraphRevision": 1,
+    "EnvelopeDigest": "af7220187622669255c6c77c4c99f8c81cdfc7944e738415f7801f3d70fc95d2",
+    "Workspace": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run03/claude",
+    "BaseRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+    "HeadRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+    "HeadTree": "6a27615f9617ea078a68f0dfe80bbebd14e27e4a",
+    "ResultTree": "52d632b593cdb980ba416e7b41036dcb5ad9f5d8",
+    "ChangedPaths": [
+      "docs/commands.md"
+    ],
+    "Clean": false
+  },
+  {
+    "Repository": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source",
+    "CommonDirectory": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source/.git",
+    "ParentID": "bb87cc22-00ce-4bf0-9f67-ab51551a3329",
+    "ChildID": "13cb4498-1590-4d02-9909-61731517dc3e",
+    "GraphRevision": 1,
+    "EnvelopeDigest": "0c046d603fee7ce0204586eada97be8aac83ddee88ef85b3d6028332f7805672",
+    "Workspace": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run03/codex",
+    "BaseRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+    "HeadRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+    "HeadTree": "6a27615f9617ea078a68f0dfe80bbebd14e27e4a",
+    "ResultTree": "4e1137152ca807142d46417b1cf29f6b500417b6",
+    "ChangedPaths": [
+      "scripts/test-install-bootstrap.sh"
+    ],
+    "Clean": false
+  }
+]

@@ -44,6 +44,17 @@ Use --json for machine-readable output. Default and --human output are readable
 status summaries. Mutation authority remains explicit through
 --authorize-external or --authorize-local.
 
+project configure without --project creates a new Project; an already
+configured slug or --project-id fails without changes. project configure
+--project <project-uuid-or-slug> previews an edit of an existing Project and
+never writes:
+  --name <name>, --work-item-provider <id> | --remove-work-item-provider
+  --repository <key>=<absolute-path> (repeatable add/update)
+  --remove-repository <key> (repeatable)
+Omitted values are preserved. Edit rejects --slug (rename) and, because edit
+publication is not available, --project-id, --preview-digest and
+--authorize-local.
+
 Strict selector vocabulary:
   --project <project-uuid-or-slug>
   --repository <project-scoped-key>

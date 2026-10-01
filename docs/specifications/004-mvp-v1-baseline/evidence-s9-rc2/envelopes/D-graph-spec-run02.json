@@ -1,0 +1,200 @@
+{
+  "schema": "axiom-s9-graph-spec/v1",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "activity": "retire obsolete synthetic Ubuntu bootstrap test row",
+  "planStatement": "T24 rc.2 dogfood approved plan: Contract: the Specification platform reconciliation (2026-09-28) makes Linux distribution/version not an installer filter, so the synthetic mount-namespace row in scripts/test-install-bootstrap.sh that declares Ubuntu 26.04 through AXIOM_TEST_SYNTHETIC_UBUNTU_ROW no longer exercises any installer decision. Remove that branch, its header comment and its environment variable; keep every other case and exit code unchanged. Documentation must stop describing it and keep stating that any Linux x86_64/aarch64 host qualifies for the supported-row cases. ",
+  "repository": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source",
+  "stateRoot": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/state",
+  "workspaceRoot": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run02",
+  "evidenceRoot": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/evidence/graph-run02",
+  "repositoryKey": "main",
+  "authorityReference": "human:t24-rc2-envelope-D-run02",
+  "runtimes": {
+    "codex": {
+      "executable": "/Users/rgomids/.local/bin/codex",
+      "model": "gpt-6-astra"
+    },
+    "claude": {
+      "executable": "/Users/rgomids/.local/bin/claude",
+      "model": "sonnet"
+    }
+  },
+  "environment": [
+    "HOME=/Users/rgomids",
+    "USER=rgomids",
+    "LOGNAME=rgomids",
+    "SHELL=/bin/zsh",
+    "PATH=/Users/rgomids/Projects/axiom-t24-rc2-lab/bin:/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "LINGO_STATE_ROOT=/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/state",
+    "LINGO_PROJECTS_ROOT=/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/projects",
+    "GOCACHE=/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+    "GOTMPDIR=/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+    "TMPDIR=/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+    "LC_ALL=C",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1"
+  ],
+  "children": [
+    {
+      "key": "codex",
+      "runtime": "codex",
+      "modelProfile": "t24-codex-implementation",
+      "role": "implementation",
+      "capability": "shell",
+      "paths": [
+        "scripts/test-install-bootstrap.sh"
+      ],
+      "arguments": [
+        "--ignore-user-config",
+        "--ephemeral",
+        "--sandbox",
+        "workspace-write",
+        "--add-dir",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/state",
+        "--add-dir",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/evidence/graph-run02",
+        "--add-dir",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+        "--add-dir",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache",
+        "--output-last-message",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/codex-child-final-run02.txt",
+        "-c",
+        "model_reasoning_effort=\"medium\"",
+        "--add-dir",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/diag"
+      ],
+      "prompt": "You are one child of an Axiom T24 graph for release candidate v0.1.2-rc.2. Read AGENTS.md. Work only in the current detached worktree and only on the allowed file. No commit, push, Provider/GitHub call, login, global configuration edit, credential access, subagents, or new dependencies. No raw reasoning in the final output. The coordination helper /Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run02 is operator-authorized (source scripts/s9-graph-runner.go at the reviewed tooling revision). Run it as `/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run02 <mode> --spec /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec-run02.json` with your initial worktree (absolute path) as working directory; it publishes structured coordination only. If it fails, report the exact non-secret error; never skip it. Contract: the Specification platform reconciliation (2026-09-28) makes Linux distribution/version not an installer filter, so the synthetic mount-namespace row in scripts/test-install-bootstrap.sh that declares Ubuntu 26.04 through AXIOM_TEST_SYNTHETIC_UBUNTU_ROW no longer exercises any installer decision. Remove that branch, its header comment and its environment variable; keep every other case and exit code unchanged. Documentation must stop describing it and keep stating that any Linux x86_64/aarch64 host qualifies for the supported-row cases. Allowed file ONLY: scripts/test-install-bootstrap.sh. First run the helper with mode `question` (publishes the structured question), then implement, then run `bash -n scripts/test-install-bootstrap.sh` and `./scripts/test-install-bootstrap.sh` (fake curl, local fixtures, no live GitHub), then run the helper with mode `wait-answer` and check the documentation child's answer. Final reply: one short status line. Progress trace: after each step (helper call, edit, each test command, final check) append one short line '<step>: <outcome>' to /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/diag/codex-progress.txt (operator-authorized lab file outside Git; no raw reasoning, no secrets).",
+      "coordination": "question",
+      "timeoutSeconds": 1200,
+      "maxAttempts": 2
+    },
+    {
+      "key": "claude",
+      "runtime": "claude",
+      "modelProfile": "t24-claude-documentation",
+      "role": "documentation",
+      "capability": "documentation",
+      "paths": [
+        "docs/commands.md"
+      ],
+      "arguments": [
+        "--no-session-persistence",
+        "--strict-mcp-config",
+        "--permission-mode",
+        "acceptEdits",
+        "--allowedTools",
+        "Read,Edit,Glob,Grep,Bash",
+        "--output-format",
+        "text"
+      ],
+      "prompt": "You are one child of an Axiom T24 graph for release candidate v0.1.2-rc.2. Read AGENTS.md. Work only in the current detached worktree and only on the allowed file. No commit, push, Provider/GitHub call, login, global configuration edit, credential access, subagents, or new dependencies. No raw reasoning in the final output. The coordination helper /Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run02 is operator-authorized (source scripts/s9-graph-runner.go at the reviewed tooling revision). Run it as `/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run02 <mode> --spec /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec-run02.json` with your initial worktree (absolute path) as working directory; it publishes structured coordination only. If it fails, report the exact non-secret error; never skip it. Contract: the Specification platform reconciliation (2026-09-28) makes Linux distribution/version not an installer filter, so the synthetic mount-namespace row in scripts/test-install-bootstrap.sh that declares Ubuntu 26.04 through AXIOM_TEST_SYNTHETIC_UBUNTU_ROW no longer exercises any installer decision. Remove that branch, its header comment and its environment variable; keep every other case and exit code unchanged. Documentation must stop describing it and keep stating that any Linux x86_64/aarch64 host qualifies for the supported-row cases. Allowed file ONLY: docs/commands.md (section 'Install a published release'). First run the helper with mode `answer` (waits for the implementation child's question and publishes the canonical answer), then edit the paragraph that mentions AXIOM_TEST_SYNTHETIC_UBUNTU_ROW. You must actually edit docs/commands.md. Final reply: one short status line. Progress trace: after each step (helper call, edit, each test command, final check) append one short line '<step>: <outcome>' to /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/diag/claude-progress.txt (operator-authorized lab file outside Git; no raw reasoning, no secrets).",
+      "coordination": "answer",
+      "timeoutSeconds": 1200,
+      "maxAttempts": 2
+    }
+  ],
+  "integration": {
+    "key": "integration",
+    "runtime": "codex",
+    "modelProfile": "t24-integration",
+    "role": "integration",
+    "capability": "integration",
+    "paths": [
+      "scripts/test-install-bootstrap.sh",
+      "docs/commands.md"
+    ],
+    "arguments": [
+      "--ephemeral"
+    ],
+    "prompt": "Integration is owned by the local service; not dispatched to a model.",
+    "coordination": "",
+    "timeoutSeconds": 900,
+    "maxAttempts": 2
+  },
+  "question": "Confirm contract: remove the synthetic Ubuntu row, header comment and AXIOM_TEST_SYNTHETIC_UBUNTU_ROW from scripts/test-install-bootstrap.sh; keep all other cases and exit codes; docs drop the synthetic row sentence and keep 'any Linux x86_64/aarch64 qualifies'?",
+  "answer": "Confirmed. Documentation drops the synthetic Ubuntu row sentence and AXIOM_TEST_SYNTHETIC_UBUNTU_ROW, and keeps that any Linux x86_64/aarch64 host qualifies for supported-row cases.",
+  "validators": [
+    {
+      "reference": "go-test",
+      "argv": [
+        "/Users/rgomids/.local/go/bin/go",
+        "test",
+        "./...",
+        "-count=1"
+      ]
+    },
+    {
+      "reference": "go-race",
+      "argv": [
+        "/Users/rgomids/.local/go/bin/go",
+        "test",
+        "-race",
+        "./..."
+      ]
+    },
+    {
+      "reference": "go-vet",
+      "argv": [
+        "/Users/rgomids/.local/go/bin/go",
+        "vet",
+        "./..."
+      ]
+    },
+    {
+      "reference": "go-build",
+      "argv": [
+        "/Users/rgomids/.local/go/bin/go",
+        "build",
+        "./..."
+      ]
+    },
+    {
+      "reference": "go-mod-verify",
+      "argv": [
+        "/Users/rgomids/.local/go/bin/go",
+        "mod",
+        "verify"
+      ]
+    },
+    {
+      "reference": "bootstrap-suite",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run02/integration/scripts/test-install-bootstrap.sh"
+      ]
+    },
+    {
+      "reference": "repository",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run02/integration/scripts/validate-repository.sh",
+        "."
+      ]
+    },
+    {
+      "reference": "sensitive-files",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run02/integration/scripts/check-sensitive-files.sh",
+        "."
+      ]
+    },
+    {
+      "reference": "diff-check",
+      "argv": [
+        "/opt/homebrew/bin/git",
+        "diff",
+        "--check"
+      ]
+    },
+    {
+      "reference": "gitleaks",
+      "argv": [
+        "/opt/homebrew/bin/gitleaks",
+        "dir",
+        ".",
+        "--redact",
+        "--no-banner"
+      ]
+    }
+  ],
+  "outputMax": 262144
+}

@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "envelope": "E",
+  "envelopeSHA256": "84fa8b1b0f32d7c351937c096c933ca98b0e39bf19ca093e8eccdda9f2f4884a",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "E3-workflow-start",
+  "authority": "local",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {
+    "issueNumber": "125"
+  },
+  "startedAtUnix": 1790721517,
+  "observations": [
+    {
+      "label": "workflow-start",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "start",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--runtime",
+        "claude"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.055,
+      "outputSHA256": "b200a9dfc8d1e68b24a8557580ba601bb542e56c42cee658e9198a46b60f54c9",
+      "outputBytes": 704,
+      "retainedSHA256": "b200a9dfc8d1e68b24a8557580ba601bb542e56c42cee658e9198a46b60f54c9",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/workflow-start.txt"
+    },
+    {
+      "label": "first-projection-preview",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "reconcile",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "1"
+      ],
+      "attempt": 1,
+      "exitCode": 1,
+      "timedOut": false,
+      "durationSeconds": 0.009,
+      "outputSHA256": "2c1085bdb356f047c73b1fc4cc8a72676eacca946faec70901dde50104671ea6",
+      "outputBytes": 722,
+      "retainedSHA256": "2c1085bdb356f047c73b1fc4cc8a72676eacca946faec70901dde50104671ea6",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/first-projection-preview.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "workflow-start",
+      "local": [
+        "one workflow Execution persisted with RuntimeID claude"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "first-projection-preview",
+      "local": [],
+      "external": [],
+      "status": "exit-1"
+    }
+  ],
+  "captures": {
+    "workflow-start.executionId": "428b87fb-2130-4a97-9d11-acc0318b1863",
+    "first-projection-preview.digest": null,
+    "first-projection-preview.label": null,
+    "first-projection-preview.effects": null
+  },
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "human: PR review/merge/close; remote branch deletion after merge; Issue closure only after merge and separately authorized; lab preserved",
+  "limitations": [
+    "first-projection-preview: exit 1, expected success"
+  ],
+  "stageResult": "failed"
+}

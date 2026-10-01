@@ -1,0 +1,24 @@
+{
+  "formatVersion": 1,
+  "recordId": "19f8f6a3-a9f1-48d0-9a5c-5e24179e35c2",
+  "kind": "question_request",
+  "parentId": "67b02fc9-e4df-4e58-9a2e-bf843c11faec",
+  "childId": "740d5885-6fb2-48ae-94d4-2693566e4749",
+  "graphRevision": 1,
+  "attemptId": "ff308636-2719-4c61-86c4-09c17493661a",
+  "revision": 1,
+  "provenance": {
+    "Product": "axiom",
+    "Version": "v0.1.2-rc.2",
+    "Revision": "859969a07f3807822580431a05b6c78b07691fb1",
+    "SourceState": "clean"
+  },
+  "fields": [
+    {
+      "name": "question",
+      "value": "Confirm contract: remove the synthetic Ubuntu row, header comment and AXIOM_TEST_SYNTHETIC_UBUNTU_ROW from scripts/test-install-bootstrap.sh; keep all other cases and exit codes; docs drop the synthetic row sentence and keep 'any Linux x86_64/aarch64 qualifies'?"
+    }
+  ],
+  "createdAt": "2026-09-29T22:41:38.887093Z",
+  "digest": "5c61823cec2675a3c64b68b621e59924702267a790b993c705e6853d05422310"
+}

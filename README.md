@@ -57,7 +57,7 @@ Supported POSIX hosts: macOS 27.0 on arm64 and Linux on amd64 or arm64. Other
 hosts are refused before any download. The installer needs `curl`, `tar`,
 `bash`, `awk`, `grep`, `mktemp`, and `sha256sum` or `shasum`.
 
-If it prints a `path_notice`, put the binary directory on `PATH`:
+If the final summary shows `PATH setup required`, put the binary directory on `PATH`:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"

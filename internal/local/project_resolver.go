@@ -33,6 +33,20 @@ type ResolutionResult struct {
 // Resolve selects one installed Project by exact canonical ID or observed slug.
 // It reads only protected ID-addressed local records and never consults caller CWD.
 func (s InstallationStore) Resolve(ctx context.Context, selector string) ResolutionResult {
+	result := s.Select(ctx, selector)
+	if result.Status != ResolutionFound {
+		return result
+	}
+	if category := validateResolvedLocations(result.Project); category != "" {
+		return failedResolution(category)
+	}
+	return result
+}
+
+// Select performs the same exact UUID/slug selection as Resolve without
+// checking per-binding availability, so an edit can repair or remove a broken
+// binding. Callers remain responsible for source confinement and safe loading.
+func (s InstallationStore) Select(ctx context.Context, selector string) ResolutionResult {
 	if selector == "" {
 		return failedResolution("invalid_project_selector")
 	}
@@ -77,9 +91,6 @@ func (s InstallationStore) Resolve(ctx context.Context, selector string) Resolut
 	}
 	if len(matches) > 1 {
 		return failedResolution("project_ambiguous")
-	}
-	if category := validateResolvedLocations(matches[0]); category != "" {
-		return failedResolution(category)
 	}
 	return ResolutionResult{Status: ResolutionFound, Category: "project_resolved", Project: matches[0]}
 }

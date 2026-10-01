@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "envelope": "D",
+  "envelopeSHA256": "a01401942386c29b77ab3a3dc661d841a0e6c603383679d155857136e7798615",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "D4b-graph-retry-child",
+  "authority": "runtime",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {
+    "parentId": "67b02fc9-e4df-4e58-9a2e-bf843c11faec",
+    "runEnvelopeDigest": "01074fa070ac5e5eb995fe8ce21e4bc72094d0134871cc2fc80dec1e4065408f",
+    "retryChild": "codex"
+  },
+  "startedAtUnix": 1790721847,
+  "observations": [
+    {
+      "label": "graph-retry-child",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner",
+        "run",
+        "--spec",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec.json",
+        "--parent",
+        "67b02fc9-e4df-4e58-9a2e-bf843c11faec",
+        "--run-envelope-sha256",
+        "01074fa070ac5e5eb995fe8ce21e4bc72094d0134871cc2fc80dec1e4065408f",
+        "--retry-child",
+        "codex"
+      ],
+      "attempt": 1,
+      "exitCode": 1,
+      "timedOut": false,
+      "durationSeconds": 0.076,
+      "outputSHA256": "91ed418b1a63917779250966169ec2d747202a92510bcebd8290d3b49c6f261b",
+      "outputBytes": 42,
+      "retainedSHA256": "91ed418b1a63917779250966169ec2d747202a92510bcebd8290d3b49c6f261b",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/graph-retry-child.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "graph-retry-child",
+      "local": [
+        "one correlated retry attempt of one failed child within the graph's MaximumAttempts (2); prior attempt preserved"
+      ],
+      "external": [
+        "one model session for the retried child"
+      ],
+      "status": "exit-1"
+    }
+  ],
+  "captures": {},
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; worktrees, state and Evidence preserved (preserve_pending_human_review); no automatic deletion",
+  "limitations": [
+    "graph-retry-child: exit 1, expected success"
+  ],
+  "stageResult": "failed"
+}

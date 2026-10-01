@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "envelope": "F",
+  "envelopeSHA256": "cc5415f0b9b3c923300cdf7f1d89b336472fcb9cdecf489e271b13678baa8318",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "F1-projection-replay",
+  "authority": "local",
+  "attempt": 1,
+  "maxAttempts": 1,
+  "approvals": {
+    "issueNumber": "125"
+  },
+  "startedAtUnix": 1790724386,
+  "observations": [
+    {
+      "label": "replay-projection-preview",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "reconcile",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "10"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 1.682,
+      "outputSHA256": "a2d7bde0622d221d57fbd1ef1e9047a7a348bac1fb7c5348c7c63e4204f6b962",
+      "outputBytes": 3258,
+      "retainedSHA256": "a2d7bde0622d221d57fbd1ef1e9047a7a348bac1fb7c5348c7c63e4204f6b962",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/replay-projection-preview.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "replay-projection-preview",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {
+    "replay-projection-preview.digest": "22b334c590190f0f0002605604889658e7d27f86a80336a75dc4ebfb78467261",
+    "replay-projection-preview.label": "axiom:stage:reviewing",
+    "replay-projection-preview.effects": []
+  },
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; if F2 stops between remove and restore, the human restores the label (recorded) before any other projection",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

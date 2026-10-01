@@ -66,7 +66,9 @@ case "$system:$architecture" in
     printf 'os_id=%s\nos_version=%s\nfilesystem=%s\n' "$os_id" "$os_version" "$filesystem"
     goarch=amd64
     [[ "$architecture" == aarch64 ]] && goarch=arm64
-    [[ "$os_id:$os_version:$filesystem" == ubuntu:26.04:ext4 ]] && row=ubuntu-26.04-${goarch}-ext4
+    # Any Linux distribution/version on native ext4 (Specification platform
+    # reconciliation, 2026-09-28); the distribution is recorded, not filtered.
+    [[ "$filesystem" == ext4 ]] && row=linux-${goarch}-ext4
     ;;
 esac
 if [[ -z "$row" ]]; then
@@ -74,6 +76,17 @@ if [[ -z "$row" ]]; then
   exit 78
 fi
 printf 'native_row=%s\n' "$row"
+
+# T24 binds native Evidence to an exact published candidate. A tooling-only
+# checkout may run the suite only when its product tree equals that revision.
+if [[ -n "${AXIOM_NATIVE_CANDIDATE_REVISION:-}" ]]; then
+  if git -C "$repository_root" diff --quiet "$AXIOM_NATIVE_CANDIDATE_REVISION" HEAD -- cmd internal go.mod go.sum scripts/install.sh scripts/install-release.sh scripts/build-release-archives.sh 2>/dev/null; then
+    printf 'candidate_revision=%s\ncandidate_product_tree=identical\n' "$AXIOM_NATIVE_CANDIDATE_REVISION"
+  else
+    printf 'candidate_revision=%s\ncandidate_product_tree=differs\nresult=blocked\n' "$AXIOM_NATIVE_CANDIDATE_REVISION"
+    exit 78
+  fi
+fi
 
 mkdir "$temporary/probe"
 printf x >"$temporary/probe/AxiomCase"
@@ -109,8 +122,8 @@ step release-archive-suite "$repository_root/scripts/test-release-archives.sh"
 platform_bundle=
 case "$row" in
   macos-*) platform_bundle=macos-27-arm64 ;;
-  ubuntu-26.04-amd64-*) platform_bundle=linux-amd64 ;;
-  ubuntu-26.04-arm64-*) platform_bundle=linux-arm64 ;;
+  linux-amd64-*) platform_bundle=linux-amd64 ;;
+  linux-arm64-*) platform_bundle=linux-arm64 ;;
 esac
 build_flag=()
 [[ -n $(git -C "$repository_root" status --porcelain --untracked-files=normal) ]] && build_flag=(--development)

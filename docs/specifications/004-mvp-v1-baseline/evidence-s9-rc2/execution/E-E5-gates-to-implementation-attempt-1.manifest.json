@@ -1,0 +1,359 @@
+{
+  "schemaVersion": 1,
+  "envelope": "E",
+  "envelopeSHA256": "afd5bb0f91d8561c5d6dac4d5644fc02a024862b37f3c0a0708cd75338888a44",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "E5-gates-to-implementation",
+  "authority": "local",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {
+    "issueNumber": "125",
+    "specSHA256": "e445cbe830c9280016023cc171f33f635898b1a9a8d3839dc56c90339bc63142",
+    "planSHA256": "5bed1cf3fc43fd7079385573b9c38f7d2f4c9a9b65a12167199a8c17f420abca"
+  },
+  "startedAtUnix": 1790721601,
+  "observations": [
+    {
+      "label": "advance-specification-pass",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "advance",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "2",
+        "--gate",
+        "specification",
+        "--outcome",
+        "pass"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.063,
+      "outputSHA256": "7c9257c4a385c60638f7b694eb18256ca1e1bbbfb48a7bd4a3f9cd8ba09e77c8",
+      "outputBytes": 947,
+      "retainedSHA256": "7c9257c4a385c60638f7b694eb18256ca1e1bbbfb48a7bd4a3f9cd8ba09e77c8",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/advance-specification-pass.txt"
+    },
+    {
+      "label": "advance-clarification-pass",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "advance",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "3",
+        "--gate",
+        "clarification",
+        "--outcome",
+        "pass"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.053,
+      "outputSHA256": "c2557b80b9630e556e885fb3204b31ea14b4aa54c607d22f8029bbda0cda4ea8",
+      "outputBytes": 1048,
+      "retainedSHA256": "c2557b80b9630e556e885fb3204b31ea14b4aa54c607d22f8029bbda0cda4ea8",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/advance-clarification-pass.txt"
+    },
+    {
+      "label": "fact-planning-authority",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "fact",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "4",
+        "--fact",
+        "planning-authority",
+        "--active",
+        "--reference",
+        "specification:docs/specifications/004-mvp-v1-baseline/spec.md:e445cbe830c9280016023cc171f33f635898b1a9a8d3839dc56c90339bc63142",
+        "--authorize-local"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.055,
+      "outputSHA256": "05052a00c93df9c7e6cff97a103528b78c537c241a71378382e47f9987ce8fc7",
+      "outputBytes": 1149,
+      "retainedSHA256": "05052a00c93df9c7e6cff97a103528b78c537c241a71378382e47f9987ce8fc7",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/fact-planning-authority.txt"
+    },
+    {
+      "label": "advance-plan-pass",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "advance",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "5",
+        "--gate",
+        "plan",
+        "--outcome",
+        "pass"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.056,
+      "outputSHA256": "8ad4d8cf7de841d3f2b1ed32eecc23c9a2024c6a4d58a826c501039f30a0e507",
+      "outputBytes": 1253,
+      "retainedSHA256": "8ad4d8cf7de841d3f2b1ed32eecc23c9a2024c6a4d58a826c501039f30a0e507",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/advance-plan-pass.txt"
+    },
+    {
+      "label": "advance-tasks-pass",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "advance",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "6",
+        "--gate",
+        "tasks",
+        "--outcome",
+        "pass"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.058,
+      "outputSHA256": "46f5f1d2967f3ae55f62555c7456872de846563f43333ac05521bfd6b5bae049",
+      "outputBytes": 1374,
+      "retainedSHA256": "46f5f1d2967f3ae55f62555c7456872de846563f43333ac05521bfd6b5bae049",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/advance-tasks-pass.txt"
+    },
+    {
+      "label": "fact-implementation-authority",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "fact",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "7",
+        "--fact",
+        "implementation-authority",
+        "--active",
+        "--reference",
+        "plan:docs/specifications/004-mvp-v1-baseline/plan.md:5bed1cf3fc43fd7079385573b9c38f7d2f4c9a9b65a12167199a8c17f420abca",
+        "--authorize-local"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.062,
+      "outputSHA256": "de76b858fec2a412911fb99dacf66136b29a421fa2266f31872b97b7662e900d",
+      "outputBytes": 1501,
+      "retainedSHA256": "de76b858fec2a412911fb99dacf66136b29a421fa2266f31872b97b7662e900d",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/fact-implementation-authority.txt"
+    },
+    {
+      "label": "workflow-status",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "status",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.011,
+      "outputSHA256": "de76b858fec2a412911fb99dacf66136b29a421fa2266f31872b97b7662e900d",
+      "outputBytes": 1501,
+      "retainedSHA256": "de76b858fec2a412911fb99dacf66136b29a421fa2266f31872b97b7662e900d",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/workflow-status.txt"
+    },
+    {
+      "label": "planned-projection-preview",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "reconcile",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "8"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 1.443,
+      "outputSHA256": "033b9d494b7dbf8c1174514d850f0c1ac90ba96f749c42480039c08212b3e8b2",
+      "outputBytes": 3636,
+      "retainedSHA256": "033b9d494b7dbf8c1174514d850f0c1ac90ba96f749c42480039c08212b3e8b2",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/planned-projection-preview.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "advance-specification-pass",
+      "local": [
+        "workflow gate specification pass (local transition)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "advance-clarification-pass",
+      "local": [
+        "workflow gate clarification pass (local transition)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "fact-planning-authority",
+      "local": [
+        "workflow fact planning-authority (local)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "advance-plan-pass",
+      "local": [
+        "workflow gate plan pass (local transition)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "advance-tasks-pass",
+      "local": [
+        "workflow gate tasks pass (local transition)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "fact-implementation-authority",
+      "local": [
+        "workflow fact implementation-authority (local)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "workflow-status",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "planned-projection-preview",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {
+    "planned-projection-preview.digest": "b71b24bfc596cc134d9f27c4bc51113dc198a0cb1a22601b143c9c4f61e08eca",
+    "planned-projection-preview.label": "axiom:stage:implementing",
+    "planned-projection-preview.effects": [
+      {
+        "kind": "create_stage_label",
+        "value": "axiom:stage:implementing"
+      },
+      {
+        "kind": "add_stage_label",
+        "value": "axiom:stage:implementing"
+      },
+      {
+        "kind": "remove_stage_label",
+        "value": "axiom:stage:specifying"
+      },
+      {
+        "kind": "post_transition_comment",
+        "value": "<!-- axiom:workflow-projection:a03736ebaf31b10b8d86286ad981907682ed198a75b26b041e2732353a9cfcfd -->\nAxiom lifecycle projection\n\n- Lifecycle: `implementing`\n- Canonical gate: `implementation`\n- Outcome: `fact`\n- References: `plan:docs/specifications/004-mvp-v1-baseline/plan.md`\n\n_Axiom 0.1.2-rc.2 \u00b7 859969a07f38 \u00b7 clean \u00b7 428b87fb-2130-4a97-9d11-acc0318b1863_"
+      }
+    ]
+  },
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "human: PR review/merge/close; remote branch deletion after merge; Issue closure only after merge and separately authorized; lab preserved",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

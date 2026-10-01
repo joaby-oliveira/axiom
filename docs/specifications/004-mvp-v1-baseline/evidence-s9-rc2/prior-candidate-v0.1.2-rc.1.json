@@ -1,0 +1,14 @@
+{
+  "schema": "axiom-s9-rc-candidate/v1",
+  "tag": "v0.1.2-rc.1",
+  "sourceRevision": "f73d6d0c951dd40c5cc97c3794ad7ee5607092b5",
+  "releaseId": 398805148,
+  "installerURL": "https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh",
+  "installerSHA256": "3bf39863f4c542f04181ec9e76e86b587ec64cfb26e905a80be875ad87558dc7",
+  "assets": {
+    "SHA256SUMS": "d8442bc6f4ff53a26ca29640c5613b951d9c47f06c217b23649000b388213f55",
+    "axiom-0.1.2-rc.1-linux-amd64.tar.gz": "aa26c3808541cb2f8ee82baa21212fe86f8055eef27ff9d92e00550c514ac949",
+    "axiom-0.1.2-rc.1-linux-arm64.tar.gz": "58ed74526e82703d72a60a02905df180aeadc5e742fd5e93f179a306500883fc",
+    "axiom-0.1.2-rc.1-macos-27-arm64.tar.gz": "a474ae70e09d85065831c601afe0e500957cdbeaabc1febbc8a73bf63d53339d"
+  }
+}

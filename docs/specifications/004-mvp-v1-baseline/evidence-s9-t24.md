@@ -223,3 +223,32 @@ The dogfood proves the `rc.1` defects and their delivery context; it does not
 retroactively make `rc.1` acceptable. T24 remains **BLOCKED** and T25 remains
 **BLOCKED** until a corrected RC is published and the remaining required
 acceptance Evidence is collected. Human acceptance remains **PENDING**.
+
+
+## Corrected RC `v0.1.2-rc.2` — preparation checkpoint, 2026-09-29
+
+T24 now targets `v0.1.2-rc.2` at `859969a07f3807822580431a05b6c78b07691fb1`
+(release `399403900`, immutable prerelease, four assets, `latest` still
+`v0.1.1`), confirmed read-only in this session. The sections above remain the
+`rc.1` history and are not rewritten. Preparation, harness evolution, platform
+availability and the six authority envelopes (A–F) are recorded in
+[evidence-s9-rc2](evidence-s9-rc2/README.md). No acceptance journey, Runtime
+invocation or Provider mutation was executed. T24 remains **IN PROGRESS /
+BLOCKED** (both Linux rows unavailable; every envelope awaits authority), T25
+**BLOCKED**, human acceptance **PENDING**.
+
+### Execution — 2026-09-29 (supersedes "nothing was executed" above)
+
+Under explicit human authority the rc.2 envelopes were executed (see
+[execution log](evidence-s9-rc2/README.md#execution-log)): A, B and C pass; D,
+E and F are partially executed. The Codex child of the S8 graph is blocked by an
+external Codex account usage limit. No product defect was found. T24 IN
+PROGRESS / BLOCKED (external), T25 BLOCKED.
+
+### Completion — 2026-09-29
+
+After the Codex quota reset, graph run 03 and the remaining E/F phases completed.
+**T24 COMPLETE, T25 COMPLETE, human acceptance ACCEPTED** (explicit, conditional
+on A–F without a product defect; condition met). See
+[evidence-s9-rc2](evidence-s9-rc2/README.md) and its
+[acceptance matrix](evidence-s9-rc2/ac-matrix.md). The rc.1 history above is unchanged.

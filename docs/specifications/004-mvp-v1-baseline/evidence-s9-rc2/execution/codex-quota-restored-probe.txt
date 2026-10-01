@@ -1,0 +1,19 @@
+Reading additional input from stdin...
+OpenAI Codex v0.157.1
+--------
+workdir: /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source
+model: gpt-6-astra
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0ef75-8288-77b3-8942-46b4964cbb0d
+--------
+user
+Reply with exactly: OK
+codex
+OK
+tokens used
+10.925
+OK

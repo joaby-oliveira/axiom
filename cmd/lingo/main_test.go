@@ -133,9 +133,12 @@ func TestConfigurePublishesPortableKeysAndLocalPathsThenResolves(t *testing.T) {
 	t.Setenv("LINGO_STATE_ROOT", state)
 	service := compose()
 	configureProject(t, service, "configured", "Configured", "main="+repository, "github")
-	preview := previewProject(t, service, "configured", "Configured", "main="+repository, "github")
-	if len(preview.Effects) != 0 {
-		t.Fatalf("equivalent replay effects = %v", preview.Effects)
+	// Issue #132: an initiating CREATE against a configured slug fails even
+	// when every value is equivalent; it is never a no-op or an EDIT.
+	before := snapshotTrees(t, root, state)
+	runCanonicalCLI(t, service, []string{"project", "configure", "--slug", "configured", "--name", "Configured", "--repository", "main=" + repository, "--work-item-provider", "github"}, cli.ExitFailure, "validation_failure", "Project slug is already configured")
+	if after := snapshotTrees(t, root, state); !bytes.Equal(before, after) {
+		t.Fatal("equivalent CREATE collision changed state")
 	}
 	runCLI(t, service, []string{"project", "resolve", "--selector", "configured"}, cli.ExitSuccess, "project_resolved")
 	var shown bytes.Buffer

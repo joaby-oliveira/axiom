@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "envelope": "D",
+  "envelopeSHA256": "8a62b3c2b028322c7f960b0d40e79a9f10406cb6764e5566fec4853c5c2770a7",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "D2-project-apply",
+  "authority": "local",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {
+    "projectId": "a1664139-a520-4979-8251-e76c2cbcc345",
+    "configureDigest": "ed0c7b09f59bfa433cb9c93d7dcc520e065c23b28babe850cad1d9a88d3b2cfb"
+  },
+  "startedAtUnix": 1790721434,
+  "observations": [
+    {
+      "label": "project-configure-apply",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "project",
+        "configure",
+        "--project-id",
+        "a1664139-a520-4979-8251-e76c2cbcc345",
+        "--slug",
+        "axiom-t24-rc2",
+        "--name",
+        "Axiom T24 rc.2 dogfood",
+        "--repository",
+        "main=/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source",
+        "--work-item-provider",
+        "github",
+        "--preview-digest",
+        "ed0c7b09f59bfa433cb9c93d7dcc520e065c23b28babe850cad1d9a88d3b2cfb",
+        "--authorize-local"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.074,
+      "outputSHA256": "96576ec9357db29654ad44027012e5421fd02320085f757d05d678c9f1d05f24",
+      "outputBytes": 1093,
+      "retainedSHA256": "96576ec9357db29654ad44027012e5421fd02320085f757d05d678c9f1d05f24",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/project-configure-apply.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "project-configure-apply",
+      "local": [
+        "publish Project axiom-t24-rc2 under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/state and /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/projects"
+      ],
+      "external": [],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {},
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; worktrees, state and Evidence preserved (preserve_pending_human_review); no automatic deletion",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

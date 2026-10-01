@@ -1,0 +1,1391 @@
+{
+  "schema": "axiom-s9-rc-envelope/v1",
+  "id": "D",
+  "purpose": "Real S8 multi-runtime graph at the exact RC product tree: parent Execution, one Codex and one Claude child in isolated worktrees, structured coordination, dependency-gated local Integration/Reconciliation, combined validation and parent/child Evidence for the dogfood change",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "candidateSHA256": "84b11ddc7541d68a978d17916299c12dc0718ac15a286cfbce774fbc2aed88b2",
+  "toolingSHA256": {
+    "s9-rc-envelope.py": "19ca6bf9bfccc2a14fad3981d2e9ab1c9df41bd4586737440ec4a903a30e299f",
+    "s9-rc-evidence.py": "04535913fc850556fbeb04fc9306adaaaf6138d72743d40241ec0861847687a7"
+  },
+  "runtime": {
+    "codex": {
+      "executable": "/Users/rgomids/.local/bin/codex",
+      "model": "gpt-6-astra",
+      "modelProfiles": [
+        "t24-codex-implementation",
+        "t24-integration"
+      ]
+    },
+    "claude": {
+      "executable": "/Users/rgomids/.local/bin/claude",
+      "model": "sonnet",
+      "modelProfiles": [
+        "t24-claude-documentation"
+      ]
+    },
+    "note": "Model names are operator Model Profile values (same as the T36 observed run); changing them changes the spec digest and needs new authority."
+  },
+  "provider": "none in D (GitHub Work Item/projection/push/PR are envelope E)",
+  "maxAttempts": 2,
+  "parameters": {
+    "toolingRevision": {
+      "pattern": "[0-9a-f]{40}"
+    },
+    "projectId": {
+      "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+    },
+    "configureDigest": {
+      "pattern": "[0-9a-f]{64}"
+    },
+    "parentId": {
+      "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+    },
+    "runEnvelopeDigest": {
+      "pattern": "[0-9a-f]{64}"
+    },
+    "retryChild": {
+      "pattern": "codex|claude"
+    }
+  },
+  "localEffects": [
+    "everything under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey and /Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner",
+    "Runtime vendor-managed caches under the host HOME (not audited, as T36)"
+  ],
+  "externalEffects": [
+    "two bounded model sessions (Codex child, Claude child) plus version probes"
+  ],
+  "forbiddenEffects": [
+    "push, remote branch, PR, Issue, label or comment mutation (envelope E)",
+    "merge or release",
+    "credential read/copy/print",
+    "Runtime installation/login",
+    "host Axiom install or host skill roots",
+    "automatic retry (only D4b: one explicit correlated retry of a failed, non-ambiguous child attempt within MaximumAttempts)",
+    "deletion of worktrees/state/Evidence"
+  ],
+  "cleanup": "operator; worktrees, state and Evidence preserved (preserve_pending_human_review); no automatic deletion",
+  "evidencePaths": [
+    "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/evidence/graph/*.json",
+    "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/D-<phase>-attempt-<n>/"
+  ],
+  "secretsBoundary": "Children reuse existing Runtime logins through HOME/USER/LOGNAME/SHELL identity only; no credential values in argv/env/spec.",
+  "phases": [
+    {
+      "id": "D1-setup",
+      "authority": "local",
+      "steps": [
+        {
+          "label": "make-roots",
+          "argv": [
+            "/bin/mkdir",
+            "-p",
+            "-m",
+            "700",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/runtime-path",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/state",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/projects"
+          ],
+          "cwd": "/",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "create private directories under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "fetch-installer",
+          "argv": [
+            "/usr/bin/curl",
+            "--disable",
+            "--proto",
+            "=https",
+            "--tlsv1.2",
+            "-fsSL",
+            "--max-time",
+            "60",
+            "--max-filesize",
+            "65536",
+            "https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh",
+            "-o",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/remote-install.sh"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp"
+          },
+          "timeoutSeconds": 120,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "write /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/remote-install.sh"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "installer-digest",
+          "argv": [
+            "/usr/bin/shasum",
+            "-a",
+            "256",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/remote-install.sh"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "requireOutput": [
+            "3bf39863f4c542f04181ec9e76e86b587ec64cfb26e905a80be875ad87558dc7"
+          ],
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "install-exact-rc",
+          "argv": [
+            "/bin/sh",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/remote-install.sh",
+            "--version",
+            "v0.1.2-rc.2"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp"
+          },
+          "timeoutSeconds": 600,
+          "expect": "success",
+          "requireOutput": [
+            "install_status=installed",
+            "install_tag=v0.1.2-rc.2",
+            "install_revision=859969a07f38"
+          ],
+          "effects": {
+            "local": [
+              "install axiom v0.1.2-rc.2 into /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin and receipt under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/state"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "version",
+          "argv": [
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+            "--json",
+            "version"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp"
+          },
+          "timeoutSeconds": 60,
+          "expect": "success",
+          "requireOutput": [
+            "\"version\":\"0.1.2-rc.2\"",
+            "\"revision\":\"859969a07f38\"",
+            "\"sourceState\":\"clean\""
+          ],
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "make-journey-roots",
+          "argv": [
+            "/bin/mkdir",
+            "-p",
+            "-m",
+            "700",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/evidence"
+          ],
+          "cwd": "/",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "create /Users/rgomids/Projects/axiom-t24-rc2-lab/bin, /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache and /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/evidence"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "clone-dogfood-repository",
+          "argv": [
+            "/opt/homebrew/bin/git",
+            "clone",
+            "--quiet",
+            "https://github.com/rgomids/axiom.git",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 300,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "public clone of main into /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source (dogfood base = origin/main at clone time, recorded)"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "dogfood-base",
+          "argv": [
+            "/opt/homebrew/bin/git",
+            "-C",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source",
+            "rev-parse",
+            "HEAD"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "specification-digest",
+          "argv": [
+            "/usr/bin/shasum",
+            "-a",
+            "256",
+            "docs/specifications/004-mvp-v1-baseline/spec.md"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "plan-digest",
+          "argv": [
+            "/usr/bin/shasum",
+            "-a",
+            "256",
+            "docs/specifications/004-mvp-v1-baseline/plan.md"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "clone-tooling",
+          "argv": [
+            "/opt/homebrew/bin/git",
+            "clone",
+            "--quiet",
+            "--no-checkout",
+            "https://github.com/rgomids/axiom.git",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 300,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "public clone into /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "checkout-tooling",
+          "argv": [
+            "/opt/homebrew/bin/git",
+            "-C",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+            "checkout",
+            "--quiet",
+            "--detach",
+            "{{toolingRevision}}"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 120,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "detached checkout of the reviewed tooling revision"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "tooling-product-tree-is-exact-rc",
+          "argv": [
+            "/opt/homebrew/bin/git",
+            "-C",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+            "diff",
+            "--quiet",
+            "859969a07f3807822580431a05b6c78b07691fb1",
+            "HEAD",
+            "--",
+            "cmd",
+            "internal",
+            "go.mod",
+            "go.sum"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 60,
+          "expect": "success",
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "graph-spec-digest",
+          "argv": [
+            "/usr/bin/shasum",
+            "-a",
+            "256",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec.json"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "requireOutput": [
+            "83ed14acd1b666cca3c7bd7a3602310c77a79e28e117fc5a4cfc0dc805e4693b"
+          ],
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "build-graph-runner",
+          "argv": [
+            "/Users/rgomids/.local/go/bin/go",
+            "build",
+            "-o",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner",
+            "./scripts/s9-graph-runner.go"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 600,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "build /Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner from the exact product tree"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "project-configure-preview",
+          "argv": [
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+            "--json",
+            "project",
+            "configure",
+            "--slug",
+            "axiom-t24-rc2",
+            "--name",
+            "Axiom T24 rc.2 dogfood",
+            "--repository",
+            "main=/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source",
+            "--work-item-provider",
+            "github"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "LINGO_STATE_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/state",
+            "LINGO_PROJECTS_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/projects",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp"
+          },
+          "timeoutSeconds": 120,
+          "expect": "success",
+          "requireOutput": [
+            "\"status\":\"success\""
+          ],
+          "capture": {
+            "projectId": "setup.projectId",
+            "digest": "setup.digest"
+          },
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "D2-project-apply",
+      "authority": "local",
+      "steps": [
+        {
+          "label": "project-configure-apply",
+          "argv": [
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+            "--json",
+            "project",
+            "configure",
+            "--project-id",
+            "{{projectId}}",
+            "--slug",
+            "axiom-t24-rc2",
+            "--name",
+            "Axiom T24 rc.2 dogfood",
+            "--repository",
+            "main=/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source",
+            "--work-item-provider",
+            "github",
+            "--preview-digest",
+            "{{configureDigest}}",
+            "--authorize-local"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "LINGO_STATE_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/state",
+            "LINGO_PROJECTS_ROOT": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/projects",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp"
+          },
+          "timeoutSeconds": 120,
+          "expect": "success",
+          "requireOutput": [
+            "\"status\":\"success\""
+          ],
+          "effects": {
+            "local": [
+              "publish Project axiom-t24-rc2 under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/state and /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/projects"
+            ],
+            "external": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "D3-graph-prepare",
+      "authority": "runtime",
+      "steps": [
+        {
+          "label": "graph-prepare",
+          "argv": [
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner",
+            "prepare",
+            "--spec",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec.json",
+            "--project-id",
+            "{{projectId}}"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 300,
+          "expect": "success",
+          "requireOutput": [
+            "\"runEnvelopeDigest\""
+          ],
+          "capture": {
+            "parentId": "parentId",
+            "runEnvelopeDigest": "runEnvelopeDigest",
+            "base": "base"
+          },
+          "effects": {
+            "local": [
+              "Runtime Profile, graph and run envelope under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/state; Evidence under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/evidence/graph"
+            ],
+            "external": [
+              "`codex --version` and `claude --version` observations only (no model call)"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "D4-graph-run",
+      "authority": "runtime",
+      "steps": [
+        {
+          "label": "graph-run",
+          "argv": [
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner",
+            "run",
+            "--spec",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec.json",
+            "--parent",
+            "{{parentId}}",
+            "--run-envelope-sha256",
+            "{{runEnvelopeDigest}}"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 3600,
+          "expect": "success",
+          "requireOutput": [
+            "real_run_recorded success"
+          ],
+          "effects": {
+            "local": [
+              "git worktrees under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces",
+              "graph attempts, coordination and Integration state under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/state",
+              "combined validators inside the integration worktree",
+              "Evidence under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/evidence/graph"
+            ],
+            "external": [
+              "one Codex and one Claude model session (children), concurrent when dependencies permit"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "D4b-graph-retry-child",
+      "authority": "runtime",
+      "steps": [
+        {
+          "label": "graph-retry-child",
+          "argv": [
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner",
+            "run",
+            "--spec",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec.json",
+            "--parent",
+            "{{parentId}}",
+            "--run-envelope-sha256",
+            "{{runEnvelopeDigest}}",
+            "--retry-child",
+            "{{retryChild}}"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 3600,
+          "expect": "success",
+          "requireOutput": [
+            "real_run_recorded success"
+          ],
+          "effects": {
+            "local": [
+              "one correlated retry attempt of one failed child within the graph's MaximumAttempts (2); prior attempt preserved"
+            ],
+            "external": [
+              "one model session for the retried child"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "D5-run02-setup",
+      "authority": "local",
+      "steps": [
+        {
+          "label": "make-diag",
+          "argv": [
+            "/bin/mkdir",
+            "-p",
+            "-m",
+            "700",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/diag"
+          ],
+          "cwd": "/",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "create /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/diag"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "fetch-tooling",
+          "argv": [
+            "/opt/homebrew/bin/git",
+            "-C",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+            "fetch",
+            "--quiet",
+            "origin"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 300,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "public fetch into /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "checkout-tooling",
+          "argv": [
+            "/opt/homebrew/bin/git",
+            "-C",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+            "checkout",
+            "--quiet",
+            "--detach",
+            "{{toolingRevision}}"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 120,
+          "expect": "success",
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "tooling-product-tree-is-exact-rc",
+          "argv": [
+            "/opt/homebrew/bin/git",
+            "-C",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+            "diff",
+            "--quiet",
+            "859969a07f3807822580431a05b6c78b07691fb1",
+            "HEAD",
+            "--",
+            "cmd",
+            "internal",
+            "go.mod",
+            "go.sum"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 60,
+          "expect": "success",
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "graph-spec-digest",
+          "argv": [
+            "/usr/bin/shasum",
+            "-a",
+            "256",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec-run02.json"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "requireOutput": [
+            "e7bcba91ed83a4887f38a620ac2c540f3135a05a1b4ddc79455b54d382019c24"
+          ],
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "build-graph-runner",
+          "argv": [
+            "/Users/rgomids/.local/go/bin/go",
+            "build",
+            "-o",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run02",
+            "./scripts/s9-graph-runner.go"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 600,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "build /Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run02 (run 01 binary preserved)"
+            ],
+            "external": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "D6-run02-prepare",
+      "authority": "runtime",
+      "steps": [
+        {
+          "label": "graph-prepare",
+          "argv": [
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run02",
+            "prepare",
+            "--spec",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec-run02.json",
+            "--project-id",
+            "{{projectId}}"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 300,
+          "expect": "success",
+          "requireOutput": [
+            "\"runEnvelopeDigest\""
+          ],
+          "capture": {
+            "parentId": "parentId",
+            "runEnvelopeDigest": "runEnvelopeDigest",
+            "base": "base"
+          },
+          "effects": {
+            "local": [
+              "second graph under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/state; Evidence under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/evidence/graph-run02"
+            ],
+            "external": [
+              "`codex --version` and `claude --version` only"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "D7-run02-run",
+      "authority": "runtime",
+      "steps": [
+        {
+          "label": "graph-run",
+          "argv": [
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run02",
+            "run",
+            "--spec",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec-run02.json",
+            "--parent",
+            "{{parentId}}",
+            "--run-envelope-sha256",
+            "{{runEnvelopeDigest}}"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 3600,
+          "expect": "success",
+          "requireOutput": [
+            "real_run_recorded success"
+          ],
+          "effects": {
+            "local": [
+              "git worktrees under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run02",
+              "progress traces under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/diag",
+              "Evidence under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/evidence/graph-run02"
+            ],
+            "external": [
+              "one Codex and one Claude model session (children)"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "D8-run03-setup",
+      "authority": "local",
+      "steps": [
+        {
+          "label": "fetch-tooling",
+          "argv": [
+            "/opt/homebrew/bin/git",
+            "-C",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+            "fetch",
+            "--quiet",
+            "origin"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 300,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "public fetch into /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling"
+            ],
+            "external": []
+          }
+        },
+        {
+          "label": "checkout-tooling",
+          "argv": [
+            "/opt/homebrew/bin/git",
+            "-C",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+            "checkout",
+            "--quiet",
+            "--detach",
+            "{{toolingRevision}}"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 120,
+          "expect": "success",
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "tooling-product-tree-is-exact-rc",
+          "argv": [
+            "/opt/homebrew/bin/git",
+            "-C",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+            "diff",
+            "--quiet",
+            "859969a07f3807822580431a05b6c78b07691fb1",
+            "HEAD",
+            "--",
+            "cmd",
+            "internal",
+            "go.mod",
+            "go.sum"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 60,
+          "expect": "success",
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "graph-spec-digest",
+          "argv": [
+            "/usr/bin/shasum",
+            "-a",
+            "256",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec-run03.json"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 30,
+          "expect": "success",
+          "requireOutput": [
+            "e9ee80d5b98e43ddf1021b82878dcbf5ddcb566ae5a31f4d92d488bc9d5941a0"
+          ],
+          "effects": {
+            "local": [],
+            "external": []
+          }
+        },
+        {
+          "label": "build-graph-runner",
+          "argv": [
+            "/Users/rgomids/.local/go/bin/go",
+            "build",
+            "-o",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run03",
+            "./scripts/s9-graph-runner.go"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 600,
+          "expect": "success",
+          "effects": {
+            "local": [
+              "build /Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run03 (earlier binaries preserved)"
+            ],
+            "external": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "D9-run03-prepare",
+      "authority": "runtime",
+      "steps": [
+        {
+          "label": "graph-prepare",
+          "argv": [
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run03",
+            "prepare",
+            "--spec",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec-run03.json",
+            "--project-id",
+            "{{projectId}}"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 300,
+          "expect": "success",
+          "requireOutput": [
+            "\"runEnvelopeDigest\""
+          ],
+          "capture": {
+            "parentId": "parentId",
+            "runEnvelopeDigest": "runEnvelopeDigest",
+            "base": "base"
+          },
+          "effects": {
+            "local": [
+              "third graph under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/state; Evidence under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/evidence/graph-run03"
+            ],
+            "external": [
+              "`codex --version` and `claude --version` only"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "D10-run03-run",
+      "authority": "runtime",
+      "steps": [
+        {
+          "label": "graph-run",
+          "argv": [
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner-run03",
+            "run",
+            "--spec",
+            "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec-run03.json",
+            "--parent",
+            "{{parentId}}",
+            "--run-envelope-sha256",
+            "{{runEnvelopeDigest}}"
+          ],
+          "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+          "env": {
+            "USER": "rgomids",
+            "LOGNAME": "rgomids",
+            "SHELL": "/bin/zsh",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "HOME": "/Users/rgomids",
+            "PATH": "/opt/homebrew/bin:/Users/rgomids/.local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "TMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOCACHE": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/cache/go-build",
+            "GOTMPDIR": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tmp",
+            "GOFLAGS": "-mod=readonly"
+          },
+          "timeoutSeconds": 3600,
+          "expect": "success",
+          "requireOutput": [
+            "real_run_recorded success"
+          ],
+          "effects": {
+            "local": [
+              "git worktrees under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces-run03",
+              "progress traces under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/diag",
+              "Evidence under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/evidence/graph-run03"
+            ],
+            "external": [
+              "one Codex and one Claude model session (children)"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "sequencing": [
+    "D1-setup",
+    "D2-project-apply",
+    "E1..E4 (Work Item + first projection)",
+    "D3-graph-prepare",
+    "D4-graph-run",
+    "E5.."
+  ],
+  "preconditions": [
+    "toolingRevision = the merged or reviewed commit containing scripts/s9-graph-runner.go and D-graph-spec.json; its cmd/internal/go.mod/go.sum must equal the RC revision (checked).",
+    "D-graph-spec.json at that revision must hash to the literal checked by D1 graph-spec-digest."
+  ],
+  "runHistory": [
+    "run 01 (parent 67b02fc9-e4df-4e58-9a2e-bf843c11faec): Claude child succeeded; Codex child attempt 1 failed (exit 1, no ambiguous effect) after a correct edit; in-place retry refused by the product because the workspace is not clean. Preserved unchanged.",
+    "run 02 (parent 84c16fdc-a18a-4a0c-9733-6789549481c2): Codex child failed in 5 s on the Codex account usage limit; Claude child edited, coordination wait expired. Preserved unchanged.",
+    "run 03: after the quota reset, fresh graph via D8-D10; same scope, Runtimes, profiles, controls and effects."
+  ]
+}

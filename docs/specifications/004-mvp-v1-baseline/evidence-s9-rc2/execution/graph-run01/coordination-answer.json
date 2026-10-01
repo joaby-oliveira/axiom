@@ -1,0 +1,28 @@
+{
+  "formatVersion": 1,
+  "recordId": "0e8618a5-599b-4dc1-a498-976bc1c38d90",
+  "kind": "answer",
+  "parentId": "67b02fc9-e4df-4e58-9a2e-bf843c11faec",
+  "childId": "05f54b48-5390-4f8e-8f48-7741f2205358",
+  "graphRevision": 1,
+  "attemptId": "c110bff3-72b9-4441-bba6-676e0f146d7e",
+  "revision": 1,
+  "provenance": {
+    "Product": "axiom",
+    "Version": "v0.1.2-rc.2",
+    "Revision": "859969a07f3807822580431a05b6c78b07691fb1",
+    "SourceState": "clean"
+  },
+  "fields": [
+    {
+      "name": "answer",
+      "value": "Confirmed. Documentation drops the synthetic Ubuntu row sentence and AXIOM_TEST_SYNTHETIC_UBUNTU_ROW, and keeps that any Linux x86_64/aarch64 host qualifies for supported-row cases."
+    },
+    {
+      "name": "question_reference",
+      "value": "19f8f6a3-a9f1-48d0-9a5c-5e24179e35c2"
+    }
+  ],
+  "createdAt": "2026-09-29T22:41:39.758586Z",
+  "digest": "9187ee9ef8eb453292f6d15766430005e41a72b0a6f134ef443dad5e425154ee"
+}

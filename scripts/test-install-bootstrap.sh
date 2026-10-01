@@ -5,28 +5,13 @@
 # GitHub content is read. Release archives are built from a clean clone of the
 # committed HEAD. Selector, host and network refusals run on any host; install,
 # reinstall, upgrade and recovery cases need a supported release row and exit
-# 78 (blocked) elsewhere. On Linux, AXIOM_TEST_SYNTHETIC_UBUNTU_ROW=1 re-runs
-# the suite in a private mount namespace whose /etc/os-release declares Ubuntu
-# 26.04; that Evidence is synthetic and never native target acceptance.
+# 78 (blocked) elsewhere. Any Linux x86_64/aarch64 host qualifies for the
+# supported-row cases, regardless of distribution or version.
 set -euo pipefail
 
 umask 077
 
 repository_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
-
-if [[ "${AXIOM_TEST_SYNTHETIC_UBUNTU_ROW:-}" == 1 && -z "${AXIOM_TEST_SYNTHETIC_ACTIVE:-}" ]]; then
-  [[ $(uname -s) == Linux ]] || { printf 'synthetic Ubuntu row requires Linux\n' >&2; exit 1; }
-  synthetic=$(mktemp)
-  printf 'PRETTY_NAME="Ubuntu 26.04 (synthetic test row)"\nNAME="Ubuntu"\nID=ubuntu\nVERSION_ID="26.04"\n' >"$synthetic"
-  chmod 644 "$synthetic"
-  namespace=(unshare -m)
-  [[ $(id -u) == 0 ]] || namespace=(unshare -r -m)
-  status=0
-  "${namespace[@]}" env AXIOM_TEST_SYNTHETIC_ACTIVE=1 SYNTHETIC_OS_RELEASE="$synthetic" \
-    bash -eo pipefail -c 'mount --bind "$SYNTHETIC_OS_RELEASE" /etc/os-release && exec bash "$0"' "${BASH_SOURCE[0]}" || status=$?
-  rm -f -- "$synthetic"
-  exit "$status"
-fi
 
 temporary=$(mktemp -d)
 temporary=$(cd "$temporary" && pwd -P)
@@ -173,7 +158,14 @@ mkdir -p "$temporary/os-tools" "$temporary/arch-tools"
 printf '#!/bin/sh\ncase "$1" in -s) echo FreeBSD ;; -m) echo amd64 ;; *) echo FreeBSD ;; esac\n' >"$temporary/os-tools/uname"
 printf '#!/bin/sh\ncase "$1" in -s) echo Linux ;; -m) echo riscv64 ;; *) echo Linux ;; esac\n' >"$temporary/arch-tools/uname"
 chmod 700 "$temporary/os-tools/uname" "$temporary/arch-tools/uname"
-step unsupported-os bash -eo pipefail -c 'EXTRA_PATH="$temporary/os-tools" refused "$home" "unsupported host FreeBSD/amd64" && no_network'
+step unsupported-os bash -eo pipefail -c '
+  EXTRA_PATH="$temporary/os-tools" refused "$home" "unsupported host FreeBSD/amd64" && no_network
+  ! grep -Fxq "AXIOM" "$temporary/stderr"
+  grep -Fq "++++++   +++ +++   ++++++" "$temporary/stderr"
+  grep -Fq "Keep intent, decisions, code, and evidence connected." "$temporary/stderr"
+  grep -Fq "install_error: unsupported host FreeBSD/amd64" "$temporary/stderr"
+  ! LC_ALL=C grep -q $'\''\033'\'' "$temporary/stderr"
+'
 step unsupported-architecture bash -eo pipefail -c 'EXTRA_PATH="$temporary/arch-tools" refused "$home" "unsupported host Linux/riscv64" && no_network'
 [[ ! -e "$home/.local" ]] || { printf 'case=selector-home-untouched result=fail\n'; failures=$((failures + 1)); }
 
@@ -191,7 +183,7 @@ if [[ -z "$row" ]]; then
   ((failures == 0)) || exit 1
   exit 78
 fi
-printf 'host_row=%s%s\n' "$row" "$([[ -n "${AXIOM_TEST_SYNTHETIC_ACTIVE:-}" ]] && printf ' (synthetic os-release)')"
+printf 'host_row=%s\n' "$row"
 
 # Release fixtures: clean release builds of the committed HEAD.
 source="$temporary/source"
@@ -246,6 +238,49 @@ for selection in macos-27-arm64:Darwin:arm64 linux-amd64:Linux:x86_64 linux-arm6
   '
 done
 
+# Summary contract: all three outcomes with and without the binary directory on PATH.
+for path_mode in present absent; do
+  home=$(new_home "summary-$path_mode")
+  export home path_mode
+  for outcome in installed unchanged upgraded; do
+    export outcome
+    step "summary-$outcome-path-$path_mode" bash -eo pipefail -c '
+      tag=v1.0.0
+      [[ "$outcome" != upgraded ]] || tag=v1.1.0
+      EXTRA_PATH=
+      [[ "$path_mode" != present ]] || EXTRA_PATH="$home/.local/bin"
+      run_bootstrap "$home" --version "$tag"
+      case "$outcome" in
+        installed) label=Installed; title="Installation complete" ;;
+        upgraded) label=Upgraded; title="Installation complete" ;;
+        unchanged) label=Unchanged; title="Axiom is already up to date" ;;
+      esac
+      grep -Fxq "$title" "$temporary/stderr"
+      grep -Fxq "  Status        $label" "$temporary/stderr"
+      grep -Fxq "  Version       $tag" "$temporary/stderr"
+      grep -Fxq "  Location      ~/.local/bin/axiom" "$temporary/stderr"
+      grep -Fxq "  Documentation" "$temporary/stderr"
+      grep -Fxq "  $base/tree/main/docs" "$temporary/stderr"
+      grep -Fxq "  Next step" "$temporary/stderr"
+      grep -Fxq "  axiom first-run" "$temporary/stderr"
+      if [[ "$path_mode" == absent ]]; then
+        grep -Fxq "  PATH setup required" "$temporary/stderr"
+        grep -Fxq '\''  export PATH="$HOME/.local/bin:$PATH"'\'' "$temporary/stderr"
+      else
+        ! grep -Fq "PATH setup required" "$temporary/stderr"
+        ! grep -Fq "export PATH=" "$temporary/stderr"
+      fi
+      ! LC_ALL=C grep -q $'\''\033'\'' "$temporary/stderr"
+      {
+        printf "install_selector=version %s\ninstall_tag=%s\ninstall_version=%s\n" "$tag" "$tag" "${tag#v}"
+        printf "install_asset=axiom-%s-%s.tar.gz\ninstall_asset_sha256=%s\ninstall_row=%s\n" "${tag#v}" "$row" "$(asset_sha "$tag")" "$row"
+        printf "install_status=%s\ninstall_revision=%s\ninstall_receipt=%s\ninstall_binary=%s\n" "$outcome" "$revision12" "$(receipt_of "$home")" "$(bin_of "$home")"
+      } >"$temporary/expected-stdout"
+      diff -u "$temporary/expected-stdout" "$temporary/stdout"
+    '
+  done
+done
+
 # 1. Exact stable version into a clean HOME, then identical reinstall.
 home=$(new_home main)
 export home
@@ -257,9 +292,26 @@ step exact-stable-version bash -eo pipefail -c '
   grep -Fxq "install_asset=axiom-1.0.0-$row.tar.gz" "$temporary/stdout"
   grep -Fxq "install_asset_sha256=$(asset_sha v1.0.0)" "$temporary/stdout"
   grep -Fxq "install_revision=$revision12" "$temporary/stdout"
+  ! grep -Fxq "AXIOM" "$temporary/stderr"
+  grep -Fq "++++++   +++ +++   ++++++" "$temporary/stderr"
+  grep -Fq "Keep intent, decisions, code, and evidence connected." "$temporary/stderr"
+  grep -Fq "install_step: checking required tools for $row" "$temporary/stderr"
+  grep -Fq "install_step: downloading axiom-1.0.0-$row.tar.gz" "$temporary/stderr"
+  grep -Fq "install_ok: verified axiom-1.0.0-$row.tar.gz" "$temporary/stderr"
+  grep -Fq "install_ok: installation complete" "$temporary/stderr"
+  grep -Fxq "Installation complete" "$temporary/stderr"
+  grep -Fq "Status        Installed" "$temporary/stderr"
+  grep -Fq "Version       v1.0.0" "$temporary/stderr"
+  grep -Fq "Location      ~/.local/bin/axiom" "$temporary/stderr"
+  grep -Fq "Documentation" "$temporary/stderr"
+  grep -Fq "https://github.com/rgomids/axiom/tree/main/docs" "$temporary/stderr"
+  grep -Fq "Next step" "$temporary/stderr"
+  grep -Fq "axiom first-run" "$temporary/stderr"
+  grep -Fq "PATH setup required" "$temporary/stderr"
+  grep -Fq '\''export PATH="$HOME/.local/bin:$PATH"'\'' "$temporary/stderr"
+  ! LC_ALL=C grep -q $'\''\033'\'' "$temporary/stderr"
   [[ $(installed_version "$home") == 1.0.0 ]]
   grep -Fxq "archiveSha256=$(asset_sha v1.0.0)" "$(receipt_of "$home")"
-  grep -Fq "path_notice: axiom is not on PATH" "$temporary/stderr"
   [[ $(cd / && env -i PATH="$home/.local/bin:/usr/bin:/bin" bash --noprofile --norc -c "type -t axiom") == file ]]
   (cd / && "$(bin_of "$home")" --json version) | grep -Fq "\"version\":\"1.0.0\",\"revision\":\"$revision12\",\"sourceState\":\"clean\""
   printf "https://github.com/rgomids/axiom/releases/download/v1.0.0/SHA256SUMS\nhttps://github.com/rgomids/axiom/releases/download/v1.0.0/axiom-1.0.0-%s.tar.gz\n" "$row" | cmp -s - "$temporary/ledger"
@@ -270,6 +322,10 @@ step same-version-reinstall-no-op bash -eo pipefail -c '
   before=$(snapshot "$home")
   run_bootstrap "$home" --version v1.0.0
   grep -Fxq "install_status=unchanged" "$temporary/stdout"
+  grep -Fxq "Axiom is already up to date" "$temporary/stderr"
+  grep -Fq "Status        Unchanged" "$temporary/stderr"
+  grep -Fq "Next step" "$temporary/stderr"
+  grep -Fq "axiom first-run" "$temporary/stderr"
   [[ $(snapshot "$home") == "$before" ]]
 '
 
@@ -280,6 +336,7 @@ step default-stable-owned-upgrade bash -eo pipefail -c '
   grep -Fxq "install_selector=channel stable" "$temporary/stdout"
   grep -Fxq "install_tag=v1.1.0" "$temporary/stdout"
   grep -Fxq "install_status=upgraded" "$temporary/stdout"
+  grep -Fq "Status        Upgraded" "$temporary/stderr"
   [[ $(installed_version "$home") == 1.1.0 ]]
   grep -Fxq "sha256=$(digest "$(bin_of "$home")")" "$(receipt_of "$home")"
   [[ ! -e "$home/.local/state/axiom/install/.axiom-install-operation" && ! -e "$home/.local/state/axiom/install/.axiom-install.lock" ]]

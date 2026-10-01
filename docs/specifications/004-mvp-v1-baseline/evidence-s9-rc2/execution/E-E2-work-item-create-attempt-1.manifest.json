@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "envelope": "E",
+  "envelopeSHA256": "84fa8b1b0f32d7c351937c096c933ca98b0e39bf19ca093e8eccdda9f2f4884a",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "E2-work-item-create",
+  "authority": "provider",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {
+    "workItemDigest": "3f1a436e5e585dcb7bcba224a82034c96536fff9f0250d759580a2cd4c58375c"
+  },
+  "startedAtUnix": 1790721509,
+  "observations": [
+    {
+      "label": "work-item-create",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "work-item",
+        "create",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--provider-repository",
+        "rgomids/axiom",
+        "--problem",
+        "The install bootstrap test still carries a synthetic mount-namespace row that declares Ubuntu 26.04, although the 2026-09-28 platform reconciliation removed any distribution/version filter from the installer.",
+        "--desired-outcome",
+        "The bootstrap test and command reference describe only real supported-row behavior: any Linux x86_64/aarch64 host, or macOS 27.0/arm64.",
+        "--context",
+        "S9 T24 dogfood against v0.1.2-rc.2 (859969a07f38). Coordinated through an Axiom Execution Graph with one Codex child and one Claude child.",
+        "--scope",
+        "scripts/test-install-bootstrap.sh and the matching paragraph of docs/commands.md only.",
+        "--constraints",
+        "No installer or product behavior change; every other bootstrap case and exit code unchanged; no new dependency.",
+        "--non-goals",
+        "Changing native Linux Evidence obligations, T24/T25 acceptance, release or promotion.",
+        "--acceptance",
+        "bash -n and ./scripts/test-install-bootstrap.sh pass; go test/vet/build, repository and sensitive-file validation pass; docs no longer mention AXIOM_TEST_SYNTHETIC_UBUNTU_ROW.",
+        "--preview-digest",
+        "3f1a436e5e585dcb7bcba224a82034c96536fff9f0250d759580a2cd4c58375c",
+        "--authorize-external"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 1.516,
+      "outputSHA256": "5ed51f0e9e86baea18986d0e42ee9e4a9de3e9060ad8bc8646e64a185d316e0a",
+      "outputBytes": 509,
+      "retainedSHA256": "5ed51f0e9e86baea18986d0e42ee9e4a9de3e9060ad8bc8646e64a185d316e0a",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/work-item-create.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "work-item-create",
+      "local": [
+        "local create-attempt fence and Work Item link"
+      ],
+      "external": [
+        "create exactly one Issue in rgomids/axiom with the seven reviewed sections (field digest 8d864d2f2c5829f9aa995c71787c90b8e520e47aee86dd9d59cc29b30ffd63c6)"
+      ],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {
+    "work-item-create.number": "125",
+    "work-item-create.url": "https://github.com/rgomids/axiom/issues/125"
+  },
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "human: PR review/merge/close; remote branch deletion after merge; Issue closure only after merge and separately authorized; lab preserved",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "envelope": "E",
+  "envelopeSHA256": "d4966153266aeddf36486180af7180281aaf1e0a96fee3ba8da419e7b1f20730",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "E8-review-start",
+  "authority": "local",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {
+    "issueNumber": "125",
+    "graphEvidenceSHA256": "879f36cc44b9c2c59ec0c1a1ff709b5c27d4addff6cf1a520b2cdde3863c75bf"
+  },
+  "startedAtUnix": 1790724345,
+  "observations": [
+    {
+      "label": "evidence-directory",
+      "argv": [
+        "/bin/mkdir",
+        "-p",
+        "-m",
+        "700",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source/.t24-evidence"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.003,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/evidence-directory.txt"
+    },
+    {
+      "label": "copy-graph-evidence",
+      "argv": [
+        "/bin/cp",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/evidence/graph-run03/acceptance-evidence.json",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source/.t24-evidence/graph-acceptance-evidence.json"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.003,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/copy-graph-evidence.txt"
+    },
+    {
+      "label": "graph-evidence-digest",
+      "argv": [
+        "/usr/bin/shasum",
+        "-a",
+        "256",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source/.t24-evidence/graph-acceptance-evidence.json"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.013,
+      "outputSHA256": "1da8dcf39670482636bfdd6b3aafa35c1a302f66c43a6312198805a0cd8cf810",
+      "outputBytes": 168,
+      "retainedSHA256": "1da8dcf39670482636bfdd6b3aafa35c1a302f66c43a6312198805a0cd8cf810",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/graph-evidence-digest.txt"
+    },
+    {
+      "label": "advance-implementation-pass",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "advance",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "8",
+        "--gate",
+        "implementation",
+        "--outcome",
+        "pass",
+        "--reference",
+        "evidence:.t24-evidence/graph-acceptance-evidence.json:879f36cc44b9c2c59ec0c1a1ff709b5c27d4addff6cf1a520b2cdde3863c75bf"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.08,
+      "outputSHA256": "7f81098a63d13cd38970578cf2ac009bc8b18dd52eaaaf7adc5e574796a5afea",
+      "outputBytes": 1606,
+      "retainedSHA256": "7f81098a63d13cd38970578cf2ac009bc8b18dd52eaaaf7adc5e574796a5afea",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/advance-implementation-pass.txt"
+    },
+    {
+      "label": "fact-review-started",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "fact",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "9",
+        "--fact",
+        "review-started",
+        "--active",
+        "--reference",
+        "evidence:.t24-evidence/graph-acceptance-evidence.json:879f36cc44b9c2c59ec0c1a1ff709b5c27d4addff6cf1a520b2cdde3863c75bf",
+        "--authorize-local"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.058,
+      "outputSHA256": "d9e2f00e91906e05c73da8909c0a1a15767509cae15aefe386951165a2480c00",
+      "outputBytes": 1712,
+      "retainedSHA256": "d9e2f00e91906e05c73da8909c0a1a15767509cae15aefe386951165a2480c00",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/fact-review-started.txt"
+    },
+    {
+      "label": "review-projection-preview",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/home/.local/bin/axiom",
+        "--json",
+        "workflow",
+        "reconcile",
+        "--project",
+        "axiom-t24-rc2",
+        "--repository",
+        "main",
+        "--number",
+        "125",
+        "--expected-revision",
+        "10"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 1.51,
+      "outputSHA256": "e7fcfbf3653c366c3d5cbe02f5bb20a4c071cb30a73072752862a94912bf85df",
+      "outputBytes": 3839,
+      "retainedSHA256": "e7fcfbf3653c366c3d5cbe02f5bb20a4c071cb30a73072752862a94912bf85df",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/review-projection-preview.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "evidence-directory",
+      "local": [
+        "untracked /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source/.t24-evidence (lab clone only; never committed)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "copy-graph-evidence",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "graph-evidence-digest",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "advance-implementation-pass",
+      "local": [
+        "workflow gate implementation pass (local transition)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "fact-review-started",
+      "local": [
+        "workflow fact review-started (local)"
+      ],
+      "external": [],
+      "status": "exit-0"
+    },
+    {
+      "label": "review-projection-preview",
+      "local": [],
+      "external": [],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {
+    "review-projection-preview.digest": "7700e63b06c7fb7d50b1cac5545ad0cb3ab64878abb515c382d8435605665162",
+    "review-projection-preview.label": "axiom:stage:reviewing",
+    "review-projection-preview.effects": [
+      {
+        "kind": "create_stage_label",
+        "value": "axiom:stage:reviewing"
+      },
+      {
+        "kind": "add_stage_label",
+        "value": "axiom:stage:reviewing"
+      },
+      {
+        "kind": "remove_stage_label",
+        "value": "axiom:stage:implementing"
+      },
+      {
+        "kind": "post_transition_comment",
+        "value": "<!-- axiom:workflow-projection:c423dda8b1d3aded56a25c7dc19c4838875836e0045a92a7ac5da0a1882c2919 -->\nAxiom lifecycle projection\n\n- Lifecycle: `reviewing`\n- Canonical gate: `review`\n- Outcome: `fact`\n- References: `evidence:.t24-evidence/graph-acceptance-evidence.json`\n\n_Axiom 0.1.2-rc.2 \u00b7 859969a07f38 \u00b7 clean \u00b7 428b87fb-2130-4a97-9d11-acc0318b1863_"
+      }
+    ]
+  },
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "human: PR review/merge/close; remote branch deletion after merge; Issue closure only after merge and separately authorized; lab preserved",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}

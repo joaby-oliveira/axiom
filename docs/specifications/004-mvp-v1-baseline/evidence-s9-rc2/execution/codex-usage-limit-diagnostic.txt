@@ -1,0 +1,16 @@
+Reading additional input from stdin...
+OpenAI Codex v0.157.1
+--------
+workdir: /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/source
+model: gpt-6-astra
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0ef5b-00d1-7e60-910e-343a0c38ca52
+--------
+user
+Reply with exactly: OK
+ERROR: You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Oct 3rd, 2026 6:02 PM.
+ERROR: You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Oct 3rd, 2026 6:02 PM.

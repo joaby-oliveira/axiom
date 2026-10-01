@@ -1,0 +1,127 @@
+{
+  "approved": true,
+  "planRevision": "t24-rc2-plan-1",
+  "planDigest": "ad253359f8a6135bf260905ed36e1eef73b60def613aef5e8e13d6e05bf9471a",
+  "maximumNodes": 3,
+  "work": [
+    {
+      "key": "codex",
+      "capability": {
+        "role": "implementation",
+        "complexity": "low",
+        "capabilities": [
+          "shell"
+        ]
+      },
+      "dependencies": null,
+      "inputs": [
+        "approved-plan"
+      ],
+      "outputs": [
+        "codex-result"
+      ],
+      "scope": {
+        "projectId": "a1664139-a520-4979-8251-e76c2cbcc345",
+        "repositoryKey": "main",
+        "paths": [
+          "scripts/test-install-bootstrap.sh"
+        ]
+      },
+      "effects": [
+        {
+          "kind": "repository-write",
+          "target": "scripts/test-install-bootstrap.sh"
+        }
+      ],
+      "validationOwner": false,
+      "integrationOwner": false,
+      "optional": false,
+      "controls": {
+        "timeout": 1200000000000,
+        "maximumAttempts": 2
+      }
+    },
+    {
+      "key": "claude",
+      "capability": {
+        "role": "documentation",
+        "complexity": "low",
+        "capabilities": [
+          "documentation"
+        ]
+      },
+      "dependencies": null,
+      "inputs": [
+        "approved-plan"
+      ],
+      "outputs": [
+        "claude-result"
+      ],
+      "scope": {
+        "projectId": "a1664139-a520-4979-8251-e76c2cbcc345",
+        "repositoryKey": "main",
+        "paths": [
+          "docs/commands.md"
+        ]
+      },
+      "effects": [
+        {
+          "kind": "repository-write",
+          "target": "docs/commands.md"
+        }
+      ],
+      "validationOwner": false,
+      "integrationOwner": false,
+      "optional": false,
+      "controls": {
+        "timeout": 1200000000000,
+        "maximumAttempts": 2
+      }
+    },
+    {
+      "key": "integration",
+      "capability": {
+        "role": "integration",
+        "complexity": "low",
+        "capabilities": [
+          "integration"
+        ]
+      },
+      "dependencies": [
+        "codex",
+        "claude"
+      ],
+      "inputs": [
+        "approved-plan"
+      ],
+      "outputs": [
+        "integration-result"
+      ],
+      "scope": {
+        "projectId": "a1664139-a520-4979-8251-e76c2cbcc345",
+        "repositoryKey": "main",
+        "paths": [
+          "scripts/test-install-bootstrap.sh",
+          "docs/commands.md"
+        ]
+      },
+      "effects": [
+        {
+          "kind": "integration",
+          "target": "scripts/test-install-bootstrap.sh"
+        },
+        {
+          "kind": "integration",
+          "target": "docs/commands.md"
+        }
+      ],
+      "validationOwner": true,
+      "integrationOwner": true,
+      "optional": false,
+      "controls": {
+        "timeout": 900000000000,
+        "maximumAttempts": 2
+      }
+    }
+  ]
+}

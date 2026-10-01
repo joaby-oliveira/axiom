@@ -1,0 +1,54 @@
+{
+  "ParentID": "bb87cc22-00ce-4bf0-9f67-ab51551a3329",
+  "IntegrationChildID": "f8dd54d6-0ac5-4e00-976e-4a7ce600bcc1",
+  "GraphRevision": 1,
+  "IntegrationAttempts": 0,
+  "TargetRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "TargetTree": "6a27615f9617ea078a68f0dfe80bbebd14e27e4a",
+  "Sources": [
+    {
+      "ParentID": "bb87cc22-00ce-4bf0-9f67-ab51551a3329",
+      "ChildID": "13cb4498-1590-4d02-9909-61731517dc3e",
+      "AttemptID": "be703863-efc1-49bc-a2ae-40e581659796",
+      "GraphRevision": 1,
+      "EnvelopeDigest": "0c046d603fee7ce0204586eada97be8aac83ddee88ef85b3d6028332f7805672",
+      "BaseRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+      "ResultTree": "4e1137152ca807142d46417b1cf29f6b500417b6",
+      "Effects": [
+        {
+          "kind": "repository-write",
+          "target": "scripts/test-install-bootstrap.sh"
+        }
+      ],
+      "Artifacts": null
+    },
+    {
+      "ParentID": "bb87cc22-00ce-4bf0-9f67-ab51551a3329",
+      "ChildID": "aaeaefdd-8abf-45f5-b7da-b9409819e454",
+      "AttemptID": "b111e0b3-a66f-4f20-bd89-4d706974d7d8",
+      "GraphRevision": 1,
+      "EnvelopeDigest": "af7220187622669255c6c77c4c99f8c81cdfc7944e738415f7801f3d70fc95d2",
+      "BaseRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+      "ResultTree": "52d632b593cdb980ba416e7b41036dcb5ad9f5d8",
+      "Effects": [
+        {
+          "kind": "repository-write",
+          "target": "docs/commands.md"
+        }
+      ],
+      "Artifacts": null
+    }
+  ],
+  "OptionalWaivers": null,
+  "Effects": [
+    {
+      "kind": "repository-write",
+      "target": "docs/commands.md"
+    },
+    {
+      "kind": "repository-write",
+      "target": "scripts/test-install-bootstrap.sh"
+    }
+  ],
+  "Digest": "5f05de36afabbe73567bdae1f0de602c4bcafd065a760b652e04078f5cc2a2bc"
+}

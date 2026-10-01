@@ -1,0 +1,1016 @@
+{
+  "schemaVersion": 2,
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "releaseId": 399403900,
+  "candidateSHA256": "84b11ddc7541d68a978d17916299c12dc0718ac15a286cfbce774fbc2aed88b2",
+  "priorCandidate": "v0.1.2-rc.1",
+  "observedAtUnix": 1790721084,
+  "scope": "local-install-and-first-run-stage-only",
+  "host": {
+    "os": "Darwin",
+    "architecture": "arm64",
+    "kernel": "27.0.0",
+    "macOSVersion": "27.0"
+  },
+  "mode": "execute-install",
+  "observations": [
+    {
+      "label": "filesystem",
+      "argv": [
+        "/usr/sbin/diskutil",
+        "info",
+        "-plist",
+        "/dev/disk3s1"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.615,
+      "outputSHA256": "c55d51688ed5f8a10804b8f617d140eb70579d3c27253426df75a01283179ae6",
+      "outputBytes": 4755,
+      "retainedSHA256": "c55d51688ed5f8a10804b8f617d140eb70579d3c27253426df75a01283179ae6",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/filesystem.txt"
+    },
+    {
+      "label": "published-metadata",
+      "argv": [
+        "/usr/bin/curl",
+        "--disable",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        "--tlsv1.2",
+        "-fsSL",
+        "--connect-timeout",
+        "20",
+        "--max-time",
+        "60",
+        "--max-filesize",
+        "65536",
+        "https://api.github.com/repos/rgomids/axiom/releases/tags/v0.1.2-rc.2"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.434,
+      "outputSHA256": "935fa1eda2e4aebf6fb47dade96a4e18331d280fa23e96af748edc511e9b2532",
+      "outputBytes": 10815,
+      "retainedSHA256": "935fa1eda2e4aebf6fb47dade96a4e18331d280fa23e96af748edc511e9b2532",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/published-metadata.txt"
+    },
+    {
+      "label": "published-latest",
+      "argv": [
+        "/usr/bin/curl",
+        "--disable",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        "--tlsv1.2",
+        "-fsSL",
+        "--connect-timeout",
+        "20",
+        "--max-time",
+        "60",
+        "--max-filesize",
+        "65536",
+        "https://api.github.com/repos/rgomids/axiom/releases/latest"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.347,
+      "outputSHA256": "f23663233b8a0e6e6e7d9aa6a528ec6c055cda45efd1c43d121c4af5dfbfa9ac",
+      "outputBytes": 10707,
+      "retainedSHA256": "f23663233b8a0e6e6e7d9aa6a528ec6c055cda45efd1c43d121c4af5dfbfa9ac",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/published-latest.txt"
+    },
+    {
+      "label": "published-tag",
+      "argv": [
+        "/usr/bin/curl",
+        "--disable",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        "--tlsv1.2",
+        "-fsSL",
+        "--connect-timeout",
+        "20",
+        "--max-time",
+        "60",
+        "--max-filesize",
+        "65536",
+        "https://api.github.com/repos/rgomids/axiom/git/ref/tags/v0.1.2-rc.2"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.439,
+      "outputSHA256": "544591b14d79b15243c24aa138953e20d34e7124f0a1ceaa212ef8d77b6e7f1e",
+      "outputBytes": 383,
+      "retainedSHA256": "544591b14d79b15243c24aa138953e20d34e7124f0a1ceaa212ef8d77b6e7f1e",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/published-tag.txt"
+    },
+    {
+      "label": "prior-published-metadata",
+      "argv": [
+        "/usr/bin/curl",
+        "--disable",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        "--tlsv1.2",
+        "-fsSL",
+        "--connect-timeout",
+        "20",
+        "--max-time",
+        "60",
+        "--max-filesize",
+        "65536",
+        "https://api.github.com/repos/rgomids/axiom/releases/tags/v0.1.2-rc.1"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.5,
+      "outputSHA256": "d03c37805c65dba6ccb93453a679435e4cc34c3bab1db78baa25a7a3d59791ca",
+      "outputBytes": 10815,
+      "retainedSHA256": "d03c37805c65dba6ccb93453a679435e4cc34c3bab1db78baa25a7a3d59791ca",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/prior-published-metadata.txt"
+    },
+    {
+      "label": "download-installer",
+      "argv": [
+        "/usr/bin/curl",
+        "--disable",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        "--tlsv1.2",
+        "-fsSL",
+        "--connect-timeout",
+        "20",
+        "--max-time",
+        "60",
+        "--max-filesize",
+        "65536",
+        "https://raw.githubusercontent.com/rgomids/axiom/main/scripts/install.sh",
+        "-o",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.327,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputBytes": 0,
+      "retainedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/download-installer.txt"
+    },
+    {
+      "label": "install",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 3.043,
+      "outputSHA256": "8f5482d2eb8f06c700871b3b81a7fe99db4ac796cfa2f82fc2ff9c3055ef44c4",
+      "outputBytes": 709,
+      "retainedSHA256": "8f5482d2eb8f06c700871b3b81a7fe99db4ac796cfa2f82fc2ff9c3055ef44c4",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/install.txt"
+    },
+    {
+      "label": "version",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/.local/bin/axiom",
+        "--json",
+        "version"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.63,
+      "outputSHA256": "14b10a3c706a98eabfb3a591a7ae151e8d8629610afeb0733d9cfa226ac2237e",
+      "outputBytes": 160,
+      "retainedSHA256": "14b10a3c706a98eabfb3a591a7ae151e8d8629610afeb0733d9cfa226ac2237e",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/version.txt"
+    },
+    {
+      "label": "first-run-neither",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/.local/bin/axiom",
+        "--json",
+        "first-run"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.006,
+      "outputSHA256": "fafd77842dc211f69ab399ff31874fb233c5157a543f99bf65a24b2b2f3aa276",
+      "outputBytes": 633,
+      "retainedSHA256": "fafd77842dc211f69ab399ff31874fb233c5157a543f99bf65a24b2b2f3aa276",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/first-run-neither.txt"
+    },
+    {
+      "label": "first-run-neither-rerun",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/.local/bin/axiom",
+        "--json",
+        "first-run"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.006,
+      "outputSHA256": "fafd77842dc211f69ab399ff31874fb233c5157a543f99bf65a24b2b2f3aa276",
+      "outputBytes": 633,
+      "retainedSHA256": "fafd77842dc211f69ab399ff31874fb233c5157a543f99bf65a24b2b2f3aa276",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/first-run-neither-rerun.txt"
+    },
+    {
+      "label": "reinstall",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 2.598,
+      "outputSHA256": "fb952b68e7fdb68d1e75351a33e77235fff7e78f6a412730979cf3b99b9db652",
+      "outputBytes": 709,
+      "retainedSHA256": "fb952b68e7fdb68d1e75351a33e77235fff7e78f6a412730979cf3b99b9db652",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/reinstall.txt"
+    },
+    {
+      "label": "first-run-codex",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/.local/bin/axiom",
+        "--json",
+        "first-run"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.019,
+      "outputSHA256": "247dda2e1f4648edc721ad9c1ba85fc6c7fcd77f3d032d687078c56bb9532643",
+      "outputBytes": 1313,
+      "retainedSHA256": "247dda2e1f4648edc721ad9c1ba85fc6c7fcd77f3d032d687078c56bb9532643",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/first-run-codex.txt"
+    },
+    {
+      "label": "first-run-claude",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/.local/bin/axiom",
+        "--json",
+        "first-run"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.02,
+      "outputSHA256": "d22c15e7e1e1623c670d5fef67ddc7210bb244e0072f98644a97ade6e5232ce2",
+      "outputBytes": 1314,
+      "retainedSHA256": "d22c15e7e1e1623c670d5fef67ddc7210bb244e0072f98644a97ade6e5232ce2",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/first-run-claude.txt"
+    },
+    {
+      "label": "first-run-both",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/.local/bin/axiom",
+        "--json",
+        "first-run"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.034,
+      "outputSHA256": "1f43dac4387ff1d136dd7fed943998716efd9470338b9e6362231a65a6169e45",
+      "outputBytes": 2030,
+      "retainedSHA256": "1f43dac4387ff1d136dd7fed943998716efd9470338b9e6362231a65a6169e45",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/first-run-both.txt"
+    },
+    {
+      "label": "first-run-both-rerun",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/main/.local/bin/axiom",
+        "--json",
+        "first-run"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.013,
+      "outputSHA256": "5b49d70597a9365b5cd0902c7b5593bb87773af3b91a5f8deafee203fbbeb2a5",
+      "outputBytes": 2078,
+      "retainedSHA256": "5b49d70597a9365b5cd0902c7b5593bb87773af3b91a5f8deafee203fbbeb2a5",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/first-run-both-rerun.txt"
+    },
+    {
+      "label": "foreign-refused",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "attempt": 1,
+      "exitCode": 1,
+      "timedOut": false,
+      "durationSeconds": 1.612,
+      "outputSHA256": "f09aad62e4290632049ce52f060f66a3105c75901b36eb48ebc860f080ea6dfc",
+      "outputBytes": 294,
+      "retainedSHA256": "f09aad62e4290632049ce52f060f66a3105c75901b36eb48ebc860f080ea6dfc",
+      "outputTruncated": false,
+      "expected": "failure",
+      "retainedOutput": "artifacts/foreign-refused.txt"
+    },
+    {
+      "label": "modified-clean-install",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 1.972,
+      "outputSHA256": "800137787d63e205af5c907d69deea8fb4eb32dba36d1114cedf91eb06220db8",
+      "outputBytes": 721,
+      "retainedSHA256": "800137787d63e205af5c907d69deea8fb4eb32dba36d1114cedf91eb06220db8",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/modified-clean-install.txt"
+    },
+    {
+      "label": "modified-refused",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "attempt": 1,
+      "exitCode": 1,
+      "timedOut": false,
+      "durationSeconds": 2.568,
+      "outputSHA256": "45fc6c018b229a679ea0dc1c1022a21ba0d2ca7808dcb5657492d0e9e1a032bd",
+      "outputBytes": 295,
+      "retainedSHA256": "45fc6c018b229a679ea0dc1c1022a21ba0d2ca7808dcb5657492d0e9e1a032bd",
+      "outputTruncated": false,
+      "expected": "failure",
+      "retainedOutput": "artifacts/modified-refused.txt"
+    },
+    {
+      "label": "unsafe-refused",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "attempt": 1,
+      "exitCode": 1,
+      "timedOut": false,
+      "durationSeconds": 6.129,
+      "outputSHA256": "54dc1b4492328cd5258c5068510bd611a2e85bcbcb0452a6b810f0793982e4c0",
+      "outputBytes": 325,
+      "retainedSHA256": "54dc1b4492328cd5258c5068510bd611a2e85bcbcb0452a6b810f0793982e4c0",
+      "outputTruncated": false,
+      "expected": "failure",
+      "retainedOutput": "artifacts/unsafe-refused.txt"
+    },
+    {
+      "label": "upgrade-prior-install",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.1"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 3.907,
+      "outputSHA256": "fdd9beb540484134edd64925218147afb96c083ff93fa1dc89b970f52c7641e0",
+      "outputBytes": 718,
+      "retainedSHA256": "fdd9beb540484134edd64925218147afb96c083ff93fa1dc89b970f52c7641e0",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/upgrade-prior-install.txt"
+    },
+    {
+      "label": "upgrade-owned",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.2"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 2.821,
+      "outputSHA256": "de96e25733ec6f6797a47e45baeac498fab8af84ad3a7454ddecddfd68dd1b2d",
+      "outputBytes": 717,
+      "retainedSHA256": "de96e25733ec6f6797a47e45baeac498fab8af84ad3a7454ddecddfd68dd1b2d",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/upgrade-owned.txt"
+    },
+    {
+      "label": "upgrade-version",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/homes/upgrade/.local/bin/axiom",
+        "--json",
+        "version"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 0.116,
+      "outputSHA256": "14b10a3c706a98eabfb3a591a7ae151e8d8629610afeb0733d9cfa226ac2237e",
+      "outputBytes": 160,
+      "retainedSHA256": "14b10a3c706a98eabfb3a591a7ae151e8d8629610afeb0733d9cfa226ac2237e",
+      "outputTruncated": false,
+      "expected": "success",
+      "retainedOutput": "artifacts/upgrade-version.txt"
+    },
+    {
+      "label": "downgrade-refused",
+      "argv": [
+        "/bin/sh",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/evidence/A2-macos-arm64/artifacts/remote-install.sh",
+        "--version",
+        "v0.1.2-rc.1"
+      ],
+      "attempt": 1,
+      "exitCode": 1,
+      "timedOut": false,
+      "durationSeconds": 2.65,
+      "outputSHA256": "7a4e451ad7b489f738e5f20a31b08daa6f56ff37c8c7dd166891f359e864beb2",
+      "outputBytes": 345,
+      "retainedSHA256": "7a4e451ad7b489f738e5f20a31b08daa6f56ff37c8c7dd166891f359e864beb2",
+      "outputTruncated": false,
+      "expected": "failure",
+      "retainedOutput": "artifacts/downgrade-refused.txt"
+    }
+  ],
+  "t24": "blocked",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "runtimeInvocation": "not performed",
+  "providerMutation": "not performed",
+  "executionIDs": [],
+  "cleanupDisposition": "Evidence and isolated HOMEs retained; no deletion",
+  "limitations": [
+    "No complete native acceptance row",
+    "No real Codex/Claude invocation, GitHub journey or dogfood graph",
+    "No Runtime/Provider failure, recovery or native S7 suite in this stage"
+  ],
+  "envelopeSHA256": "3b9402355280bd1f0cd7cc8ac7eb8dfa20487bf5d5b74da594e507ad702e318a",
+  "plannedSteps": [
+    "filesystem",
+    "published-metadata",
+    "published-latest",
+    "published-tag",
+    "prior-published-metadata",
+    "download-installer",
+    "install",
+    "version",
+    "first-run-neither",
+    "first-run-neither-rerun",
+    "reinstall",
+    "first-run-codex",
+    "first-run-claude",
+    "first-run-both",
+    "first-run-both-rerun",
+    "foreign-refused",
+    "modified-clean-install",
+    "modified-refused",
+    "unsafe-refused",
+    "upgrade-prior-install",
+    "upgrade-owned",
+    "upgrade-version",
+    "downgrade-refused"
+  ],
+  "initialRootInventory": [],
+  "results": {
+    "filesystem": {
+      "filesystem": "APFS",
+      "caseInsensitive": true
+    },
+    "published-metadata": {
+      "id": 399403900,
+      "tag_name": "v0.1.2-rc.2",
+      "target_commitish": "859969a07f3807822580431a05b6c78b07691fb1",
+      "immutable": true,
+      "prerelease": true,
+      "draft": false,
+      "assets": {
+        "axiom-0.1.2-rc.2-linux-amd64.tar.gz": "sha256:2e33522fa25c944855457a86dae222237d9293c47f90edd9f347ec7ed1d94dcb",
+        "axiom-0.1.2-rc.2-linux-arm64.tar.gz": "sha256:cc30bc528e2a16fe8b5c55de2a7d6cf924a41d366e37783ee30c0e13819185dc",
+        "axiom-0.1.2-rc.2-macos-27-arm64.tar.gz": "sha256:5a18fbbb6db0c2479758ee8e1d912247f8bdb3f05134609611c79d5e243127bb",
+        "SHA256SUMS": "sha256:372baf0587515c8dcb079066ba0e6dfc92544d1291347aed6217068fe14f82ea"
+      }
+    },
+    "published-latest": {
+      "tag_name": "v0.1.1",
+      "prerelease": false
+    },
+    "prior-published-metadata": {
+      "id": 398805148,
+      "tag_name": "v0.1.2-rc.1",
+      "target_commitish": "f73d6d0c951dd40c5cc97c3794ad7ee5607092b5",
+      "immutable": true,
+      "prerelease": true,
+      "draft": false,
+      "assets": {
+        "axiom-0.1.2-rc.1-linux-amd64.tar.gz": "sha256:aa26c3808541cb2f8ee82baa21212fe86f8055eef27ff9d92e00550c514ac949",
+        "axiom-0.1.2-rc.1-linux-arm64.tar.gz": "sha256:58ed74526e82703d72a60a02905df180aeadc5e742fd5e93f179a306500883fc",
+        "axiom-0.1.2-rc.1-macos-27-arm64.tar.gz": "sha256:a474ae70e09d85065831c601afe0e500957cdbeaabc1febbc8a73bf63d53339d",
+        "SHA256SUMS": "sha256:d8442bc6f4ff53a26ca29640c5613b951d9c47f06c217b23649000b388213f55"
+      }
+    },
+    "download-installer": "3bf39863f4c542f04181ec9e76e86b587ec64cfb26e905a80be875ad87558dc7",
+    "install": {
+      "tag": "v0.1.2-rc.2",
+      "asset": "axiom-0.1.2-rc.2-macos-27-arm64.tar.gz",
+      "assetSHA256": "5a18fbbb6db0c2479758ee8e1d912247f8bdb3f05134609611c79d5e243127bb",
+      "row": "macos-27-arm64",
+      "receiptSHA256": "b2a4b25567769d1f22016cfdd44f8ce1c7fa0ce81bb7cb86928c42f4425216a4",
+      "binarySHA256": "74322ae23322603ab7585f814dfb6c59697c44931de8fe82ad9686577e3eac6d"
+    },
+    "version": {
+      "product": "Axiom",
+      "version": "0.1.2-rc.2",
+      "revision": "859969a07f38",
+      "sourceState": "clean"
+    },
+    "first-run-neither": {
+      "report": {
+        "detected": 0,
+        "failed": 0,
+        "runtimes": [
+          {
+            "runtime": "codex",
+            "executable": "codex",
+            "present": false,
+            "configurationWithoutExecutable": false,
+            "state": "absent",
+            "reason": "codex_absent"
+          },
+          {
+            "runtime": "claude",
+            "executable": "claude",
+            "present": false,
+            "configurationWithoutExecutable": false,
+            "state": "absent",
+            "reason": "claude_absent"
+          }
+        ]
+      },
+      "userGlobalSkills": {
+        "codex": {},
+        "claude": {}
+      }
+    },
+    "first-run-neither-rerun": {
+      "report": {
+        "detected": 0,
+        "failed": 0,
+        "runtimes": [
+          {
+            "runtime": "codex",
+            "executable": "codex",
+            "present": false,
+            "configurationWithoutExecutable": false,
+            "state": "absent",
+            "reason": "codex_absent"
+          },
+          {
+            "runtime": "claude",
+            "executable": "claude",
+            "present": false,
+            "configurationWithoutExecutable": false,
+            "state": "absent",
+            "reason": "claude_absent"
+          }
+        ]
+      },
+      "userGlobalSkills": {
+        "codex": {},
+        "claude": {}
+      }
+    },
+    "first-run-codex": {
+      "report": {
+        "detected": 1,
+        "failed": 0,
+        "runtimes": [
+          {
+            "runtime": "codex",
+            "executable": "codex",
+            "present": true,
+            "configurationWithoutExecutable": false,
+            "state": "configured",
+            "reason": "codex_configured",
+            "skillSetVersion": "2",
+            "skills": [
+              {
+                "name": "axiom-project-configure",
+                "sha256": "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-project-show",
+                "sha256": "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-create",
+                "sha256": "85e4f4badff647a337acf59e96d07909c9a3c47ce5e8df65fac08395c8aac8c4",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-run",
+                "sha256": "3856374198506e8d6628dc76dda6058229382346115dca3a838a9bfb439f60d9",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-status",
+                "sha256": "6a139090ff66759b64e630181373c32ff51ad2672d90d26184b6f81e9879b7d9",
+                "state": "equivalent"
+              }
+            ]
+          },
+          {
+            "runtime": "claude",
+            "executable": "claude",
+            "present": false,
+            "configurationWithoutExecutable": false,
+            "state": "absent",
+            "reason": "claude_absent"
+          }
+        ]
+      },
+      "userGlobalSkills": {
+        "codex": {
+          ".agents/skills/axiom-project-configure/SKILL.md": "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3",
+          ".agents/skills/axiom-project-show/SKILL.md": "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09",
+          ".agents/skills/axiom-work-item-create/SKILL.md": "85e4f4badff647a337acf59e96d07909c9a3c47ce5e8df65fac08395c8aac8c4",
+          ".agents/skills/axiom-work-item-run/SKILL.md": "3856374198506e8d6628dc76dda6058229382346115dca3a838a9bfb439f60d9",
+          ".agents/skills/axiom-work-item-status/SKILL.md": "6a139090ff66759b64e630181373c32ff51ad2672d90d26184b6f81e9879b7d9"
+        },
+        "claude": {}
+      }
+    },
+    "first-run-claude": {
+      "report": {
+        "detected": 1,
+        "failed": 0,
+        "runtimes": [
+          {
+            "runtime": "codex",
+            "executable": "codex",
+            "present": false,
+            "configurationWithoutExecutable": false,
+            "state": "absent",
+            "reason": "codex_absent"
+          },
+          {
+            "runtime": "claude",
+            "executable": "claude",
+            "present": true,
+            "configurationWithoutExecutable": false,
+            "state": "configured",
+            "reason": "claude_configured",
+            "skillSetVersion": "2",
+            "skills": [
+              {
+                "name": "axiom-project-configure",
+                "sha256": "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-project-show",
+                "sha256": "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-create",
+                "sha256": "85e4f4badff647a337acf59e96d07909c9a3c47ce5e8df65fac08395c8aac8c4",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-run",
+                "sha256": "3856374198506e8d6628dc76dda6058229382346115dca3a838a9bfb439f60d9",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-status",
+                "sha256": "6a139090ff66759b64e630181373c32ff51ad2672d90d26184b6f81e9879b7d9",
+                "state": "equivalent"
+              }
+            ]
+          }
+        ]
+      },
+      "userGlobalSkills": {
+        "codex": {},
+        "claude": {
+          ".claude/skills/axiom-project-configure/SKILL.md": "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3",
+          ".claude/skills/axiom-project-show/SKILL.md": "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09",
+          ".claude/skills/axiom-work-item-create/SKILL.md": "85e4f4badff647a337acf59e96d07909c9a3c47ce5e8df65fac08395c8aac8c4",
+          ".claude/skills/axiom-work-item-run/SKILL.md": "3856374198506e8d6628dc76dda6058229382346115dca3a838a9bfb439f60d9",
+          ".claude/skills/axiom-work-item-status/SKILL.md": "6a139090ff66759b64e630181373c32ff51ad2672d90d26184b6f81e9879b7d9"
+        }
+      }
+    },
+    "first-run-both": {
+      "report": {
+        "detected": 2,
+        "failed": 0,
+        "runtimes": [
+          {
+            "runtime": "codex",
+            "executable": "codex",
+            "present": true,
+            "configurationWithoutExecutable": false,
+            "state": "configured",
+            "reason": "codex_configured",
+            "skillSetVersion": "2",
+            "skills": [
+              {
+                "name": "axiom-project-configure",
+                "sha256": "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-project-show",
+                "sha256": "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-create",
+                "sha256": "85e4f4badff647a337acf59e96d07909c9a3c47ce5e8df65fac08395c8aac8c4",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-run",
+                "sha256": "3856374198506e8d6628dc76dda6058229382346115dca3a838a9bfb439f60d9",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-status",
+                "sha256": "6a139090ff66759b64e630181373c32ff51ad2672d90d26184b6f81e9879b7d9",
+                "state": "equivalent"
+              }
+            ]
+          },
+          {
+            "runtime": "claude",
+            "executable": "claude",
+            "present": true,
+            "configurationWithoutExecutable": false,
+            "state": "configured",
+            "reason": "claude_configured",
+            "skillSetVersion": "2",
+            "skills": [
+              {
+                "name": "axiom-project-configure",
+                "sha256": "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-project-show",
+                "sha256": "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-create",
+                "sha256": "85e4f4badff647a337acf59e96d07909c9a3c47ce5e8df65fac08395c8aac8c4",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-run",
+                "sha256": "3856374198506e8d6628dc76dda6058229382346115dca3a838a9bfb439f60d9",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-status",
+                "sha256": "6a139090ff66759b64e630181373c32ff51ad2672d90d26184b6f81e9879b7d9",
+                "state": "equivalent"
+              }
+            ]
+          }
+        ]
+      },
+      "userGlobalSkills": {
+        "codex": {
+          ".agents/skills/axiom-project-configure/SKILL.md": "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3",
+          ".agents/skills/axiom-project-show/SKILL.md": "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09",
+          ".agents/skills/axiom-work-item-create/SKILL.md": "85e4f4badff647a337acf59e96d07909c9a3c47ce5e8df65fac08395c8aac8c4",
+          ".agents/skills/axiom-work-item-run/SKILL.md": "3856374198506e8d6628dc76dda6058229382346115dca3a838a9bfb439f60d9",
+          ".agents/skills/axiom-work-item-status/SKILL.md": "6a139090ff66759b64e630181373c32ff51ad2672d90d26184b6f81e9879b7d9"
+        },
+        "claude": {
+          ".claude/skills/axiom-project-configure/SKILL.md": "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3",
+          ".claude/skills/axiom-project-show/SKILL.md": "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09",
+          ".claude/skills/axiom-work-item-create/SKILL.md": "85e4f4badff647a337acf59e96d07909c9a3c47ce5e8df65fac08395c8aac8c4",
+          ".claude/skills/axiom-work-item-run/SKILL.md": "3856374198506e8d6628dc76dda6058229382346115dca3a838a9bfb439f60d9",
+          ".claude/skills/axiom-work-item-status/SKILL.md": "6a139090ff66759b64e630181373c32ff51ad2672d90d26184b6f81e9879b7d9"
+        }
+      }
+    },
+    "first-run-both-rerun": {
+      "report": {
+        "detected": 2,
+        "failed": 0,
+        "runtimes": [
+          {
+            "runtime": "codex",
+            "executable": "codex",
+            "present": true,
+            "configurationWithoutExecutable": false,
+            "state": "already_configured",
+            "reason": "codex_already_configured",
+            "skillSetVersion": "2",
+            "skills": [
+              {
+                "name": "axiom-project-configure",
+                "sha256": "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-project-show",
+                "sha256": "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-create",
+                "sha256": "85e4f4badff647a337acf59e96d07909c9a3c47ce5e8df65fac08395c8aac8c4",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-run",
+                "sha256": "3856374198506e8d6628dc76dda6058229382346115dca3a838a9bfb439f60d9",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-status",
+                "sha256": "6a139090ff66759b64e630181373c32ff51ad2672d90d26184b6f81e9879b7d9",
+                "state": "equivalent"
+              }
+            ]
+          },
+          {
+            "runtime": "claude",
+            "executable": "claude",
+            "present": true,
+            "configurationWithoutExecutable": false,
+            "state": "already_configured",
+            "reason": "claude_already_configured",
+            "skillSetVersion": "2",
+            "skills": [
+              {
+                "name": "axiom-project-configure",
+                "sha256": "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-project-show",
+                "sha256": "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-create",
+                "sha256": "85e4f4badff647a337acf59e96d07909c9a3c47ce5e8df65fac08395c8aac8c4",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-run",
+                "sha256": "3856374198506e8d6628dc76dda6058229382346115dca3a838a9bfb439f60d9",
+                "state": "equivalent"
+              },
+              {
+                "name": "axiom-work-item-status",
+                "sha256": "6a139090ff66759b64e630181373c32ff51ad2672d90d26184b6f81e9879b7d9",
+                "state": "equivalent"
+              }
+            ]
+          }
+        ]
+      },
+      "userGlobalSkills": {
+        "codex": {
+          ".agents/skills/axiom-project-configure/SKILL.md": "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3",
+          ".agents/skills/axiom-project-show/SKILL.md": "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09",
+          ".agents/skills/axiom-work-item-create/SKILL.md": "85e4f4badff647a337acf59e96d07909c9a3c47ce5e8df65fac08395c8aac8c4",
+          ".agents/skills/axiom-work-item-run/SKILL.md": "3856374198506e8d6628dc76dda6058229382346115dca3a838a9bfb439f60d9",
+          ".agents/skills/axiom-work-item-status/SKILL.md": "6a139090ff66759b64e630181373c32ff51ad2672d90d26184b6f81e9879b7d9"
+        },
+        "claude": {
+          ".claude/skills/axiom-project-configure/SKILL.md": "b0d16b482ca3a08c20f8c5d7154573db825a563f458b3bf5284570fa263e4ad3",
+          ".claude/skills/axiom-project-show/SKILL.md": "048975860d658e8134eb498c7cd5158104338a2629dd8a8cda4a2ecb0bb99c09",
+          ".claude/skills/axiom-work-item-create/SKILL.md": "85e4f4badff647a337acf59e96d07909c9a3c47ce5e8df65fac08395c8aac8c4",
+          ".claude/skills/axiom-work-item-run/SKILL.md": "3856374198506e8d6628dc76dda6058229382346115dca3a838a9bfb439f60d9",
+          ".claude/skills/axiom-work-item-status/SKILL.md": "6a139090ff66759b64e630181373c32ff51ad2672d90d26184b6f81e9879b7d9"
+        }
+      }
+    },
+    "foreign-refused": {
+      "refused": true,
+      "inventoryUnchanged": true
+    },
+    "modified-clean-install": {
+      "tag": "v0.1.2-rc.2",
+      "asset": "axiom-0.1.2-rc.2-macos-27-arm64.tar.gz",
+      "assetSHA256": "5a18fbbb6db0c2479758ee8e1d912247f8bdb3f05134609611c79d5e243127bb",
+      "row": "macos-27-arm64",
+      "receiptSHA256": "86df4aba35b4b7908583ad473dd64547b73ee489e14df2906aa40735b4552e2b",
+      "binarySHA256": "74322ae23322603ab7585f814dfb6c59697c44931de8fe82ad9686577e3eac6d"
+    },
+    "modified-refused": {
+      "refused": true,
+      "inventoryUnchanged": true
+    },
+    "unsafe-refused": {
+      "refused": true,
+      "inventoryUnchanged": true
+    },
+    "upgrade-prior-install": {
+      "tag": "v0.1.2-rc.1",
+      "asset": "axiom-0.1.2-rc.1-macos-27-arm64.tar.gz",
+      "assetSHA256": "a474ae70e09d85065831c601afe0e500957cdbeaabc1febbc8a73bf63d53339d",
+      "row": "macos-27-arm64",
+      "receiptSHA256": "8be2cf7723d565eb4c89fc513c56cc5be5f5c1cf08e591d0f8f2ce58d455996d",
+      "binarySHA256": "c7a843db5500014276d7e01f27911bc98bbaeeb86668700d9d56d0fd5d21e4d0"
+    },
+    "upgrade-owned": {
+      "tag": "v0.1.2-rc.2",
+      "asset": "axiom-0.1.2-rc.2-macos-27-arm64.tar.gz",
+      "assetSHA256": "5a18fbbb6db0c2479758ee8e1d912247f8bdb3f05134609611c79d5e243127bb",
+      "row": "macos-27-arm64",
+      "receiptSHA256": "f4b35c0bd94274443bf48f32051df5cdf4dd83cd1cb0902f984eece8aac05e45",
+      "binarySHA256": "74322ae23322603ab7585f814dfb6c59697c44931de8fe82ad9686577e3eac6d"
+    },
+    "upgrade-version": {
+      "product": "Axiom",
+      "version": "0.1.2-rc.2",
+      "revision": "859969a07f38",
+      "sourceState": "clean"
+    },
+    "downgrade-refused": {
+      "refused": true,
+      "inventoryUnchanged": true
+    }
+  },
+  "stageResult": "local-steps-confirmed; full-acceptance-blocked"
+}

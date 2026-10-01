@@ -15,15 +15,90 @@ collector = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(collector)
 
 
+DESCRIPTORS = {
+    "v0.1.2-rc.2": ("859969a07f3807822580431a05b6c78b07691fb1", 399403900),
+    "v0.1.2-rc.1": ("f73d6d0c951dd40c5cc97c3794ad7ee5607092b5", 398805148),
+}
+EVIDENCE = Path(__file__).resolve().parents[1] / "docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2"
+CANDIDATE = EVIDENCE / "candidate-v0.1.2-rc.2.json"
+PRIOR = EVIDENCE / "prior-candidate-v0.1.2-rc.1.json"
+TAG = "v0.1.2-rc.2"
+
+
+def load(path):
+    return collector.load_candidate(path, "test")[0]
+
+
 class CollectorSafety(unittest.TestCase):
-    def invoke(self, root, execute=False):
-        argv = ["collector", "--version", collector.TAG, "--evidence-dir", str(root)]
+    def invoke(self, root, execute=False, extra=()):
+        argv = ["collector", "--version", TAG, "--candidate", str(CANDIDATE), "--evidence-dir", str(root), *extra]
         if execute:
-            self.invoke(root)
+            self.invoke(root, extra=extra)
             envelope = collector.digest((root / "envelope.json").read_bytes())
             argv += ["--execute-install", "--approved-envelope-sha256", envelope]
         with patch("sys.argv", argv), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             return collector.main()
+
+    def test_reviewed_descriptors_are_the_exact_candidates(self):
+        for path in (CANDIDATE, PRIOR):
+            value = load(path)
+            self.assertEqual((value["sourceRevision"], value["releaseId"]), DESCRIPTORS[value["tag"]])
+
+    def test_collector_hardcodes_no_candidate_identity(self):
+        source = Path(collector.__file__).read_text()
+        self.assertIsNone(collector.re.search(r"[0-9a-f]{40}", source))
+        self.assertNotIn("rc.1", source)
+        self.assertNotIn("rc.2", source)
+
+    def test_floating_or_mismatched_selectors_are_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for version in ("rc", "--channel", "v0.1.2", "v0.1.2-rc.1"):
+                argv = ["collector", "--version", version, "--candidate", str(CANDIDATE),
+                        "--evidence-dir", str(Path(directory) / "evidence")]
+                with patch("sys.argv", argv), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                    collector.main()
+            self.assertFalse((Path(directory) / "evidence").exists())
+
+    def test_invalid_descriptor_and_newer_prior_are_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            value = load(CANDIDATE)
+            del value["assets"]["SHA256SUMS"]
+            broken = Path(directory) / "broken.json"
+            broken.write_text(json.dumps(value))
+            cases = [["--candidate", str(broken)], ["--candidate", str(CANDIDATE), "--prior-candidate", str(CANDIDATE)]]
+            for case in cases:
+                argv = ["collector", "--version", TAG, *case, "--evidence-dir", str(Path(directory) / "evidence")]
+                with patch("sys.argv", argv), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                    collector.main()
+            self.assertFalse((Path(directory) / "evidence").exists())
+
+    def test_refusal_steps_pass_only_by_failing(self):
+        self.assertTrue(collector.expected_outcome(0, False, "success"))
+        self.assertFalse(collector.expected_outcome(0, False, "failure"))
+        self.assertTrue(collector.expected_outcome(1, False, "failure"))
+        self.assertFalse(collector.expected_outcome(1, False, "success"))
+        self.assertFalse(collector.expected_outcome(1, True, "failure"))
+
+    def test_plan_materializes_runtime_detection_without_execution(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Path(directory) / "codex-real"
+            runtime.write_bytes(b"not executed")
+            root = Path(directory) / "evidence"
+            located = lambda name, path=None: str(runtime) if name == "codex" and path is None else None
+            with patch.object(collector.shutil, "which", side_effect=located), patch.object(collector.subprocess, "Popen") as process:
+                self.assertEqual(self.invoke(root, extra=["--prior-candidate", str(PRIOR)]), 0)
+                process.assert_not_called()
+            envelope = json.loads((root / "envelope.json").read_text())
+            labels = [step["label"] for step in envelope["steps"]]
+            self.assertIn("first-run-codex", labels)
+            self.assertNotIn("first-run-claude", labels)
+            self.assertIn("downgrade-refused", labels)
+            self.assertTrue(all("--channel" not in step["argv"] for step in envelope["steps"]))
+            installs = [step["argv"] for step in envelope["steps"] if step["argv"][0] == "/bin/sh"]
+            self.assertEqual({argv[-1] for argv in installs}, {TAG, "v0.1.2-rc.1"})
+            self.assertEqual(envelope["runtimeExecutables"]["codex"]["sha256"], collector.digest(b"not executed"))
+            record = json.loads((root / "manifest.json").read_text())
+            self.assertTrue(any("claude, both" in item for item in record["limitations"]))
 
     def test_plan_makes_no_process_or_installation(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -34,7 +109,7 @@ class CollectorSafety(unittest.TestCase):
             record = json.loads((root / "manifest.json").read_text())
             self.assertEqual(record["observations"], [])
             self.assertEqual(record["t24"], "blocked")
-            self.assertFalse((root / "isolated-home").exists())
+            self.assertFalse((root / "homes/main").exists())
 
     def test_existing_evidence_and_symlink_are_preserved(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -55,7 +130,7 @@ class CollectorSafety(unittest.TestCase):
             self.invoke(root)
             envelope = collector.digest((root / "envelope.json").read_bytes())
             (root / "envelope.json").write_text("drift")
-            argv = ["collector", "--version", collector.TAG, "--evidence-dir", str(root),
+            argv = ["collector", "--version", TAG, "--candidate", str(CANDIDATE), "--evidence-dir", str(root),
                     "--execute-install", "--approved-envelope-sha256", envelope]
             with patch("sys.argv", argv), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 collector.main()
@@ -100,15 +175,16 @@ class CollectorSafety(unittest.TestCase):
             record = json.loads((root / "manifest.json").read_text())
             self.assertEqual(len(calls), 1)
             self.assertEqual(record["observations"][-1]["exitCode"], 23)
-            self.assertFalse((root / "isolated-home/.local").exists())
+            self.assertFalse((root / "homes/main/.local").exists())
             self.assertEqual(record["stageResult"], "failed")
 
     def test_official_short_revision_provenance(self):
-        event = {"status": "success", "provenance": {"product": "Axiom", "version": collector.TAG[1:],
-                 "revision": collector.REVISION[:12], "sourceState": "clean"}}
-        self.assertTrue(collector.valid_provenance(event))
-        event["provenance"]["revision"] = "foreign"
-        self.assertFalse(collector.valid_provenance(event))
+        candidate = load(CANDIDATE)
+        event = {"status": "success", "provenance": {"product": "Axiom", "version": TAG[1:],
+                 "revision": candidate["sourceRevision"][:12], "sourceState": "clean"}}
+        self.assertTrue(collector.valid_provenance(event, candidate))
+        event["provenance"]["revision"] = load(PRIOR)["sourceRevision"][:12]
+        self.assertFalse(collector.valid_provenance(event, candidate))
 
     def test_timeout_after_stdout_closes_is_recorded(self):
         class TimeoutProcess:
@@ -146,7 +222,7 @@ class CollectorSafety(unittest.TestCase):
             record = json.loads((root / "manifest.json").read_text())
             self.assertEqual(record["observations"][0]["outputBytes"], 100000)
             self.assertTrue(record["observations"][0]["outputTruncated"])
-            self.assertEqual((root / "artifacts/published-metadata.txt").stat().st_size, 65536)
+            self.assertEqual((root / "artifacts/filesystem.txt").stat().st_size, 65536)
 
     def test_capture_error_stops_group_and_prevents_next_command(self):
         calls = []

@@ -180,3 +180,19 @@ refused with zero effects.
 3. Only then a new `v0.1.2-rc.2` (or next RC number) flow, prepared from a
    revision that contains the correction: the publish workflow runs the
    revision's own `publish-release.sh`.
+
+## Resolution — 2026-09-29 (read-back, T24 session)
+
+The incident is resolved. The fix merged as
+[PR #123](https://github.com/rgomids/axiom/pull/123) (`859969a07f3807822580431a05b6c78b07691fb1`,
+"keep draft identity and fail closed on orphan releases") and
+[Issue #122](https://github.com/rgomids/axiom/issues/122) is closed.
+`GET /releases/399339376` now returns 404. Publication run
+[36609926942](https://github.com/rgomids/axiom/actions/runs/36609926942)
+(`success`, head `859969a…`) published release `399403900`: tag
+`v0.1.2-rc.2` → `859969a…`, `prerelease=true`, `immutable=true`, four assets,
+`latest` still `v0.1.1`. `./scripts/release.sh verify --tag v0.1.2-rc.2 --download`
+passed. Read-back records: [evidence-s9-rc2](evidence-s9-rc2/README.md).
+**T23 for `v0.1.2-rc.2`: PUBLISHED AND VERIFIED.** This section records
+read-back only; the authorization of that publication run happened outside
+this session.

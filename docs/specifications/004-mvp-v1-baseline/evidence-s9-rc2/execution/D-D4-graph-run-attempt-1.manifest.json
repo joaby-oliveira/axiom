@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "envelope": "D",
+  "envelopeSHA256": "8a62b3c2b028322c7f960b0d40e79a9f10406cb6764e5566fec4853c5c2770a7",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "D4-graph-run",
+  "authority": "runtime",
+  "attempt": 1,
+  "maxAttempts": 2,
+  "approvals": {
+    "parentId": "67b02fc9-e4df-4e58-9a2e-bf843c11faec",
+    "runEnvelopeDigest": "01074fa070ac5e5eb995fe8ce21e4bc72094d0134871cc2fc80dec1e4065408f"
+  },
+  "startedAtUnix": 1790721672,
+  "observations": [
+    {
+      "label": "graph-run",
+      "argv": [
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/bin/t24-graph-runner",
+        "run",
+        "--spec",
+        "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling/docs/specifications/004-mvp-v1-baseline/evidence-s9-rc2/envelopes/D-graph-spec.json",
+        "--parent",
+        "67b02fc9-e4df-4e58-9a2e-bf843c11faec",
+        "--run-envelope-sha256",
+        "01074fa070ac5e5eb995fe8ce21e4bc72094d0134871cc2fc80dec1e4065408f"
+      ],
+      "attempt": 1,
+      "exitCode": 1,
+      "timedOut": false,
+      "durationSeconds": 54.885,
+      "outputSHA256": "e54869833a5dc6669083f44cc3c1ae026cf9dc3af22d9ac5f7d3347e0d65c5e2",
+      "outputBytes": 260,
+      "retainedSHA256": "e54869833a5dc6669083f44cc3c1ae026cf9dc3af22d9ac5f7d3347e0d65c5e2",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey",
+      "expected": "success",
+      "retainedOutput": "artifacts/graph-run.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "graph-run",
+      "local": [
+        "git worktrees under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/workspaces",
+        "graph attempts, coordination and Integration state under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/state",
+        "combined validators inside the integration worktree",
+        "Evidence under /Users/rgomids/Projects/axiom-t24-rc2-lab/journey/evidence/graph"
+      ],
+      "external": [
+        "one Codex and one Claude model session (children), concurrent when dependencies permit"
+      ],
+      "status": "exit-1"
+    }
+  ],
+  "captures": {},
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; worktrees, state and Evidence preserved (preserve_pending_human_review); no automatic deletion",
+  "limitations": [
+    "graph-run: exit 1, expected success"
+  ],
+  "stageResult": "failed"
+}

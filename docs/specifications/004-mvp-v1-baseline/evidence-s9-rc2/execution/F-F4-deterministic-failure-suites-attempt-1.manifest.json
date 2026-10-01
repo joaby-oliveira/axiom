@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "envelope": "F",
+  "envelopeSHA256": "cc5415f0b9b3c923300cdf7f1d89b336472fcb9cdecf489e271b13678baa8318",
+  "rcTag": "v0.1.2-rc.2",
+  "sourceRevision": "859969a07f3807822580431a05b6c78b07691fb1",
+  "phase": "F4-deterministic-failure-suites",
+  "authority": "local",
+  "attempt": 1,
+  "maxAttempts": 1,
+  "approvals": {},
+  "startedAtUnix": 1790722135,
+  "observations": [
+    {
+      "label": "failure-suites",
+      "argv": [
+        "/Users/rgomids/.local/go/bin/go",
+        "test",
+        "./internal/executiongraph/...",
+        "./internal/graphapplication/...",
+        "./internal/coordination/...",
+        "./internal/workflow/...",
+        "./internal/githubissues/...",
+        "./internal/workitem/...",
+        "./internal/install/...",
+        "./cmd/lingo/...",
+        "-count=1"
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationSeconds": 27.031,
+      "outputSHA256": "27ef6ed643710ca6a12fca1dae94529b45acb3ed0730186437f6fab6608fb921",
+      "outputBytes": 454,
+      "retainedSHA256": "27ef6ed643710ca6a12fca1dae94529b45acb3ed0730186437f6fab6608fb921",
+      "outputTruncated": false,
+      "cwd": "/Users/rgomids/Projects/axiom-t24-rc2-lab/journey/tooling",
+      "expected": "success",
+      "retainedOutput": "artifacts/failure-suites.txt"
+    }
+  ],
+  "effects": [
+    {
+      "label": "failure-suites",
+      "local": [
+        "test caches under the lab"
+      ],
+      "external": [],
+      "status": "exit-0"
+    }
+  ],
+  "captures": {},
+  "t24": "in-progress; not complete",
+  "t25": "blocked",
+  "humanDecision": "PENDING",
+  "cleanupOwnership": "operator; if F2 stops between remove and restore, the human restores the label (recorded) before any other projection",
+  "limitations": [],
+  "stageResult": "phase-steps-confirmed; T24 not complete"
+}
