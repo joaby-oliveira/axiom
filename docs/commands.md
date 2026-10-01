@@ -431,12 +431,19 @@ installer (see above). Defaults are `--bin-dir $HOME/.local/bin` and
 binary directory must be yours, not a symlink, not writable by group or other,
 and without extended ACLs (a usual `0755` `~/.local/bin` is accepted); an
 existing receipt directory must be yours, mode `0700` and without extended
-ACLs. Otherwise pass another absolute canonical directory. It prints the resolved identity
-(`install_tag`, `install_asset`, `install_asset_sha256`, `install_row`,
-`install_revision`, receipt path) and, when the binary directory is not on
-`PATH`, a `path_notice` with the export to run. It never uses `sudo`, edits
-shell profiles or `PATH`, installs Runtimes, or touches credentials. Release
-acceptance (T24) pins `--version vX.Y.Z-rc.N`.
+ACLs. Otherwise pass another absolute canonical directory. It prints the resolved
+identity (`install_tag`, `install_asset`, `install_asset_sha256`, `install_row`,
+`install_revision`, receipt path) on stdout for automation. Human presentation
+goes to stderr with the Axiom mascot ASCII logo, progress/status headings, and
+actionable diagnostics. On success, stderr ends with a short human summary that
+shows the real status (`Installed`, `Upgraded`, or `Unchanged`), installed
+version, binary location, documentation URL, and the next command when useful.
+If the binary directory is not on `PATH`, that summary includes the export to
+run for the current shell. ANSI color is used only for an attached non-dumb
+terminal and is disabled by `NO_COLOR`; captured or non-color terminals remain
+plain text. It never uses `sudo`, edits shell profiles or `PATH`, installs
+Runtimes, or touches credentials. Release acceptance (T24) pins
+`--version vX.Y.Z-rc.N`.
 
 Test the matrix with a fake `curl` and local release fixtures (no live GitHub):
 
