@@ -21,16 +21,20 @@ var allowed = map[string]string{
 	"context":         "Context Background WithCancel Canceled",
 	"crypto/sha256":   "Sum256",
 	"encoding/binary": "BigEndian",
+	"encoding/hex":    "EncodeToString",
+	"encoding/json":   "Marshal",
 	"errors":          "Is New",
 	"sort":            "Slice",
 	"strings":         "ContainsAny HasPrefix Split Contains",
 	"sync":            "Mutex",
 	"sync/atomic":     "Bool",
+	"path/filepath":   "Clean IsAbs",
 	"time":            "Time Unix",
 	"reflect":         "DeepEqual",
 	"testing":         "T",
 	"unicode/utf8":    "ValidString",
-	"github.com/rgomids/axiom/internal/project": "Project State Issue New Configured BusinessContext Declaration Repository Provider Runtime Integration ModelProfile CredentialReference Intent Set ValidSlug Absent",
+	"github.com/rgomids/axiom/internal/project":  "Project State Issue New Configured BusinessContext Declaration Repository Provider Runtime Integration ModelProfile CredentialReference Intent Set ValidSlug Absent NotConfigured Unconfigured",
+	"github.com/rgomids/axiom/internal/manifest": "Codec",
 }
 
 func main() {
@@ -69,7 +73,7 @@ func check(path string) {
 		if _, ok := allowed[name]; !ok {
 			fail("non-allowlisted application import: " + name)
 		}
-		if (name == "testing" || name == "reflect" || name == "sync") && !strings.HasSuffix(path, "_test.go") {
+		if (name == "testing" || name == "reflect" || name == "sync" || name == "github.com/rgomids/axiom/internal/manifest") && !strings.HasSuffix(path, "_test.go") {
 			fail("test-only helper imported by production application")
 		}
 		imports[filepath.Base(name)] = name

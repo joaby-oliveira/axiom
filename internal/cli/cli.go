@@ -80,6 +80,14 @@ type ConfigureInput struct {
 	WorkItemProvider      string
 	PreviewDigest         string
 	AuthorizeLocal        bool
+	// Project is the EDIT selector; its presence selects EDIT and its absence
+	// keeps CREATE. Supplied flags retain omission so application preserves
+	// existing values; presentation never merges Project state.
+	Project                  string
+	NameSupplied             bool
+	WorkItemProviderSupplied bool
+	RemoveWorkItemProvider   bool
+	RemoveRepositories       []string
 }
 type WorkItemInput struct {
 	Project, Repository, WorkItem            string
@@ -126,6 +134,7 @@ type Result struct {
 	Workflow   *WorkflowView
 	Completion *completion.Result
 	Setup      *projectapp.SetupPreview
+	Edit       *projectapp.EditPreview
 	Runtime    *RuntimeView
 	Bootstrap  *BootstrapView
 	Draft      *workitem.DraftPreview
@@ -242,7 +251,8 @@ func RunInteractive(ctx context.Context, args []string, service Service, source 
 		if !ok {
 			return emitParserFailure(stdout, mode, configureAction, "invalid_input", source)
 		}
-		if values.slug == "" || values.name == "" || len(values.repositories) == 0 || !flagSupplied(args[2:], "--work-item-provider") {
+		// Guided EDIT asks nothing: omission already means preservation.
+		if !values.projectSupplied && configureRequestIssue(values) != "invalid_input" && (values.slug == "" || values.name == "" || len(values.repositories) == 0 || !flagSupplied(args[2:], "--work-item-provider")) {
 			return runInteractiveConfiguration(ctx, mode, args[2:], service, stdin, stdout, stderr)
 		}
 	}
@@ -272,7 +282,7 @@ func RunInteractive(ctx context.Context, args []string, service Service, source 
 	}
 	operation, input, result := request(args, service)
 	if result != nil {
-		if operation == validateAction || operation == showAction || selectorAction(operation) || *result == "invalid_input" && (operation == configureAction || operation == resolveAction) {
+		if operation == validateAction || operation == showAction || selectorAction(operation) || *result == "invalid_input" && (operation == configureAction || operation == resolveAction) || *result == "unsupported_edit_authority" {
 			return emitParserFailure(stdout, mode, operation, *result, source)
 		}
 		return emit(stdout, mode, event{Operation: operation, Status: Failed, Category: *result})
@@ -311,6 +321,9 @@ func parserFailureText(operation action, issue string) (string, string) {
 	if operation == runtimeProfileValidateAction {
 		return "Runtime profile validation input is invalid", "Run runtime profile validate without flags or arguments"
 	}
+	if issue == "unsupported_edit_authority" {
+		return "Project edit publication is not available", "Remove --project-id, --preview-digest, and --authorize-local; edit only previews"
+	}
 	if issue == "invalid_input" && (operation == showAction || operation == resolveAction || operation == configureAction) {
 		return "Explicit selector input is invalid", "Remove unknown, duplicate, or conflicting inputs and retry"
 	}
@@ -343,6 +356,9 @@ func emitResponse(writer io.Writer, mode outputMode, operation action, response 
 		}
 		if response.Setup != nil {
 			return emitSetupCompletion(writer, mode, *response.Completion, *response.Setup)
+		}
+		if response.Edit != nil {
+			return emitEditCompletion(writer, mode, *response.Completion, *response.Edit)
 		}
 		if response.Runtime != nil {
 			return emitRuntimeCompletion(writer, mode, *response.Completion, *response.Runtime)
@@ -398,7 +414,12 @@ type requestInput struct {
 	source                                   string
 	selector                                 string
 	repositories                             repositoryFlags
+	removeRepositories                       repositoryFlags
 	workItemProvider                         string
+	removeWorkItemProvider                   bool
+	projectSupplied, slugSupplied            bool
+	nameSupplied, providerSupplied           bool
+	replaySupplied                           bool
 	previewDigest                            string
 	project, repository, workItem, execution string
 	providerRepository                       string
@@ -476,8 +497,11 @@ func request(args []string, service Service) (action, requestInput, *string) {
 	if (operation == resolveAction || operation == showAction) && values.selector == "" {
 		return operation, values, category("missing_required_input")
 	}
-	if operation == configureAction && (values.slug == "" || values.name == "" || len(values.repositories) == 0) {
-		return operation, values, category("missing_required_input")
+	if operation == configureAction {
+		if issue := configureRequestIssue(values); issue != "" {
+			return operation, values, category(issue)
+		}
+		return operation, values, nil
 	}
 	if operation != initAction && operation != installAction && operation != resolveAction && operation != showAction && values.slug == "" {
 		return operation, values, category("missing_required_input")
@@ -566,14 +590,71 @@ func flags(operation action, args []string) (requestInput, bool) {
 		set.StringVar(&values.workItemProvider, "work-item-provider", "", "")
 		set.StringVar(&values.previewDigest, "preview-digest", "", "")
 		set.BoolVar(&values.authorizeLocal, "authorize-local", false, "")
+		set.StringVar(&values.project, "project", "", "")
+		set.BoolVar(&values.removeWorkItemProvider, "remove-work-item-provider", false, "")
+		set.Var(&values.removeRepositories, "remove-repository", "")
 	}
-	if invalidFlagSyntax(set, args, map[string]bool{"repository": true}) {
+	if invalidFlagSyntax(set, args, map[string]bool{"repository": true, "remove-repository": true}) {
 		return requestInput{}, false
 	}
 	if err := set.Parse(args); err != nil || set.NArg() != 0 {
 		return requestInput{}, false
 	}
+	set.Visit(func(current *flag.Flag) {
+		switch current.Name {
+		case "project":
+			values.projectSupplied = true
+		case "slug":
+			values.slugSupplied = true
+		case "name":
+			values.nameSupplied = true
+		case "work-item-provider":
+			values.providerSupplied = true
+		case "project-id", "preview-digest", "authorize-local":
+			values.replaySupplied = true
+		}
+	})
 	return values, true
+}
+
+// configureRequestIssue validates presence and conflicting operations only.
+// Value validation and every merge rule belong to the application layer.
+func configureRequestIssue(values requestInput) string {
+	if !values.projectSupplied {
+		if values.removeWorkItemProvider || len(values.removeRepositories) != 0 {
+			return "invalid_input"
+		}
+		if values.slug == "" || values.name == "" || len(values.repositories) == 0 {
+			return "missing_required_input"
+		}
+		return ""
+	}
+	// EDIT replay/publication is not delivered (I132-T02), so its inputs fail
+	// here, before any selector resolution or state read.
+	if values.replaySupplied {
+		return "unsupported_edit_authority"
+	}
+	// EDIT: rename is out of scope, the CREATE-only `none` alias is not a
+	// removal spelling, and set/remove of one target cannot be combined.
+	if values.project == "" || values.slugSupplied || values.providerSupplied && (values.removeWorkItemProvider || values.workItemProvider == "none") {
+		return "invalid_input"
+	}
+	upserts, ok := parseRepositories(values.repositories)
+	if !ok {
+		return "invalid_input"
+	}
+	keys := map[string]bool{}
+	for _, upsert := range upserts {
+		keys[upsert.Key] = true
+	}
+	removed := map[string]bool{}
+	for _, key := range values.removeRepositories {
+		if key == "" || keys[key] || removed[key] {
+			return "invalid_input"
+		}
+		removed[key] = true
+	}
+	return ""
 }
 
 func workItemFlags(operation action, args []string) (requestInput, bool) {
@@ -766,6 +847,14 @@ func dispatch(ctx context.Context, operation action, input requestInput, service
 		repositories, ok := parseRepositories(input.repositories)
 		if !ok {
 			return Result{Status: Failed, Category: "invalid_input"}
+		}
+		if input.projectSupplied {
+			return service.Configure(ctx, ConfigureInput{
+				ProjectID: input.projectID, Project: input.project, Name: input.name, NameSupplied: input.nameSupplied,
+				WorkItemProvider: input.workItemProvider, WorkItemProviderSupplied: input.providerSupplied, RemoveWorkItemProvider: input.removeWorkItemProvider,
+				Repositories: repositories, RemoveRepositories: append([]string(nil), input.removeRepositories...),
+				PreviewDigest: input.previewDigest, AuthorizeLocal: input.authorizeLocal,
+			})
 		}
 		provider := input.workItemProvider
 		if provider == "none" {

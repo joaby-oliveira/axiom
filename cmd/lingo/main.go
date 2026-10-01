@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -17,7 +16,6 @@ import (
 	"github.com/rgomids/axiom/internal/githubissues"
 	"github.com/rgomids/axiom/internal/local"
 	"github.com/rgomids/axiom/internal/manifest"
-	"github.com/rgomids/axiom/internal/project"
 	"github.com/rgomids/axiom/internal/projectapp"
 	"github.com/rgomids/axiom/internal/provenance"
 	"github.com/rgomids/axiom/internal/workflow"
@@ -211,10 +209,7 @@ func (r workItemResolver) Resolve(ctx context.Context, selector string) (workite
 	if err != nil || !portable.Exists || portable.Snapshot.Project().State().ID != resolved.Project.ID {
 		return workitem.Project{}, "invalid_project_capability_state"
 	}
-	state := portable.Snapshot.Project().State()
-	providers, providersConfigured := state.Providers.Value()
-	integrations, integrationsConfigured := state.Integrations.Value()
-	if !providersConfigured || !integrationsConfigured || !githubWorkItemCapability(providers, integrations) {
+	if !projectapp.GitHubWorkItemCapability(portable.Snapshot.Project().State()) {
 		return workitem.Project{}, "work_item_capability_unavailable"
 	}
 	project := workitem.Project{ID: resolved.Project.ID, Provider: "github", Repositories: make([]workitem.Repository, 0, len(resolved.Project.Repositories))}
@@ -222,31 +217,6 @@ func (r workItemResolver) Resolve(ctx context.Context, selector string) (workite
 		project.Repositories = append(project.Repositories, workitem.Repository{Key: repository.Key, Path: repository.Path})
 	}
 	return project, ""
-}
-
-func githubWorkItemCapability(providers []project.Provider, integrations []project.Integration) bool {
-	providerReady := false
-	for _, provider := range providers {
-		if provider.Key == "work-items" && provider.ID == "github" {
-			providerReady = true
-		}
-	}
-	if !providerReady {
-		return false
-	}
-	for _, integration := range integrations {
-		provider, configured := integration.ProviderRef.Value()
-		capabilities, declared := integration.Capabilities.Value()
-		if integration.Key != "work-items" || !configured || provider != "work-items" || !declared {
-			continue
-		}
-		for _, capability := range capabilities {
-			if capability == projectapp.WorkItemCapability {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func (r workflowResolver) Resolve(ctx context.Context, selector string) (workflow.Project, string) {
@@ -407,6 +377,12 @@ func projectView(project local.ResolvedProject) *cli.ProjectView {
 	return view
 }
 func (s lifecycleService) Configure(ctx context.Context, input cli.ConfigureInput) cli.Result {
+	if input.Project != "" {
+		return s.configureEdit(ctx, input)
+	}
+	if input.RemoveWorkItemProvider || len(input.RemoveRepositories) != 0 {
+		return canonicalCompletion(completion.Facts{ValidationFailed: true}, "Project setup input is invalid", nil, "Removal applies only to an existing Project selected with --project", s.provenance)
+	}
 	repositories := make([]projectapp.SetupRepository, 0, len(input.Repositories))
 	for _, repository := range input.Repositories {
 		cleanPath := filepath.Clean(repository.Path)
@@ -420,14 +396,12 @@ func (s lifecycleService) Configure(ctx context.Context, input cli.ConfigureInpu
 	if err != nil && !errors.Is(err, projectapp.ErrNotFound) {
 		return canonicalCompletion(completion.Facts{Failed: true}, "Project setup inspection failed", nil, "Inspect portable Project state before retrying", s.provenance)
 	}
-	projectID := input.ProjectID
+	// CREATE never reuses, adopts, or edits an existing Project: a configured
+	// slug is a terminal collision even when every supplied value is equivalent.
 	if portableObservation.Exists {
-		existingID := portableObservation.Snapshot.Project().State().ID
-		if projectID != "" && projectID != existingID {
-			return canonicalCompletion(completion.Facts{ValidationFailed: true}, "Project identity conflicts with existing state", nil, "Use the existing Project identity or a different slug", s.provenance)
-		}
-		projectID = existingID
+		return canonicalCompletion(completion.Facts{ValidationFailed: true}, "Project slug is already configured", nil, "Choose a different slug, or select the existing Project with --project to preview an edit", s.provenance)
 	}
+	projectID := input.ProjectID
 	if projectID == "" {
 		allocated, issues := (local.IdentityAllocator{}).NewID()
 		if len(issues) != 0 {
@@ -438,6 +412,11 @@ func (s lifecycleService) Configure(ctx context.Context, input cli.ConfigureInpu
 	localObservation, category := s.installation.Inspect(ctx, projectID)
 	if category != "" {
 		return canonicalCompletion(completion.Facts{ValidationFailed: true}, "Local Project state is not safe to configure", nil, "Inspect preserved local state before retrying", s.provenance)
+	}
+	// A supplied --project-id that is already installed names another Project;
+	// CREATE never reuses or adopts an existing identity.
+	if localObservation.Exists {
+		return canonicalCompletion(completion.Facts{ValidationFailed: true}, "Project identity is already configured", nil, "Omit --project-id to allocate a new identity, or select the existing Project with --project to preview an edit", s.provenance)
 	}
 	observation := projectapp.SetupObservation{
 		PortableDestination: filepath.Join(s.projectsRoot, input.Slug),
@@ -450,7 +429,6 @@ func (s lifecycleService) Configure(ctx context.Context, input cli.ConfigureInpu
 	if len(issues) != 0 {
 		return canonicalCompletion(completion.Facts{ValidationFailed: true}, "Project setup input is invalid", nil, "Correct Project identity, repositories, or capability declaration", s.provenance)
 	}
-	observation.PortableEquivalent = portableObservation.Exists && portableObservation.Snapshot.Project().Equivalent(proposal.Project())
 	desiredSnapshot, snapshotIssues := projectapp.ReadSnapshot(manifest.Codec{}, proposal.Manifest(), nil)
 	if len(snapshotIssues) != 0 {
 		return canonicalCompletion(completion.Facts{Failed: true}, "Project setup proposal could not be encoded", nil, "Review application availability before retrying", s.provenance)
@@ -459,21 +437,10 @@ func (s lifecycleService) Configure(ctx context.Context, input cli.ConfigureInpu
 	if len(recordIssues) != 0 {
 		return canonicalCompletion(completion.Facts{ValidationFailed: true}, "Local Project proposal is invalid", nil, "Correct Repository bindings and retry", s.provenance)
 	}
-	desiredWire, encodeIssues := local.EncodeRecord(desiredRecord)
-	if len(encodeIssues) != 0 {
+	if _, encodeIssues := local.EncodeRecord(desiredRecord); len(encodeIssues) != 0 {
 		return canonicalCompletion(completion.Facts{Failed: true}, "Local Project proposal could not be encoded", nil, "Review application availability before retrying", s.provenance)
 	}
-	observation.LocalEquivalent = localObservation.Exists && bytes.Equal(localObservation.Wire, desiredWire)
-	proposal, issues = projectapp.PrepareSetup(manifest.Codec{}, setupInput, observation)
-	if len(issues) != 0 {
-		return canonicalCompletion(completion.Facts{Failed: true}, "Project setup proposal failed", nil, "Retry Project setup", s.provenance)
-	}
 	preview := proposal.Preview()
-	if portableObservation.Exists && !observation.PortableEquivalent {
-		result := canonicalCompletion(completion.Facts{ValidationFailed: true}, "Project setup conflicts with existing portable state", nil, "Choose a different slug or use an explicit Project update", s.provenance)
-		result.Setup = &preview
-		return result
-	}
 	if !input.AuthorizeLocal {
 		next := "Review preview, then repeat with --project-id, --preview-digest, and --authorize-local"
 		if len(preview.Effects) == 0 {
@@ -526,6 +493,125 @@ func (s lifecycleService) Configure(ctx context.Context, input cli.ConfigureInpu
 	result := canonicalCompletion(completion.Facts{Completed: true}, message, []string{"project:" + projectID}, next, s.provenance)
 	result.Setup = &preview
 	return result
+}
+
+// configureEdit exposes only the zero-write EDIT preview. No EDIT publication
+// or replay path exists, so replay/authority inputs fail before any read.
+func (s lifecycleService) configureEdit(ctx context.Context, input cli.ConfigureInput) cli.Result {
+	if input.Slug != "" {
+		return canonicalCompletion(completion.Facts{ValidationFailed: true}, "Project edit input is invalid", nil, "Remove --slug; Project rename is not supported", s.provenance)
+	}
+	if input.ProjectID != "" || input.PreviewDigest != "" || input.AuthorizeLocal {
+		return canonicalCompletion(completion.Facts{ValidationFailed: true}, "Project edit publication is not available", nil, "Remove --project-id, --preview-digest, and --authorize-local; edit only previews", s.provenance)
+	}
+	intent := projectapp.EditIntent{
+		Selector:               input.Project,
+		Name:                   projectapp.OptionalText{Supplied: input.NameSupplied, Value: input.Name},
+		WorkItemProvider:       projectapp.OptionalText{Supplied: input.WorkItemProviderSupplied, Value: input.WorkItemProvider},
+		RemoveWorkItemProvider: input.RemoveWorkItemProvider,
+		RepositoryRemovals:     append([]string(nil), input.RemoveRepositories...),
+	}
+	for _, repository := range input.Repositories {
+		intent.RepositoryUpserts = append(intent.RepositoryUpserts, projectapp.RepositoryUpsert{Key: repository.Key, Path: repository.Path})
+	}
+	ports := projectapp.EditPorts{
+		Source:    editSource{installation: s.installation, portable: s.portable, stateRoot: s.stateRoot},
+		Checkouts: local.DirectoryObserver{}, Manifest: manifest.Codec{}, Local: local.RecordCodec{},
+	}
+	proposal, failure := projectapp.PreviewEdit(ctx, ports, intent)
+	if failure != projectapp.EditOK {
+		return editFailure(failure, s.provenance)
+	}
+	preview := proposal.Preview()
+	next := "Review the complete preview; edit publication is not available in this build"
+	if len(preview.Effects) == 0 {
+		next = "No change is required"
+	}
+	result := canonicalCompletion(completion.Facts{Completed: true}, "Project edit preview ready", []string{"project:" + preview.ProjectID}, next, s.provenance)
+	result.Edit = &preview
+	return result
+}
+
+func editFailure(failure projectapp.EditFailure, source provenance.Value) cli.Result {
+	facts := completion.Facts{ValidationFailed: true}
+	message, next := "Project edit input is invalid", "Correct conflicting or invalid edit operations and retry"
+	switch failure {
+	case projectapp.EditProjectNotFound:
+		message, next = "Project was not found", "Provide the UUID or slug of an existing Project; edit never creates a Project"
+	case projectapp.EditProjectAmbiguous:
+		message, next = "Project selector is ambiguous", "Select the Project by its UUID"
+	case projectapp.EditUnknownRepository:
+		message, next = "Repository to remove is not configured", "Remove only configured Repository keys"
+	case projectapp.EditRepositoryUnavailable:
+		message, next = "Repository path is unavailable", "Provide an existing absolute non-link Repository path"
+	case projectapp.EditCandidateInvalid:
+		message, next = "Resulting Project configuration is invalid", "Adjust the edit so the complete Project remains valid"
+	case projectapp.EditStateUnsafe:
+		facts, message, next = completion.Facts{Failed: true}, "Selected Project state is not safe to edit", "Inspect preserved portable and local state before retrying"
+	case projectapp.EditRecoveryRequired:
+		facts, message, next = completion.Facts{Failed: true}, "Selected Project state requires recovery", "Inspect and recover preserved state before editing"
+	case projectapp.EditCancelled:
+		facts, message, next = completion.Facts{WasInterrupted: true}, "Project edit preview was cancelled", "Retry the edit preview"
+	case projectapp.EditUnavailable:
+		facts, message, next = completion.Facts{Failed: true}, "Project edit is unavailable", "Review application availability before retrying"
+	}
+	return canonicalCompletion(facts, message, nil, next, source)
+}
+
+// editSource selects exactly one installed Project and loads its protected
+// local record plus the recorded portable source it names. It does not check
+// binding availability so a broken binding can be repaired or removed.
+type editSource struct {
+	installation local.InstallationStore
+	portable     local.PortableStore
+	stateRoot    string
+}
+
+func (e editSource) SelectForEdit(ctx context.Context, selector string) (projectapp.EditSelection, projectapp.EditFailure) {
+	selected := e.installation.Select(ctx, selector)
+	if selected.Status != local.ResolutionFound {
+		return projectapp.EditSelection{}, editSelectionFailure(selected.Category)
+	}
+	observation, category := e.installation.Inspect(ctx, selected.Project.ID)
+	if category != "" {
+		return projectapp.EditSelection{}, editSelectionFailure(category)
+	}
+	if !observation.Exists {
+		return projectapp.EditSelection{}, projectapp.EditStateUnsafe
+	}
+	state := observation.Record.State()
+	// Source confinement: read only the exact portable source the protected
+	// record names, through the same safe loading rules used to install it.
+	portable, err := e.portable.InspectRecordedSource(ctx, state.SourceLocation, state.ObservedSlug)
+	switch {
+	case ctx.Err() != nil:
+		return projectapp.EditSelection{}, projectapp.EditCancelled
+	case errors.Is(err, projectapp.ErrRecoveryRequired):
+		return projectapp.EditSelection{}, projectapp.EditRecoveryRequired
+	case err != nil || !portable.Exists:
+		return projectapp.EditSelection{}, projectapp.EditStateUnsafe
+	}
+	return projectapp.EditSelection{
+		Portable: portable.Snapshot, Local: local.ApplicationRecord(observation.Record), LocalWire: observation.Wire,
+		PortableDestination: state.SourceLocation, LocalDestination: filepath.Join(e.stateRoot, "projects", state.ProjectID),
+		PortableRevision: portable.Revision, LocalRevision: observation.Revision,
+	}, projectapp.EditOK
+}
+
+func editSelectionFailure(category string) projectapp.EditFailure {
+	switch category {
+	case "project_not_found":
+		return projectapp.EditProjectNotFound
+	case "project_ambiguous":
+		return projectapp.EditProjectAmbiguous
+	case "invalid_project_selector":
+		return projectapp.EditInvalidIntent
+	case "cancelled":
+		return projectapp.EditCancelled
+	case "recovery_required":
+		return projectapp.EditRecoveryRequired
+	}
+	return projectapp.EditStateUnsafe
 }
 
 func (s lifecycleService) WorkItemCreate(ctx context.Context, input cli.WorkItemInput) cli.Result {

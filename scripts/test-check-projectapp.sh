@@ -28,10 +28,12 @@ check_case fail 'package projectapp_test; import "os/exec"; func impure() { _ = 
 check_case fail 'package projectapp_test; import "os"; func impure() { _ = os.WriteFile("synthetic", nil, 0600) }'
 check_case fail 'package projectapp_test; import "testing"; func TestImpure(t *testing.T) { _ = t.TempDir() }'
 check_case fail 'package projectapp_test; import "time"; func impure() { _ = time.Now() }'
+check_case fail 'package projectapp_test; import "path/filepath"; func impure() { _, _ = filepath.Abs("synthetic") }'
+check_case fail 'package projectapp_test; import "encoding/json"; func unreviewed() { _ = json.Valid(nil) }'
 check_case fail 'package projectapp_test; import "reflect"; func impure() { _ = reflect.ValueOf(1) }'
 check_case fail 'package projectapp_test; import alias "strings"; func pure() { _ = alias.TrimSpace("text") }'
 check_case fail 'package projectapp_test; import "github.com/rgomids/axiom/internal/local"; var _ = local.Store'
 check_case fail 'package projectapp_test; import "unsafe"; var _ unsafe.Pointer'
 check_case fail 'package projectapp_test; //go:linkname escape runtime.escape'
 
-printf 'PASS: application checker accepts inward domain dependency and pure UTF-8 validation; rejects twelve unreviewed symbol, ambient I/O, outward dependency and bypass fixtures without executing them\n'
+printf 'PASS: application checker accepts inward domain dependency and pure UTF-8 validation; rejects fourteen unreviewed symbol, ambient I/O, outward dependency and bypass fixtures without executing them\n'

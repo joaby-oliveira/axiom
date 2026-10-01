@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/rgomids/axiom/internal/completion"
 	"github.com/rgomids/axiom/internal/projectapp"
@@ -277,6 +278,67 @@ func emitSetupCompletion(writer io.Writer, mode outputMode, result completion.Re
 		return ExitFailure
 	}
 	content = append(content, '\n')
+	written, err := writer.Write(content)
+	if err != nil || written != len(content) {
+		return ExitFailure
+	}
+	return completionExitCode(result.Status())
+}
+
+type editCompletionEvent struct {
+	completionEvent
+	Edit projectapp.EditPreview `json:"edit"`
+}
+
+// An EDIT preview carries the complete portable manifest, so it uses the
+// larger bounded preview budget rather than the summary-only limit.
+func emitEditCompletion(writer io.Writer, mode outputMode, result completion.Result, edit projectapp.EditPreview) int {
+	if writer == nil || !result.Valid() {
+		return ExitFailure
+	}
+	var content []byte
+	if mode == humanOutput {
+		content = renderCompletionHuman(result)
+		var extra bytes.Buffer
+		fmt.Fprintf(&extra, "mode: %s\n", edit.Mode)
+		fmt.Fprintf(&extra, "preview-digest: %s\n", edit.Digest)
+		fmt.Fprintf(&extra, "project: %s [%s] name=%q\n", edit.Slug, edit.ProjectID, edit.Name)
+		fmt.Fprintf(&extra, "portable-destination: %s revision=%s\n", edit.PortableDestination, edit.PortableRevision)
+		fmt.Fprintf(&extra, "local-destination: %s revision=%s\n", edit.LocalDestination, edit.LocalRevision)
+		fmt.Fprintf(&extra, "capability: %s provider=%s readiness=%s\n", edit.Capability.Capability, edit.Capability.Provider, edit.Capability.Readiness)
+		for _, repository := range edit.Repositories {
+			fmt.Fprintf(&extra, "repository: %s change=%s", repository.Key, repository.Change)
+			if repository.LocalPath != "" {
+				fmt.Fprintf(&extra, " local=%q", repository.LocalPath)
+			}
+			if repository.LocalRevision != "" {
+				fmt.Fprintf(&extra, " revision=%s", repository.LocalRevision)
+			}
+			extra.WriteString("\n")
+		}
+		for _, effect := range edit.Effects {
+			fmt.Fprintf(&extra, "effect: %s %s", effect.Scope, effect.Code)
+			if effect.Key != "" {
+				fmt.Fprintf(&extra, " key=%s", effect.Key)
+			}
+			extra.WriteString("\n")
+		}
+		extra.WriteString("portable-manifest:\n")
+		for _, line := range strings.Split(strings.TrimSuffix(edit.PortableManifest, "\n"), "\n") {
+			fmt.Fprintf(&extra, "  %s\n", line)
+		}
+		content = append(content, extra.Bytes()...)
+	} else {
+		base := completionEvent{Status: result.Status(), Result: result.Result().String(), References: result.References(), Next: result.Next().String(), Details: result.Details(), Provenance: provenanceEvent{Product: result.Provenance().Product(), Version: result.Provenance().Version(), Revision: result.Provenance().Revision(), SourceState: result.Provenance().SourceState()}}
+		encoded, err := marshalWorkItemValue(editCompletionEvent{completionEvent: base, Edit: edit}, false)
+		if err != nil {
+			return ExitFailure
+		}
+		content = encoded
+	}
+	if len(content) > maxWorkItemPreviewOutputBytes {
+		return ExitFailure
+	}
 	written, err := writer.Write(content)
 	if err != nil || written != len(content) {
 		return ExitFailure

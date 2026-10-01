@@ -75,6 +75,52 @@ func TestResolveProjectReportsMovedRepository(t *testing.T) {
 	}
 }
 
+// Issue #132: EDIT selection is separate from binding availability so a broken
+// binding can be repaired, while unknown and ambiguous selectors still fail.
+func TestSelectSeparatesSelectionFromBindingAvailability(t *testing.T) {
+	stateRoot := filepath.Join(t.TempDir(), "state")
+	service, err := NewInstallationStore(stateRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "123e4567-e89b-42d3-a456-426614174000"
+	repository := privateDirectory(t, "repository")
+	writeResolutionRecord(t, stateRoot, recordForResolution(id, "sample", privateDirectory(t, "portable"), []projectapp.RepositoryBinding{binding("main", repository)}))
+	if err := os.Remove(repository); err != nil {
+		t.Fatal(err)
+	}
+	if result := service.Resolve(context.Background(), "sample"); result.Category != "repository_unavailable" {
+		t.Fatalf("resolve must keep availability validation: %#v", result)
+	}
+	for _, selector := range []string{"sample", id} {
+		result := service.Select(context.Background(), selector)
+		if result.Status != ResolutionFound || result.Project.ID != id || result.Project.Slug != "sample" {
+			t.Fatalf("select %q = %#v", selector, result)
+		}
+	}
+	if result := service.Select(context.Background(), "unknown"); result.Category != "project_not_found" {
+		t.Fatalf("unknown selection = %#v", result)
+	}
+	writeResolutionRecord(t, stateRoot, recordForResolution("123e4567-e89b-42d3-a456-426614174001", "sample", privateDirectory(t, "other"), nil))
+	if result := service.Select(context.Background(), "sample"); result.Category != "project_ambiguous" {
+		t.Fatalf("ambiguous selection = %#v", result)
+	}
+}
+
+func TestRecordCodecEncodesApplicationRecordLosslessly(t *testing.T) {
+	record := recordForResolution("123e4567-e89b-42d3-a456-426614174000", "sample", "/portable/sample", []projectapp.RepositoryBinding{binding("main", "/work/main")})
+	state := ApplicationRecord(record)
+	wire, issues := RecordCodec{}.EncodeLocal(state)
+	expected, encodeIssues := EncodeRecord(record)
+	if len(issues) != 0 || len(encodeIssues) != 0 || string(wire) != string(expected) {
+		t.Fatalf("codec wire mismatch: %v %v", issues, encodeIssues)
+	}
+	state.Repositories = append(state.Repositories, state.Repositories[0])
+	if _, issues := (RecordCodec{}).EncodeLocal(state); len(issues) == 0 {
+		t.Fatal("duplicate binding candidate was encoded")
+	}
+}
+
 func recordForResolution(id, slug, source string, repositories []projectapp.RepositoryBinding) Record {
 	digest := [32]byte{1}
 	record, issues := NewRecord(RecordState{
